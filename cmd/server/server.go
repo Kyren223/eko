@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"log/slog"
+
+	"github.com/kyren223/eko/internal/utils"
+)
 
 func main() {
-	fmt.Println("Eko 'Hello, World!' from server")
+	utils.SetupLogger("Server")
+	slog.Debug("Eko 'Hello, World!'")
+	slog.Info("Eko 'Hello, World!'")
+	slog.Warn("Eko 'Hello, World!'")
+	slog.Error("Eko 'Hello, World!'")
 }
