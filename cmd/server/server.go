@@ -1,15 +1,15 @@
 package main
 
 import (
-	"log/slog"
+	"os"
 
-	"github.com/kyren223/eko/internal/utils"
+	"github.com/kyren223/eko/internal/utils/log"
 )
 
 func main() {
-	utils.SetupLogger("Server")
-	slog.Debug("Eko 'Hello, World!'")
-	slog.Info("Eko 'Hello, World!'")
-	slog.Warn("Eko 'Hello, World!'")
-	slog.Error("Eko 'Hello, World!'")
+	log.SetDefault(log.NewLogger("Server", os.Stdout, true))
+	log.Debug("Eko 'Hello, World!'")
+	log.Info("Eko 'Hello, World!'")
+	log.Warn("Eko 'Hello, World!'")
+	log.Error("Eko 'Hello, World!'")
 }
