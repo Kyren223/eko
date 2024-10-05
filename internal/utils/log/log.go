@@ -21,3 +21,14 @@ func Warn(message string, a ...any) {
 func Error(message string, a ...any) {
 	_ = logger.Error(message, a...)
 }
+
+func SetLevel(level Level) (oldLevel Level) {
+	oldLevel = logger.Level
+	logger.Level = level
+	return
+}
+
+func GetLevel() Level {
+	return logger.Level
+}
+
