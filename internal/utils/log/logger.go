@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"go/format"
 	"io"
 	"os"
 	"sync"
@@ -29,27 +28,28 @@ func (l *Logger) Log(level Level, message string, a ...any) error {
 
 	timestamp := time.Now().Format(time.TimeOnly)
 	severity := level.String()
+	formattedMessage := fmt.Sprintf(message, a...)
 
 	// TODO: add support for ANSI coloring
 	l.mu.Lock()
-	_, err := fmt.Fprintf(l.writer, "[%s] [%s/%s]: %s\n", timestamp, l.name, severity, message, a)
+	_, err := fmt.Fprintf(l.writer, "[%s] [%s/%s]: %s\n", timestamp, l.name, severity, formattedMessage)
 	l.mu.Unlock()
 	return err
 }
 
 func (l *Logger) Debug(message string, a ...any) error {
-	return l.Log(LevelDebug, message, a)
+	return l.Log(LevelDebug, message, a...)
 }
 
 func (l *Logger) Info(message string, a ...any) error {
-	return l.Log(LevelInfo, message, a)
+	return l.Log(LevelInfo, message, a...)
 }
 
 func (l *Logger) Warn(message string, a ...any) error {
-	return l.Log(LevelWarn, message, a)
+	return l.Log(LevelWarn, message, a...)
 }
 
 func (l *Logger) Error(message string, a ...any) error {
-	return l.Log(LevelError, message, a)
+	return l.Log(LevelError, message, a...)
 }
 

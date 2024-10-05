@@ -10,17 +10,17 @@ func SetDefault(l *Logger) {
 }
 
 func Debug(message string, a ...any) error {
-	return logger.Log(LevelDebug, message, a)
+	return logger.Debug(message, a...)
 }
 
 func Info(message string, a ...any) error {
-	return logger.Log(LevelInfo, message, a)
+	return logger.Info(message, a...)
 }
 
 func Warn(message string, a ...any) error {
-	return logger.Log(LevelWarn, message, a)
+	return logger.Warn(message, a...)
 }
 
 func Error(message string, a ...any) error {
-	return logger.Log(LevelError, message, a)
+	return logger.Error(message, a...)
 }
