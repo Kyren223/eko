@@ -8,18 +8,18 @@ import (
 )
 
 func handleClient(conn net.Conn, wg *sync.WaitGroup) {
-	log.Info("Handling client... %v", conn.RemoteAddr().String())
+	log.Info("Accepted client: %v", conn.RemoteAddr().String())
 	defer log.Info("Disconnecting client: %v", conn.RemoteAddr().String())
 	defer conn.Close()
 	defer wg.Done()
 
-	var request []byte
-	n, err := conn.Read(request)
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
 	if err != nil {
 		log.Error("Failed reading: %v", err)
 		return
 	}
-	log.Info("Read %v bytes: %v", n, string(request))
+	log.Info("Read %v bytes: %v", n, string(buffer[:n]))
 
 	response := []byte("Server response")
 	n, err = conn.Write(response)
@@ -27,6 +27,6 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 		log.Error("Failed writing response: %v", err)
 		return
 	}
-	log.Info("Responded successfully")
+	log.Info("Written %v bytes", n)
 }
 

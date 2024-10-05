@@ -14,7 +14,7 @@ import (
 const PORT int = 7223
 
 func Start() {
-	server, err := NewServer(6969)
+	server, err := NewServer(PORT)
 	if err != nil {
 		log.Error("Unable to start server: %v", err)
 		return
