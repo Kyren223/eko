@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/tls"
+	_ "embed"
 	"net"
 	"os"
 	"os/signal"
@@ -11,69 +13,56 @@ import (
 	"github.com/kyren223/eko/internal/utils/log"
 )
 
-const PORT int = 7223
+const port = 7223
+
+//go:embed server.crt
+var certPEM []byte
+
+//go:embed server.key
+var keyPEM []byte
 
 func Start() {
-	server, err := NewServer(PORT)
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		log.Error("Unable to start server: %v", err)
-		return
+		log.Fatal("Error loading certificate: %s", err)
 	}
 
-	var wg sync.WaitGroup
-	stopChan := make(chan os.Signal, 1)
-	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
-	wg.Add(1)
-	go handleInterrupt(server, stopChan, &wg)
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
 
-	server.Listen()
+	listener, err := tls.Listen("tcp", ":"+strconv.Itoa(port), tlsConfig)
+	if err != nil {
+		log.Fatal("Error starting listener: %s", err)
+	}
+	defer listener.Close()
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	go handleInterrupt(listener, signalChan)
+
+	var wg sync.WaitGroup
+	listen(listener, &wg)
 	wg.Wait()
 }
 
-func handleInterrupt(server *Server, stopChan <-chan os.Signal, wg *sync.WaitGroup) {
-	defer wg.Done()
+func handleInterrupt(listener net.Listener, stopChan <-chan os.Signal) {
 	<-stopChan
-	log.Info("Interrupt Occurred")
-	log.Info("Shutting down server...")
-	server.Close()
-	log.Info("Waiting for all connections to close")
-	server.Wait()
-	log.Info("Server has been shutdown")
+	log.Info("Interrupt Signal")
+	log.Info("Closing listener from receiving new connections")
+	listener.Close()
 }
 
-type Server struct {
-	listener net.Listener
-	wg       sync.WaitGroup
-}
-
-func NewServer(port int) (*Server, error) {
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
-	if err != nil {
-		return nil, err
-	}
-
-	log.Info("Created server on port %v", port)
-	return &Server{listener, sync.WaitGroup{}}, nil
-}
-
-func (s *Server) Listen() {
-	log.Info("Server started listening... %v", s.listener.Addr().String())
+func listen(listener net.Listener, wg *sync.WaitGroup) {
+	log.Info("Started listening on port %v...", port)
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
+			log.Warn("Failed to accept connection: %v", err)
 			break
 		}
-		s.wg.Add(1)
-		go handleClient(conn, &s.wg)
+		wg.Add(1)
+		go handleConnection(conn, wg)
 	}
-}
-
-// Stop stops the server. The blocked Listen call will be unlocked
-func (s *Server) Close() {
-	s.listener.Close()
-}
-
-// Wait blocks until all active connections to the server are done
-func (s *Server) Wait() {
-	s.wg.Wait()
+	log.Info("Stopped listening on port %v...", port)
 }

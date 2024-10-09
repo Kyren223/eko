@@ -2,8 +2,10 @@ package client
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
+	_ "embed"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"time"
@@ -11,8 +13,20 @@ import (
 	"github.com/kyren223/eko/internal/utils/log"
 )
 
+//go:embed server.crt
+var certPEM []byte
+
 func Run() {
-	log.SetLevel(log.LevelDebug)
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(certPEM) {
+		log.Fatal("failed to append server certificate")
+	}
+
+	tlsConfig := &tls.Config{
+		RootCAs: certPool,
+		ServerName: "localhost",
+	}
+
 	log.Info("Client started, waiting for user input...")
 	for {
 		fmt.Print("> ")
@@ -21,20 +35,20 @@ func Run() {
 		if input == ":q" || input == "exit" || input == "quit" {
 			break
 		}
-		log.Debug("Input: %v", input)
-		err := processRequest(input)
+		err := processRequest(input, tlsConfig)
 		if err != nil {
 			log.Error("%v", err)
 		}
 	}
 }
 
-func processRequest(request string) error {
-	conn, err := net.Dial("tcp", ":7223")
+func processRequest(request string, tlsConfig *tls.Config) error {
+	conn, err := tls.Dial("tcp", ":7223", tlsConfig)
 	if err != nil {
 		return fmt.Errorf("Unable to establish connection with server: %v", err)
 	}
 	defer conn.Close()
+
 	conn.SetDeadline(time.Now().Add(time.Second))
 	log.Info("Established connection to server: %v", conn.RemoteAddr().String())
 
