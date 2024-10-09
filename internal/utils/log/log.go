@@ -22,6 +22,10 @@ func Error(message string, a ...any) {
 	_ = logger.Error(message, a...)
 }
 
+func Fatal(message string, a ...any) {
+	_ = logger.Fatal(message, a...)
+}
+
 func SetLevel(level Level) (oldLevel Level) {
 	oldLevel = logger.Level
 	logger.Level = level

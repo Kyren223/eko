@@ -53,3 +53,12 @@ func (l *Logger) Error(message string, a ...any) error {
 	return l.Log(LevelError, message, a...)
 }
 
+func (l *Logger) Fatal(message string, a ...any) error {
+	err := l.Log(LevelError, message, a...)
+	if err != nil {
+		return err
+	}
+	os.Exit(1)
+	return nil
+}
+

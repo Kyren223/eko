@@ -12,6 +12,8 @@ func (l Level) String() string {
 		return "WARN"
 	case LevelError:
 		return "ERROR"
+	case LevelFatal:
+		return "FATAL"
 	default:
 		return ""
 	}
@@ -22,4 +24,5 @@ const (
 	LevelInfo  Level = 0
 	LevelWarn  Level = 4
 	LevelError Level = 8
+	LevelFatal Level = 12
 )
