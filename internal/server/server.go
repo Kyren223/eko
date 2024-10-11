@@ -3,14 +3,14 @@ package server
 import (
 	"crypto/tls"
 	_ "embed"
+	"errors"
+	"log"
 	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"sync"
 	"syscall"
-
-	"github.com/kyren223/eko/internal/utils/log"
 )
 
 const port = 7223
@@ -24,16 +24,16 @@ var keyPEM []byte
 func Start() {
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		log.Fatal("Error loading certificate: %s", err)
+		log.Fatalf("error loading certificate: %s", err)
 	}
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
 
-	listener, err := tls.Listen("tcp", ":"+strconv.Itoa(port), tlsConfig)
+	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(port), tlsConfig)
 	if err != nil {
-		log.Fatal("Error starting listener: %s", err)
+		log.Fatal("error starting server: %s", err)
 	}
 	defer listener.Close()
 
@@ -47,22 +47,23 @@ func Start() {
 }
 
 func handleInterrupt(listener net.Listener, stopChan <-chan os.Signal) {
-	<-stopChan
-	log.Info("Interrupt Signal")
-	log.Info("Closing listener from receiving new connections")
+	signal := <-stopChan
+	log.Println(signal.String())
 	listener.Close()
 }
 
 func listen(listener net.Listener, wg *sync.WaitGroup) {
-	log.Info("Started listening on port %v...", port)
+	log.Printf("started listening on port %v...\n", port)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Warn("Failed to accept connection: %v", err)
+			if !errors.Is(err, net.ErrClosed) {
+				log.Println("error accepting connection:", err)
+			}
 			break
 		}
 		wg.Add(1)
 		go handleConnection(conn, wg)
 	}
-	log.Info("Stopped listening on port %v...", port)
+	log.Printf("stopped listening on port %v...\n", port)
 }
