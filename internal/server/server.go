@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+
+	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 const port = 7223
@@ -30,6 +33,8 @@ func Start() {
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
+
+	prepareConstPackets()
 
 	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(port), tlsConfig)
 	if err != nil {
@@ -66,4 +71,19 @@ func listen(listener net.Listener, wg *sync.WaitGroup) {
 		go handleConnection(conn, wg)
 	}
 	log.Printf("stopped listening on port %v...\n", port)
+}
+
+var unsupportedEncodingErrorPacket packet.Packet
+var unsupportedTypeErrorPacket packet.Packet
+
+func prepareConstPackets() {
+	message := packet.ErrorMessage{Error: packet.PacketUnsupportedEncoding.Error()}
+	encoder, err := packet.NewMsgPackEncoder(&message)
+	assert.NoError(err, "constant packets should not error")
+	unsupportedEncodingErrorPacket = packet.NewPacket(encoder)
+
+	message = packet.ErrorMessage{Error: packet.PacketUnsupportedType.Error()}
+	encoder, err = packet.NewMsgPackEncoder(&message)
+	assert.NoError(err, "constant packets should not error")
+	unsupportedTypeErrorPacket = packet.NewPacket(encoder)
 }

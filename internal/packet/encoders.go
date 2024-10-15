@@ -8,13 +8,13 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type TypedMessage interface{
+type TypedMessage interface {
 	Type() PacketType
 }
 
 type defaultPacketEncoder struct {
 	io.Reader
-	encoding Encoding
+	encoding   Encoding
 	packetType PacketType
 }
 
@@ -47,6 +47,7 @@ func NewMsgPackEncoder(message TypedMessage) (PacketEncoder, error) {
 
 	return defaultPacketEncoder{
 		Reader:     bytes.NewReader(data),
-		encoding:   EncodingJson,
+		encoding:   EncodingMsgPack,
 		packetType: message.Type(),
 	}, nil
+}

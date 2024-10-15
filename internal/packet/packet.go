@@ -24,7 +24,7 @@ func (e Encoding) String() string {
 	case EncodingUnused2:
 		return "EncodingUnused2"
 	default:
-		return fmt.Sprintf("EncodingInvalid(%v)", e)
+		return fmt.Sprintf("EncodingInvalid(%v)", byte(e))
 	}
 }
 
@@ -53,7 +53,7 @@ func (t PacketType) String() string {
 	case TypeError:
 		return "PacketTypeError"
 	default:
-		return fmt.Sprintf("PacketTypeInvalid(%v)", t)
+		return fmt.Sprintf("PacketTypeInvalid(%v)", byte(t))
 	}
 }
 
@@ -72,7 +72,7 @@ const (
 )
 
 const (
-	VERSION          = 1
+	VERSION          = byte(1)
 	PACKET_MAX_SIZE  = ^uint16(0)
 	PAYLOAD_MAX_SIZE = PACKET_MAX_SIZE - HEADER_SIZE
 	HEADER_SIZE      = 4
@@ -135,14 +135,18 @@ func (p Packet) PayloadLength() uint16 {
 	return binary.BigEndian.Uint16(p.data[LENGTH_OFFSET:])
 }
 
+func (p Packet) String() string {
+	return fmt.Sprintf("{v%v %v %v %v: %v}", p.data[0], p.Encoding().String(), p.Type().String(), p.PayloadLength(), p.Payload())
+}
+
 // The payload data, caller must not modify the returned slice, even temporarily
 func (p Packet) Payload() []byte {
 	return p.data[HEADER_SIZE:]
 }
 
-func (p Packet) DecodePayload(v *TypedMessage) error {
-	if p.Type() != (*v).Type() {
-		return fmt.Errorf("", p.Type(), (*v).Type())
+func (p Packet) DecodePayload(v TypedMessage) error {
+	if p.Type() != v.Type() {
+		return fmt.Errorf("type mismatch: want %v got %v", p.Type(), v.Type())
 	}
 	switch p.Encoding() {
 	case EncodingJson:
@@ -152,12 +156,14 @@ func (p Packet) DecodePayload(v *TypedMessage) error {
 	case EncodingUnused1:
 		fallthrough
 	case EncodingUnused2:
-		return fmt.Errorf("unsupported encoding: ", p.Encoding().String())
+		return fmt.Errorf("unsupported encoding: %v", p.Encoding().String())
 	default:
 		assert.Unreachable("encoding from packet should always be valid encoding=%v", p.Encoding())
+		return nil
 	}
 }
 
-func (p Packet) Into(writer io.Writer) (int, error) {
-	return writer.Write(p.data[:len(p.data)])
+func (p Packet) Into(writer io.Writer) error {
+	_, err := writer.Write(p.data[:len(p.data)])
+	return err
 }

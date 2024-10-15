@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
+	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/util"
 )
 
@@ -25,17 +27,11 @@ type packetFramer struct {
 }
 
 func RunFramer(ctx context.Context, reader io.Reader) (out <-chan Packet, outErr <-chan error) {
-	// Reads a bunch from ioReader
-	// If bytes r more than header size
-	// Try parsing 1 or more packets
-	// Send those packets to a channel
-	// Have a goroutine read from the channel
-
 	ch := make(chan Packet, framerPacketCapacity)
 	errCh := make(chan error)
 
 	framer := packetFramer{
-		buffer: make([]byte, PACKET_MAX_SIZE, PACKET_MAX_SIZE),
+		buffer: make([]byte, PACKET_MAX_SIZE),
 		len:    0,
 		in:     ch,
 		inErr:  errCh,
@@ -57,6 +53,7 @@ outer:
 			dataRead := 0
 			for dataRead < len(data) {
 				n := copy(f.buffer[f.len:], data[dataRead:])
+				assert.Assert(0 <= n && n <= int(PACKET_MAX_SIZE), "n must fit in a u16")
 				f.len += uint16(n)
 				dataRead += n
 				if err := f.parse(); err != nil {
@@ -79,7 +76,7 @@ outer:
 func (f *packetFramer) parse() error {
 	for f.len > HEADER_SIZE {
 		if f.buffer[VERSION_OFFSET] != VERSION {
-			return PacketUnsupportedVersion
+			return fmt.Errorf("%w version=%v", PacketUnsupportedVersion, f.buffer[VERSION_OFFSET])
 		}
 
 		encoding := Encoding(f.buffer[ENCODING_OFFSET] >> 6)
@@ -98,10 +95,10 @@ func (f *packetFramer) parse() error {
 		}
 
 		fullLength := HEADER_SIZE + length
-		packetBuffer := make([]byte, fullLength, fullLength)
-		copy(packetBuffer, f.buffer[HEADER_SIZE:fullLength])
+		packetBuffer := make([]byte, fullLength)
+		copy(packetBuffer, f.buffer[:fullLength])
 
-		f.len = uint16(copy(f.buffer[:fullLength], f.buffer[fullLength:]))
+		f.len = uint16(copy(f.buffer, f.buffer[fullLength:f.len]))
 
 		f.in <- Packet{packetBuffer}
 	}

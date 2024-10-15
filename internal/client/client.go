@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/kyren223/eko/internal/packet"
 )
 
 //go:embed server.crt
@@ -22,7 +25,7 @@ func Run() {
 	}
 
 	tlsConfig := &tls.Config{
-		RootCAs: certPool,
+		RootCAs:    certPool,
 		ServerName: "localhost",
 	}
 
@@ -48,20 +51,35 @@ func processRequest(request string, tlsConfig *tls.Config) error {
 	}
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(time.Second))
 	log.Println("established connection with server:", conn.RemoteAddr().String())
 
-	_, err = conn.Write([]byte(request))
+	requestMsg := packet.EkoMessage{Message: request}
+	encoder, err := packet.NewMsgPackEncoder(&requestMsg)
+	if err != nil {
+		return fmt.Errorf("error encoding request: %v", err)
+	}
+	requestPacket := packet.NewPacket(encoder)
+	err = requestPacket.Into(conn)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
+	log.Println("sent request to server")
 
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, outErr := packet.RunFramer(ctx, conn)
+
+	var response packet.EkoMessage
+	select {
+	case responsePacket := <-out:
+		if err := responsePacket.DecodePayload(&response); err != nil {
+			return fmt.Errorf("error decoding response: %v", err)
+		}
+
+	case err := <-outErr:
 		return fmt.Errorf("error receiving response: %v", err)
 	}
 
-	log.Println("server response:", string(buffer[:n]))
+	log.Println("server response:", response.Message)
 	return nil
 }
