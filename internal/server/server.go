@@ -24,7 +24,7 @@ var keyPEM []byte
 func Start() {
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		log.Fatalf("error loading certificate: %s", err)
+		log.Fatalln("error loading certificate:", err)
 	}
 
 	tlsConfig := &tls.Config{
@@ -33,7 +33,7 @@ func Start() {
 
 	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(port), tlsConfig)
 	if err != nil {
-		log.Fatal("error starting server: %s", err)
+		log.Fatalf("error starting server: %s", err)
 	}
 	defer listener.Close()
 
@@ -48,7 +48,7 @@ func Start() {
 
 func handleInterrupt(listener net.Listener, stopChan <-chan os.Signal) {
 	signal := <-stopChan
-	log.Println(signal.String())
+	log.Println("signal:", signal.String())
 	listener.Close()
 }
 

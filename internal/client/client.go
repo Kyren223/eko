@@ -18,7 +18,7 @@ var certPEM []byte
 func Run() {
 	certPool := x509.NewCertPool()
 	if !certPool.AppendCertsFromPEM(certPEM) {
-		log.Fatalf("failed to append server certificate")
+		log.Fatalln("failed to append server certificate")
 	}
 
 	tlsConfig := &tls.Config{
