@@ -16,9 +16,44 @@ func TestChannelReader(t *testing.T) {
 	select {
 	case data := <-reader.Out:
 		if !bytes.Equal(b, data) {
-			t.Errorf("TestChannelReader() %v != %v", b, data)
+			t.Errorf("%v != %v", b, data)
 		}
 	case err := <-reader.Err:
-		t.Errorf("TestChannelReader() err = %v", err)
+		t.Errorf("reading err: %v", err)
+	}
+}
+
+func TestChannelReaderMultiPartRead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	b := []byte("Testing FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting FramerTesting Framer")
+	b1 := b[:512]
+	b2 := b[512:]
+	reader := NewChannelReader(ctx, bytes.NewReader(b))
+
+	counter := 0
+outer:
+	for {
+		select {
+		case data := <-reader.Out:
+			if counter == 0 {
+			if !bytes.Equal(b1, data) {
+				t.Errorf("%v != %v", b, data)
+			}
+			} else {
+				if !bytes.Equal(b2[:len(data)], data) {
+				t.Errorf("%v != %v", b, data)
+			}
+			}
+			counter++
+			if counter == 2 {
+				break outer
+			}
+
+		case err := <-reader.Err:
+			t.Errorf("reading err: %v", err)
+			break outer
+		}
 	}
 }

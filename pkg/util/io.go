@@ -19,7 +19,10 @@ func NewChannelReader(ctx context.Context, reader io.Reader) ChannelReader {
 	go func(in chan<- []byte, inErr chan<- error) {
 		defer close(in)
 		defer close(inErr)
-		data := make([]byte, bufferSize)
+		buffer := make([]byte, 2 * bufferSize)
+		isD1 := true
+		d1 := buffer[:bufferSize]
+		d2 := buffer[bufferSize:]
 	outer:
 		for {
 			select {
@@ -27,9 +30,19 @@ func NewChannelReader(ctx context.Context, reader io.Reader) ChannelReader {
 				inErr <- ctx.Err()
 				break outer
 			default:
+				var data []byte
+				if isD1 {
+					data = d1
+				} else {
+					data = d2
+				}
+				isD1 = !isD1
+
 				n, err := reader.Read(data)
-				if err != nil && err != io.EOF {
-					inErr <- err
+				if err != nil {
+					if err != io.EOF {
+						inErr <- err
+					}
 					break outer
 				}
 				in <- data[:n]
