@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -44,7 +45,7 @@ func Run() {
 	}
 }
 
-func processRequest(request string, tlsConfig *tls.Config) error {
+func processRequest(input string, tlsConfig *tls.Config) error {
 	conn, err := tls.Dial("tcp4", ":7223", tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error establishing connection with server: %v", err)
@@ -53,8 +54,27 @@ func processRequest(request string, tlsConfig *tls.Config) error {
 
 	log.Println("established connection with server:", conn.RemoteAddr().String())
 
-	requestMsg := packet.EkoMessage{Message: request}
-	encoder, err := packet.NewMsgPackEncoder(&requestMsg)
+	if input == "SHOW" {
+		request := packet.GetMessagesMessage{}
+		var response packet.MessagesMessage
+		if err := SendAndReceive(conn, &request, &response); err != nil {
+			return err
+		}
+		log.Println("server response:", response.Messages)
+	} else {
+		request := packet.SendMessageMessage{Content: input}
+		var response packet.EkoMessage
+		if err := SendAndReceive(conn, &request, &response); err != nil {
+			return err
+		}
+		log.Println("server response:", response.Message)
+	}
+
+	return nil
+}
+
+func SendAndReceive(conn net.Conn, request packet.TypedMessage, response packet.TypedMessage) error {
+	encoder, err := packet.NewMsgPackEncoder(request)
 	if err != nil {
 		return fmt.Errorf("error encoding request: %v", err)
 	}
@@ -65,14 +85,13 @@ func processRequest(request string, tlsConfig *tls.Config) error {
 	}
 	log.Println("sent request to server")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	out, outErr := packet.RunFramer(ctx, conn)
 
-	var response packet.EkoMessage
 	select {
 	case responsePacket := <-out:
-		if err := responsePacket.DecodePayload(&response); err != nil {
+		if err := responsePacket.DecodePayload(response); err != nil {
 			return fmt.Errorf("error decoding response: %v", err)
 		}
 
@@ -80,6 +99,5 @@ func processRequest(request string, tlsConfig *tls.Config) error {
 		return fmt.Errorf("error receiving response: %v", err)
 	}
 
-	log.Println("server response:", response.Message)
 	return nil
 }

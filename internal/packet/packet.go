@@ -52,6 +52,12 @@ func (t PacketType) String() string {
 		return "PacketTypeEko"
 	case TypeError:
 		return "PacketTypeError"
+	case TypeGetMessages:
+		return "PacketTypeGetMessages"
+	case TypeSendMessage:
+		return "PacketTypeSendMessage"
+	case TypeMessages:
+		return "PacketTypeMessages"
 	default:
 		return fmt.Sprintf("PacketTypeInvalid(%v)", byte(t))
 	}
@@ -59,7 +65,7 @@ func (t PacketType) String() string {
 
 func (e PacketType) IsSupported() bool {
 	switch e {
-	case TypeEko, TypeError:
+	case TypeEko, TypeError, TypeGetMessages, TypeSendMessage, TypeMessages:
 		return true
 	default:
 		return false
@@ -69,6 +75,9 @@ func (e PacketType) IsSupported() bool {
 const (
 	TypeEko PacketType = iota
 	TypeError
+	TypeGetMessages
+	TypeSendMessage
+	TypeMessages
 )
 
 const (

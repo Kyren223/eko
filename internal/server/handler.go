@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
-	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
@@ -42,6 +43,9 @@ outer:
 			}
 
 		case err := <-outErr:
+			if err == nil {
+				continue
+			}
 			if err == packet.PacketUnsupportedEncoding {
 				err := unsupportedEncodingErrorPacket.Into(conn)
 				log.Printf("client %v: error writing unsupported encoding packet: %v\n", conn.RemoteAddr().String(), err)
@@ -74,11 +78,45 @@ func handlePacket(pkt packet.Packet) (packet.Packet, error) {
 			return packet.Packet{}, fmt.Errorf("encode error: %v", err)
 		}
 		return packet.NewPacket(encoder), nil
+	case packet.TypeSendMessage:
+		var request packet.SendMessageMessage
+		if err := pkt.DecodePayload(&request); err != nil {
+			return packet.Packet{}, fmt.Errorf("decode error: %v", err)
+		}
 
-	case packet.TypeError:
-		return packet.Packet{}, errors.New("TODO: not implemented yet")
+		message := data.Message{
+			Id:          node.Generate(),
+			SenderId:    node.Generate(),
+			FrequencyId: node.Generate(),
+			NetworkId:   node.Generate(),
+			Contents:    request.Content,
+		}
+		messages = append(messages, message)
+
+		response := packet.EkoMessage{Message: "Eko OK"}
+		encoder, err := packet.NewMsgPackEncoder(&response)
+		if err != nil {
+			return packet.Packet{}, fmt.Errorf("encode error: %v", err)
+		}
+		return packet.NewPacket(encoder), nil
+	case packet.TypeGetMessages:
+		var request packet.GetMessagesMessage
+		if err := pkt.DecodePayload(&request); err != nil {
+			return packet.Packet{}, fmt.Errorf("decode error: %v", err)
+		}
+
+		response := packet.MessagesMessage{Messages: messages}
+		encoder, err := packet.NewMsgPackEncoder(&response)
+		if err != nil {
+			return packet.Packet{}, fmt.Errorf("encode error: %v", err)
+		}
+		return packet.NewPacket(encoder), nil
 	default:
-		assert.Unreachable("type should be checked for validity before handler, packet = %v", pkt.String())
-		return packet.Packet{}, nil
+		return packet.Packet{}, errors.New("TODO: not implemented yet")
 	}
 }
+
+var (
+	node                    = snowflake.NewNode(1)
+	messages []data.Message = make([]data.Message, 10)
+)
