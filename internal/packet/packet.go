@@ -145,7 +145,7 @@ func (p Packet) PayloadLength() uint16 {
 }
 
 func (p Packet) String() string {
-	return fmt.Sprintf("{v%v %v %v %v: %v}", p.data[0], p.Encoding().String(), p.Type().String(), p.PayloadLength(), p.Payload())
+	return fmt.Sprintf("{v%v %v %v [%v bytes...]}", p.Version(), p.Encoding().String(), p.Type().String(), p.PayloadLength())
 }
 
 // The payload data, caller must not modify the returned slice, even temporarily
