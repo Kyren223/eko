@@ -4,43 +4,34 @@ import (
 	"github.com/kyren223/eko/internal/data"
 )
 
-type EkoMessage struct {
-	Message string `msgpack:"message"`
-}
-
-func (m *EkoMessage) Type() PacketType {
-	return TypeEko
-}
-
 type ErrorMessage struct {
 	Error string `msgpack:"error"`
 }
 
+func NewOkMessage() *ErrorMessage {
+	return &ErrorMessage{}
+}
+
 func (m *ErrorMessage) Type() PacketType {
-	return TypeError
+	return PacketError
 }
 
-type GetMessagesMessage struct {
-	Since *int64
-	UpTo *int64
+func (m *ErrorMessage) IsOk() bool {
+	return m.Error == ""
 }
 
-func (m *GetMessagesMessage) Type() PacketType {
-	return TypeGetMessages
-}
-
-type SendMessageMessage struct {
+type SendMessage struct {
 	Content string
 }
 
-func (m *SendMessageMessage) Type() PacketType {
-	return TypeSendMessage
+func (m *SendMessage) Type() PacketType {
+	return PacketSendMessage
 }
 
-type MessagesMessage struct {
+type Messages struct {
 	Messages []data.Message
 }
 
-func (m *MessagesMessage) Type() PacketType {
-	return TypeMessages
+func (m *Messages) Type() PacketType {
+	return PacketMessages
 }

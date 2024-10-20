@@ -60,11 +60,11 @@ func (t PacketType) String() string {
 	case PacketError:
 		return "PacketError"
 	case PacketSendMessage:
-		return "PacketTypeSendMessage"
+		return "PacketSendMessage"
 	case PacketMessages:
-		return "PacketTypeMessages"
+		return "PacketMessages"
 	default:
-		return fmt.Sprintf("PacketTypeInvalid(%v)", byte(t))
+		return fmt.Sprintf("PacketInvalidType(%v)", byte(t))
 	}
 }
 
@@ -110,15 +110,15 @@ type Packet struct {
 func NewPacket(encoder PacketEncoder) Packet {
 	payload := encoder.Payload()
 	n := len(payload)
-	assert.Assert(0 <= n && n <= PAYLOAD_MAX_SIZE, "size of payload must be valid")
+	assert.Assert(0 <= n && n <= PAYLOAD_MAX_SIZE, "size of payload must be valid", "size", n)
 
 	data := make([]byte, HEADER_SIZE+n)
 
 	data[VERSION_OFFSET] = VERSION
 
 	packetType, encoding := byte(encoder.Type()), byte(encoder.Encoding())
-	assert.Assert(packetType <= 63, "packet type exceeded allowed size type=%v", packetType)
-	assert.Assert(encoding <= 3, "encoding exceeded allowed permutations encoding=%v", encoding)
+	assert.Assert(packetType <= 63, "packet type exceeded allowed size", "type", packetType)
+	assert.Assert(encoding <= 3, "encoding exceeded allowed size", "encoding", encoding)
 	data[TYPE_OFFSET] = packetType | encoding<<6
 
 	binary.BigEndian.PutUint16(data[LENGTH_OFFSET:], uint16(n))
@@ -170,7 +170,7 @@ func (p Packet) DecodePayload(v TypedMessage) error {
 	case EncodingUnused2:
 		return fmt.Errorf("unsupported encoding: %v", p.Encoding().String())
 	default:
-		assert.Never("encoding from packet should always be valid encoding=%v", p.Encoding())
+		assert.Never("encoding from packet should always be valid", "encoding", p.Encoding())
 		return nil
 	}
 }

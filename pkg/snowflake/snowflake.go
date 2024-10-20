@@ -12,15 +12,33 @@ import (
 const (
 	// Epoch is set to the twitter snowflake epoch of Nov 04 2010 01:42:54 UTC in milliseconds
 	// TODO: change this to eko epoch when eko is production ready
-	Epoch int64 = 1288834974657
-	nodeBits  = 10
-	stepBits  = 12
-	NodeMax   = 1<<nodeBits - 1
-	nodeMask  = NodeMax << stepBits
-	stepMask  = 1<<stepBits - 1
-	timeShift = nodeBits + stepBits
-	nodeShift = stepBits
+	Epoch     int64 = 1288834974657
+	nodeBits        = 10
+	stepBits        = 12
+	NodeMax         = 1<<nodeBits - 1
+	nodeMask        = NodeMax << stepBits
+	stepMask        = 1<<stepBits - 1
+	timeShift       = nodeBits + stepBits
+	nodeShift       = stepBits
 )
+
+type ID int64
+
+func (id ID) String() string {
+	return strconv.FormatInt(int64(id), 10)
+}
+
+func (id ID) Time() (msSinceEpoch int64) {
+	return (int64(id) >> timeShift) + Epoch
+}
+
+func (id ID) Node() int64 {
+	return int64(id) & nodeMask >> nodeShift
+}
+
+func (id ID) Step() int64 {
+	return int64(id) & stepMask
+}
 
 type Node struct {
 	mu    sync.Mutex
@@ -30,11 +48,13 @@ type Node struct {
 	step  int64
 }
 
-type ID int64
+func (n *Node) String() string {
+	return fmt.Sprintf("Node%v(epoch: %v, step: %v, time: %v)", n.node, n.epoch, n.step, n.time)
+}
 
 func NewNode(node int64) *Node {
-	assert.Assert(nodeBits+stepBits <= 22, "node and step bits must add up to 22 or less")
-	assert.Assert(0 <= node && node <= NodeMax, "node and step bits must add up to 22 or less")
+	assert.Assert(nodeBits+stepBits == 22, "node and step bits must add up to 22")
+	assert.Assert(0 <= node && node <= NodeMax, "node must be within 0 and NodeMax", "node", node)
 
 	// Credit to https://github.com/bwmarrin/snowflake
 	currentTime := time.Now()
@@ -65,22 +85,6 @@ func (n *Node) Generate() ID {
 	n.time = now
 
 	return ID((now << timeShift) | (n.node << nodeShift) | (n.step))
-}
-
-func (id ID) String() string {
-	return strconv.FormatInt(int64(id), 10)
-}
-
-func (id ID) Time() (msSinceEpoch int64) {
-	return (int64(id) >> timeShift) + Epoch
-}
-
-func (id ID) Node() int64 {
-	return int64(id) & nodeMask >> nodeShift
-}
-
-func (id ID) Step() int64 {
-	return int64(id) & stepMask
 }
 
 // Json marshling to avoid inprecision of json number (float64)

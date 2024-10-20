@@ -1,10 +1,9 @@
 package packet
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 
+	"github.com/kyren223/eko/pkg/assert"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -13,7 +12,7 @@ type TypedMessage interface {
 }
 
 type defaultPacketEncoder struct {
-	io.Reader
+	data       []byte
 	encoding   Encoding
 	packetType PacketType
 }
@@ -26,28 +25,28 @@ func (e defaultPacketEncoder) Type() PacketType {
 	return e.packetType
 }
 
-func NewJsonEncoder(message TypedMessage) (PacketEncoder, error) {
-	data, err := json.Marshal(message)
-	if err != nil {
-		return nil, err
-	}
-
-	return defaultPacketEncoder{
-		Reader:     bytes.NewReader(data),
-		encoding:   EncodingJson,
-		packetType: message.Type(),
-	}, nil
+func (e defaultPacketEncoder) Payload() []byte {
+	return e.data
 }
 
-func NewMsgPackEncoder(message TypedMessage) (PacketEncoder, error) {
-	data, err := msgpack.Marshal(message)
-	if err != nil {
-		return nil, err
-	}
+func NewJsonEncoder(message TypedMessage) PacketEncoder {
+	data, err := json.Marshal(message)
+	assert.NoError(err, "encoding a message with JSON should never fail")
 
 	return defaultPacketEncoder{
-		Reader:     bytes.NewReader(data),
+		data:       data,
+		encoding:   EncodingJson,
+		packetType: message.Type(),
+	}
+}
+
+func NewMsgPackEncoder(message TypedMessage) PacketEncoder {
+	data, err := msgpack.Marshal(message)
+	assert.NoError(err, "encoding a message with msg pack should never fail")
+
+	return defaultPacketEncoder{
+		data:       data,
 		encoding:   EncodingMsgPack,
 		packetType: message.Type(),
-	}, nil
+	}
 }
