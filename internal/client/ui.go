@@ -19,6 +19,7 @@ func startUI() {
 	if _, err := p.Run(); err != nil {
 		log.Println("charm ui error:", err)
 	}
+	p.
 }
 
 type model struct {

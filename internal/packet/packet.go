@@ -1,10 +1,13 @@
 package packet
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -12,6 +15,13 @@ import (
 )
 
 type Encoding uint8
+
+const (
+	EncodingJson Encoding = iota
+	EncodingMsgPack
+	EncodingUnused1
+	EncodingUnused2
+)
 
 func (e Encoding) String() string {
 	switch e {
@@ -37,26 +47,21 @@ func (e Encoding) IsSupported() bool {
 	}
 }
 
-const (
-	EncodingJson Encoding = iota
-	EncodingMsgPack
-	EncodingUnused1
-	EncodingUnused2
-)
-
 type PacketType uint8
+
+const (
+	PacketError PacketType = iota
+	PacketSendMessage
+	PacketMessages
+)
 
 func (t PacketType) String() string {
 	switch t {
-	case TypeEko:
-		return "PacketTypeEko"
-	case TypeError:
-		return "PacketTypeError"
-	case TypeGetMessages:
-		return "PacketTypeGetMessages"
-	case TypeSendMessage:
+	case PacketError:
+		return "PacketError"
+	case PacketSendMessage:
 		return "PacketTypeSendMessage"
-	case TypeMessages:
+	case PacketMessages:
 		return "PacketTypeMessages"
 	default:
 		return fmt.Sprintf("PacketTypeInvalid(%v)", byte(t))
@@ -65,7 +70,7 @@ func (t PacketType) String() string {
 
 func (e PacketType) IsSupported() bool {
 	switch e {
-	case TypeEko, TypeError, TypeGetMessages, TypeSendMessage, TypeMessages:
+	case PacketError, PacketSendMessage, PacketMessages:
 		return true
 	default:
 		return false
@@ -73,16 +78,8 @@ func (e PacketType) IsSupported() bool {
 }
 
 const (
-	TypeEko PacketType = iota
-	TypeError
-	TypeGetMessages
-	TypeSendMessage
-	TypeMessages
-)
-
-const (
 	VERSION          = byte(1)
-	PACKET_MAX_SIZE  = ^uint16(0)
+	PACKET_MAX_SIZE  = math.MaxUint16
 	PAYLOAD_MAX_SIZE = PACKET_MAX_SIZE - HEADER_SIZE
 	HEADER_SIZE      = 4
 	VERSION_OFFSET   = 0
@@ -92,7 +89,7 @@ const (
 )
 
 type PacketEncoder interface {
-	io.Reader
+	Payload() []byte
 	Encoding() Encoding
 	Type() PacketType
 }
@@ -111,12 +108,11 @@ type Packet struct {
 }
 
 func NewPacket(encoder PacketEncoder) Packet {
-	data := make([]byte, PACKET_MAX_SIZE)
+	payload := encoder.Payload()
+	n := len(payload)
+	assert.Assert(0 <= n && n <= PAYLOAD_MAX_SIZE, "size of payload must be valid")
 
-	n, err := encoder.Read(data[HEADER_SIZE:])
-	assert.NoError(err, "packet encoder should never error when reading")
-
-	binary.BigEndian.PutUint16(data[LENGTH_OFFSET:], uint16(n))
+	data := make([]byte, HEADER_SIZE+n)
 
 	data[VERSION_OFFSET] = VERSION
 
@@ -125,7 +121,11 @@ func NewPacket(encoder PacketEncoder) Packet {
 	assert.Assert(encoding <= 3, "encoding exceeded allowed permutations encoding=%v", encoding)
 	data[TYPE_OFFSET] = packetType | encoding<<6
 
-	return Packet{data[:HEADER_SIZE+n]}
+	binary.BigEndian.PutUint16(data[LENGTH_OFFSET:], uint16(n))
+
+	copy(data[HEADER_SIZE:], payload)
+
+	return Packet{data}
 }
 
 func (p Packet) Version() uint8 {
@@ -133,7 +133,7 @@ func (p Packet) Version() uint8 {
 }
 
 func (p Packet) Type() PacketType {
-	return PacketType(p.data[TYPE_OFFSET] & 63) // 2^6-1
+	return PacketType(p.data[TYPE_OFFSET] & 63)
 }
 
 func (p Packet) Encoding() Encoding {
@@ -144,13 +144,16 @@ func (p Packet) PayloadLength() uint16 {
 	return binary.BigEndian.Uint16(p.data[LENGTH_OFFSET:])
 }
 
-func (p Packet) String() string {
-	return fmt.Sprintf("{v%v %v %v [%v bytes...]}", p.Version(), p.Encoding().String(), p.Type().String(), p.PayloadLength())
-}
-
-// The payload data, caller must not modify the returned slice, even temporarily
 func (p Packet) Payload() []byte {
 	return p.data[HEADER_SIZE:]
+}
+
+func (p Packet) String() string {
+	return fmt.Sprintf("Packet(v%v %v %v [%v bytes...])", p.Version(), p.Encoding().String(), p.Type().String(), p.PayloadLength())
+}
+
+func (p Packet) Into(writer io.Writer) (int, error) {
+	return writer.Write(p.data)
 }
 
 func (p Packet) DecodePayload(v TypedMessage) error {
@@ -167,12 +170,74 @@ func (p Packet) DecodePayload(v TypedMessage) error {
 	case EncodingUnused2:
 		return fmt.Errorf("unsupported encoding: %v", p.Encoding().String())
 	default:
-		assert.Unreachable("encoding from packet should always be valid encoding=%v", p.Encoding())
+		assert.Never("encoding from packet should always be valid encoding=%v", p.Encoding())
 		return nil
 	}
 }
 
-func (p Packet) Into(writer io.Writer) error {
-	_, err := writer.Write(p.data[:len(p.data)])
-	return err
+var (
+	PacketUnsupportedVersion  error = errors.New("packet error: unsupported version")
+	PacketUnsupportedEncoding error = errors.New("packet error: unsupported encoding")
+	PacketUnsupportedType     error = errors.New("packet error: unsupported type")
+)
+
+type packetFramer struct {
+	buffer []byte
+	Out    chan Packet
+}
+
+func NewFramer(ctx context.Context) packetFramer {
+	return packetFramer{
+		Out: make(chan Packet, 10),
+	}
+}
+
+func (f *packetFramer) Push(ctx context.Context, data []byte) error {
+	f.buffer = append(f.buffer, data...)
+
+	for {
+		packet, err := f.parse()
+		if packet == nil || err != nil {
+			return err
+		}
+		select {
+		case f.Out <- *packet:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (f *packetFramer) parse() (*Packet, error) {
+	if len(f.buffer) < HEADER_SIZE {
+		return nil, nil
+	}
+
+	if f.buffer[VERSION_OFFSET] != VERSION {
+		return nil, fmt.Errorf("%w version=%v", PacketUnsupportedVersion, f.buffer[VERSION_OFFSET])
+	}
+
+	encoding := Encoding(f.buffer[ENCODING_OFFSET] >> 6)
+	if !encoding.IsSupported() {
+		return nil, PacketUnsupportedEncoding
+	}
+
+	packetType := PacketType(f.buffer[TYPE_OFFSET] & 63)
+	if !packetType.IsSupported() {
+		return nil, PacketUnsupportedType
+	}
+
+	length := binary.BigEndian.Uint16(f.buffer[LENGTH_OFFSET:])
+	if len(f.buffer)-HEADER_SIZE < int(length) {
+		// Wait for more data to arrive
+		return nil, nil
+	}
+
+	fullLength := HEADER_SIZE + length
+	packetBuffer := make([]byte, fullLength)
+	copy(packetBuffer, f.buffer[:fullLength])
+	copy(f.buffer, f.buffer[fullLength:])
+	f.buffer = f.buffer[:len(f.buffer)-int(fullLength)]
+
+	return &Packet{packetBuffer}, nil
 }

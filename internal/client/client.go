@@ -12,6 +12,7 @@ import (
 
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 //go:embed server.crt
@@ -107,7 +108,7 @@ func SendAndReceive(request packet.TypedMessage, response packet.TypedMessage) e
 	select {
 	case responsePacket := <-out:
 		if err := responsePacket.DecodePayload(response); err != nil {
-			if responsePacket.Type() != packet.TypeError {
+			if responsePacket.Type() != packet.PacketError {
 				return fmt.Errorf("error decoding response: %v", err)
 			}
 			var errorResponse packet.ErrorMessage

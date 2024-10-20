@@ -14,7 +14,7 @@ func NoError(err error, message string, a ...any) {
 	}
 }
 
-func Unreachable(message string, a ...any) {
+func Never(message string, a ...any) {
 	log.Fatalf(message+"\n", a...)
 }
 
