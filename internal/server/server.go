@@ -168,6 +168,9 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 			if !ok {
 				break
 			}
+			if packet.Type().IsPush() {
+				log.Println(addr, "streaming packet:", packet)
+			}
 			if _, err := packet.Into(conn); err != nil {
 				log.Println(addr, err)
 				break
@@ -192,7 +195,8 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 
 	buffer := make([]byte, 512)
 	for {
-		conn.SetReadDeadline(time.Now().Add(time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(time.Second))
+		assert.NoError(err, "setting read deadline should not error")
 		n, err := conn.Read(buffer)
 		deadlineExceeded := errors.Is(err, os.ErrDeadlineExceeded)
 		if err != nil && !deadlineExceeded {
@@ -220,13 +224,19 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 }
 
 func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
-	conn.SetDeadline(time.Now().Add(time.Second * 5))
+	err := conn.SetDeadline(time.Now().Add(time.Second * 5))
+	assert.NoError(err, "setting read deadline should not error")
+
+	defer func() {
+		err := conn.SetDeadline(time.Time{})
+		assert.NoError(err, "unsetting read deadline should not error")
+	}()
 
 	challengePacket := make([]byte, len(nonce)+1)
 	challengePacket[0] = packet.VERSION
 	copy(challengePacket[1:], nonce)
 
-	_, err := conn.Write(challengePacket)
+	_, err = conn.Write(challengePacket)
 	if err != nil {
 		return nil, fmt.Errorf("error writing challenge: %w", err)
 	}
@@ -252,7 +262,6 @@ func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
 		return nil, errors.New("signature verification failed")
 	}
 
-	conn.SetDeadline(time.Time{})
 	return pubKey, nil
 }
 
@@ -310,20 +319,31 @@ func processPacket(ctx context.Context, pkt packet.Packet) packet.Packet {
 	session, ok := FromContext(ctx)
 	assert.Assert(ok, "context in process packet should always have a session")
 
-	var response packet.TypedMessage
-	switch pkt.Type() {
-	case packet.PacketSendMessage:
-		var request packet.SendMessage
-		if err := pkt.DecodePayload(&request); err != nil {
-			log.Println("decode error:", err)
-			response = &packet.ErrorMessage{Error: "malformed payload"}
-			break
-		}
+	var response packet.Payload
 
+	request, err := pkt.DecodedPayload()
+	if err != nil {
+		response = &packet.ErrorMessage{Error: "malformed payload"}
+	} else {
+		response = processRequest(ctx, request)
+	}
+
+	assert.NotNil(response, "response must always be assigned to")
+	log.Println(session.Addr, "sending ", response.Type(), "response:", response)
+	return packet.NewPacket(packet.NewMsgPackEncoder(response))
+}
+
+func processRequest(ctx context.Context, request packet.Payload) packet.Payload {
+	session, ok := FromContext(ctx)
+	assert.Assert(ok, "context in process packet should always have a session")
+
+	log.Println(session.Addr, "processing", request.Type(), "request:", request)
+
+	switch request := request.(type) {
+	case *packet.SendMessage:
 		content := strings.TrimSpace(request.Content)
 		if content == "" {
-			response = &packet.ErrorMessage{Error: "message content must not be blank"}
-			break
+			return &packet.ErrorMessage{Error: "message content must not be blank"}
 		}
 
 		node := session.Server.Node
@@ -334,15 +354,27 @@ func processPacket(ctx context.Context, pkt packet.Packet) packet.Packet {
 			NetworkId:   node.Generate(), // TODO: replace with actual ID
 			Contents:    content,
 		}
-		messages = append(messages, message)
+		sendMessage(ctx, message)
 
-		response = packet.NewOkMessage()
+		return packet.NewOkMessage()
+
 	default:
-		response = &packet.ErrorMessage{Error: "use of unsupported packet type"}
+		return &packet.ErrorMessage{Error: "use of unsupported packet type"}
 	}
-
-	assert.NotNil(response, "response must always be assigned to")
-	return packet.NewPacket(packet.NewMsgPackEncoder(response))
 }
 
 var messages []data.Message
+
+func sendMessage(ctx context.Context, msg data.Message) {
+	session, ok := FromContext(ctx)
+	assert.Assert(ok, "context in process packet should always have a session")
+
+	messages = append(messages, msg)
+
+	payload := &packet.Messages{
+		Messages: messages,
+	}
+
+	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	session.WriteQueue <- pkt
+}

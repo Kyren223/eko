@@ -77,6 +77,15 @@ func (e PacketType) IsSupported() bool {
 	}
 }
 
+func (e PacketType) IsPush() bool {
+	switch e {
+	case PacketError, PacketSendMessage:
+		return false
+	default:
+		return true
+	}
+}
+
 const (
 	VERSION          = byte(1)
 	PACKET_MAX_SIZE  = math.MaxUint16
@@ -156,7 +165,7 @@ func (p Packet) Into(writer io.Writer) (int, error) {
 	return writer.Write(p.data)
 }
 
-func (p Packet) DecodePayload(v TypedMessage) error {
+func (p Packet) DecodePayloadInto(v Payload) error {
 	if p.Type() != v.Type() {
 		return fmt.Errorf("type mismatch: want %v got %v", p.Type(), v.Type())
 	}
@@ -175,24 +184,40 @@ func (p Packet) DecodePayload(v TypedMessage) error {
 	}
 }
 
+func (p Packet) DecodedPayload() (Payload, error) {
+	var payload Payload
+	switch p.Type() {
+	case PacketError:
+		payload = &ErrorMessage{}
+	case PacketMessages:
+		payload = &Messages{}
+	case PacketSendMessage:
+		payload = &SendMessage{}
+	default:
+		assert.Never("packet type of a packet struct must always be valid")
+	}
+	err := p.DecodePayloadInto(payload)
+	return payload, err
+}
+
 var (
 	PacketUnsupportedVersion  error = errors.New("packet error: unsupported version")
 	PacketUnsupportedEncoding error = errors.New("packet error: unsupported encoding")
 	PacketUnsupportedType     error = errors.New("packet error: unsupported type")
 )
 
-type packetFramer struct {
+type PacketFramer struct {
 	buffer []byte
 	Out    chan Packet
 }
 
-func NewFramer(ctx context.Context) packetFramer {
-	return packetFramer{
+func NewFramer(ctx context.Context) PacketFramer {
+	return PacketFramer{
 		Out: make(chan Packet, 10),
 	}
 }
 
-func (f *packetFramer) Push(ctx context.Context, data []byte) error {
+func (f *PacketFramer) Push(ctx context.Context, data []byte) error {
 	f.buffer = append(f.buffer, data...)
 
 	for {
@@ -208,7 +233,7 @@ func (f *packetFramer) Push(ctx context.Context, data []byte) error {
 	}
 }
 
-func (f *packetFramer) parse() (*Packet, error) {
+func (f *PacketFramer) parse() (*Packet, error) {
 	if len(f.buffer) < HEADER_SIZE {
 		return nil, nil
 	}

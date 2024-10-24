@@ -2,125 +2,167 @@ package client
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	_ "embed"
+	"crypto/ed25519"
 	"fmt"
 	"log"
-	"os"
-	"time"
+	"slices"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/kyren223/eko/internal/client/api"
+	"github.com/kyren223/eko/internal/client/gateway"
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
-//go:embed server.crt
-var certPEM []byte
+type BubbleTeaCloser struct {
+	program *tea.Program
+}
 
-var tlsConfig *tls.Config
+func (c BubbleTeaCloser) Close() error {
+	c.program.Quit()
+	return nil
+}
 
 func Run() {
-	logFile, err := os.OpenFile("client.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		log.Fatal(err)
+	log.Println("client started")
+	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	assert.AddFlush(BubbleTeaCloser{program})
+
+	_, privKey, err := ed25519.GenerateKey(nil)
+	assert.NoError(err, "private key gen should not error")
+
+	gateway.Connect(context.Background(), program, privKey)
+	if _, err := program.Run(); err != nil {
+		log.Println(err)
 	}
-	defer logFile.Close()
-	log.SetOutput(logFile)
-
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(certPEM) {
-		log.Fatalln("failed to append server certificate")
-	}
-
-	tlsConfig = &tls.Config{
-		RootCAs:    certPool,
-		ServerName: "localhost",
-	}
-
-	log.Println("client started, waiting for user input...")
-	startUI()
-
-	// for {
-	// 	fmt.Print("> ")
-	// 	input, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-	// 	input = strings.TrimSpace(input)
-	// 	if input == ":q" || input == "exit" || input == "quit" {
-	// 		break
-	// 	}
-	// 	if input == "" {
-	// 		continue
-	// 	}
-	// 	err := processRequest(input)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		fmt.Println(err)
-	// 	}
-	// }
 }
 
-func sendMessage(message string) error {
-	request := packet.SendMessageMessage{Content: message}
-	var response packet.EkoMessage
-	if err := SendAndReceive(&request, &response); err != nil {
-		return err
-	}
-	assert.Assert(response.Message == "Eko OK", "server should return an OK status")
-	return nil
+type model struct {
+	viewport    viewport.Model
+	messages    []string
+	textarea    textarea.Model
+	senderStyle lipgloss.Style
+	err         error
 }
 
-func getMessages() ([]string, error) {
-	request := packet.GetMessagesMessage{}
-	var response packet.MessagesMessage
-	if err := SendAndReceive(&request, &response); err != nil {
-		return nil, err
+func initialModel() model {
+	ta := textarea.New()
+	ta.Placeholder = "Send a message..."
+	ta.Focus()
+
+	ta.Prompt = "┃ "
+	ta.CharLimit = 280
+
+	ta.SetWidth(30)
+	ta.SetHeight(3)
+
+	// Remove cursor line styling
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+
+	ta.ShowLineNumbers = false
+
+	vp := viewport.New(30, 20)
+	// vp.SetContent("Welcome to Eko!\n Type a message and press Enter to send.")
+
+	ta.KeyMap.InsertNewline.SetEnabled(false)
+
+	return model{
+		textarea:    ta,
+		messages:    []string{},
+		viewport:    vp,
+		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		err:         nil,
 	}
-	var messages []string
-	for _, message := range response.Messages {
-		messages = append(messages, message.Contents)
-	}
-	return messages, nil
 }
 
-func SendAndReceive(request packet.TypedMessage, response packet.TypedMessage) error {
-	conn, err := tls.Dial("tcp4", ":7223", tlsConfig)
-	if err != nil {
-		return fmt.Errorf("error establishing connection with server: %v", err)
-	}
-	defer conn.Close()
-	log.Println("established connection with server:", conn.RemoteAddr().String())
+func (m model) Init() tea.Cmd {
+	return textarea.Blink
+}
 
-	encoder, err := packet.NewMsgPackEncoder(request)
-	if err != nil {
-		return fmt.Errorf("error encoding request: %v", err)
-	}
-	requestPacket := packet.NewPacket(encoder)
-	err = requestPacket.Into(conn)
-	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
-	}
-	log.Println("sent request to server")
+func (m model) View() string {
+	return fmt.Sprintf(
+		"%s\n%s",
+		m.viewport.View(),
+		m.textarea.View(),
+	) + ""
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	out, outErr := packet.RunFramer(ctx, conn)
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.viewport.Width = msg.Width
+		m.viewport.Height = msg.Height - m.textarea.Height()
+		m.viewport.GotoBottom()
 
-	select {
-	case responsePacket := <-out:
-		if err := responsePacket.DecodePayload(response); err != nil {
-			if responsePacket.Type() != packet.PacketError {
-				return fmt.Errorf("error decoding response: %v", err)
+		m.textarea.SetWidth(msg.Width)
+		log.Println("resized to:", msg.Width, "x", msg.Height)
+
+		var vpCmd tea.Cmd
+		var taCmd tea.Cmd
+		m.viewport, vpCmd = m.viewport.Update(msg)
+		m.textarea, taCmd = m.textarea.Update(msg)
+		return m, tea.Batch(vpCmd, taCmd)
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEsc, tea.KeyCtrlC:
+			return m, tea.Quit
+
+		case tea.KeyEnter:
+			value := m.textarea.Value()
+
+			content := strings.TrimSpace(value)
+			if content == "" {
+				return m, nil
 			}
-			var errorResponse packet.ErrorMessage
-			if err := responsePacket.DecodePayload(&errorResponse); err != nil {
-				return fmt.Errorf("error decoding error packet: %w", err)
-			}
-			return fmt.Errorf("server error: %v", errorResponse.Error)
+
+			m.textarea.Reset()
+			return m, api.SendMessage(content)
+
+		default:
+			// Send all other keypresses to the textarea.
+			var cmd tea.Cmd
+			m.textarea, cmd = m.textarea.Update(msg)
+			return m, cmd
 		}
 
-	case err := <-outErr:
-		return fmt.Errorf("error receiving response: %v", err)
-	}
+	case packet.Payload:
+		switch msg := msg.(type) {
+		case *packet.Messages:
+			slices.SortFunc(msg.Messages, func(a, b data.Message) int {
+				return a.CmpTimestamp(b)
+			})
 
-	return nil
+			m.messages = []string{}
+			for _, message := range msg.Messages {
+				m.messages = append(m.messages, message.Contents)
+			}
+
+			m.viewport.SetContent(strings.Join(m.messages, "\n"))
+			m.viewport.GotoBottom()
+
+			var cmd tea.Cmd
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
+
+		default:
+			return m, nil
+		}
+
+	case cursor.BlinkMsg:
+		// Textarea should also process cursor blinks.
+		var cmd tea.Cmd
+		m.textarea, cmd = m.textarea.Update(msg)
+		return m, cmd
+
+	default:
+		return m, nil
+	}
 }

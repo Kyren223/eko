@@ -1,2 +1,3 @@
 internal/server/sslgen.cnf
 internal/server/server.key
+*.log
