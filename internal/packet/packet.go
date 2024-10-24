@@ -77,6 +77,7 @@ func (e PacketType) IsSupported() bool {
 	}
 }
 
+// True for all packets that a server may push passively to the client.
 func (e PacketType) IsPush() bool {
 	switch e {
 	case PacketError, PacketSendMessage:

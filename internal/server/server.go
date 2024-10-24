@@ -34,8 +34,6 @@ var (
 	tlsConfig *tls.Config
 )
 
-var ErrClosedNilListener error = errors.New("server: close on nil listener")
-
 func init() {
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -54,6 +52,8 @@ type server struct {
 	sessMu   sync.RWMutex
 }
 
+// Creates a new server on the given port.
+// Will generate a unique node ID automatically, will crash if there are no available IDs.
 func NewServer(port uint16) server {
 	assert.Assert(nodeId <= snowflake.NodeMax, "maximum amount of servers reached")
 	node := snowflake.NewNode(nodeId)
@@ -89,6 +89,11 @@ func (s *server) Node() *snowflake.Node {
 	return s.node
 }
 
+// Starts listening and accepting clients on the server's port.
+//
+// The given context is used for cancellation,
+// note that the server will wait for all active connections to close before
+// returning, this is a blocking operation.
 func (s *server) ListenAndServe(ctx context.Context) {
 	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), tlsConfig)
 	if err != nil {

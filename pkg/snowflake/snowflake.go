@@ -52,6 +52,8 @@ func (n *Node) String() string {
 	return fmt.Sprintf("Node%v(epoch: %v, step: %v, time: %v)", n.node, n.epoch, n.step, n.time)
 }
 
+// Creates a new node for generating unique IDs.
+// To gurantee uniqueness, the given node ID must be unique.
 func NewNode(node int64) *Node {
 	assert.Assert(nodeBits+stepBits == 22, "node and step bits must add up to 22")
 	assert.Assert(0 <= node && node <= NodeMax, "node must be within 0 and NodeMax", "node", node)
@@ -67,6 +69,7 @@ func NewNode(node int64) *Node {
 	}
 }
 
+// Generates a unique snowflake ID.
 func (n *Node) Generate() ID {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -90,7 +93,7 @@ func (n *Node) Generate() ID {
 // Json marshling to avoid inprecision of json number (float64)
 
 func (id ID) MarshalJSON() ([]byte, error) {
-	buffer := make([]byte, 0, 22) // 2 quotes, 19 digits for 2^63, 1 sign
+	buffer := make([]byte, 0, 22) // 2 quotes, 19 digits, 1 sign
 	buffer = append(buffer, '"')
 	buffer = strconv.AppendInt(buffer, int64(id), 10)
 	buffer = append(buffer, '"')
