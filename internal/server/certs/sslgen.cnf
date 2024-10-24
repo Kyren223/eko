@@ -1,0 +1,24 @@
+# https://stackoverflow.com/questions/46100377/how-to-create-an-openssl-self-signed-certificate-using-san
+[CA_default]
+copy_extensions = copy
+
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ca
+
+[req_distinguished_name]
+emailAddress = kyren223@proton.me
+CN = kyren223.dev
+
+[v3_ca]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+subjectAltName = @alternate_names
+
+[alternate_names]
+DNS.1 = localhost
+DNS.2 = *.localhost
+DNS.3 = eko.localhost

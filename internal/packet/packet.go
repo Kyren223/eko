@@ -239,7 +239,7 @@ func (f *PacketFramer) parse() (*Packet, error) {
 	}
 
 	if f.buffer[VERSION_OFFSET] != VERSION {
-		return nil, fmt.Errorf("%w version=%v", PacketUnsupportedVersion, f.buffer[VERSION_OFFSET])
+		return nil, PacketUnsupportedVersion
 	}
 
 	encoding := Encoding(f.buffer[ENCODING_OFFSET] >> 6)
