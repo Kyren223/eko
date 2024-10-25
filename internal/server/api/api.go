@@ -30,6 +30,7 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 
 	messages = append(messages, message)
 
+	// TODO: broadcast message
 	payload := &packet.Messages{Messages: messages}
 	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.WriteQueue <- pkt

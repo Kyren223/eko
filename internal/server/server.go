@@ -292,8 +292,33 @@ func processRequest(ctx context.Context, request packet.Payload) packet.Payload 
 
 	switch request := request.(type) {
 	case *packet.SendMessage:
-		return api.SendMessage(ctx, request)
+		return timeout(100 * time.Millisecond, api.SendMessage, ctx, request)
 	default:
 		return &packet.ErrorMessage{Error: "use of unsupported packet type"}
+	}
+}
+
+func timeout[T packet.Payload](
+	timeoutDuration time.Duration,
+	apiRequest func(context.Context, T) packet.Payload,
+	ctx context.Context, request T,
+) packet.Payload {
+	responseChan := make(chan packet.Payload)
+	ctx, cancel := context.WithTimeout(ctx, timeoutDuration)
+	defer cancel()
+
+	go func() {
+		responseChan <- apiRequest(ctx, request)
+	}()
+
+	select {
+	case response := <-responseChan:
+		return response
+	case <-ctx.Done():
+		sess, ok := session.FromContext(ctx)
+		assert.Assert(ok, "session should exist")
+		log.Println(sess.Addr(), "timeout of", request.Type(), "request")
+		// TODO: consider if we want to say it's a timeout or be vague to mitigate DOS attacks
+		return &packet.ErrorMessage{Error: "internal server error"}
 	}
 }
