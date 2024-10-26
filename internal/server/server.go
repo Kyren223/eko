@@ -281,14 +281,14 @@ func processPacket(ctx context.Context, pkt packet.Packet) packet.Packet {
 	}
 
 	assert.NotNil(response, "response must always be assigned to")
-	log.Println(session.Addr, "sending ", response.Type(), "response:", response)
+	log.Println(session.Addr(), "sending ", response.Type(), "response:", response)
 	return packet.NewPacket(packet.NewMsgPackEncoder(response))
 }
 
 func processRequest(ctx context.Context, request packet.Payload) packet.Payload {
 	session, ok := session.FromContext(ctx)
 	assert.Assert(ok, "context in process packet should always have a session")
-	log.Println(session.Addr, "processing", request.Type(), "request:", request)
+	log.Println(session.Addr(), "processing", request.Type(), "request:", request)
 
 	switch request := request.(type) {
 	case *packet.SendMessage:

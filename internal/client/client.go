@@ -104,8 +104,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textarea.SetWidth(msg.Width)
 		log.Println("resized to:", msg.Width, "x", msg.Height)
 
-		var vpCmd tea.Cmd
-		var taCmd tea.Cmd
+		var vpCmd, taCmd tea.Cmd
 		m.viewport, vpCmd = m.viewport.Update(msg)
 		m.textarea, taCmd = m.textarea.Update(msg)
 		return m, tea.Batch(vpCmd, taCmd)
@@ -127,7 +126,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, api.SendMessage(content)
 
 		default:
-			// Send all other keypresses to the textarea.
 			var cmd tea.Cmd
 			m.textarea, cmd = m.textarea.Update(msg)
 			return m, cmd
@@ -157,7 +155,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case cursor.BlinkMsg:
-		// Textarea should also process cursor blinks.
 		var cmd tea.Cmd
 		m.textarea, cmd = m.textarea.Update(msg)
 		return m, cmd

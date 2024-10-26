@@ -1,3 +1,4 @@
-internal/server/sslgen.cnf
-internal/server/server.key
+internal/server/certs/
+*.crt
 *.log
+*.db
