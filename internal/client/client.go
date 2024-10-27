@@ -135,12 +135,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case *packet.Messages:
 			slices.SortFunc(msg.Messages, func(a, b data.Message) int {
-				return a.CmpTimestamp(b)
+				if a.ID - b.ID < 0 { return -1 } else { return 1 }
 			})
 
 			m.messages = []string{}
 			for _, message := range msg.Messages {
-				m.messages = append(m.messages, message.Contents)
+				m.messages = append(m.messages, message.Content)
 			}
 
 			m.viewport.SetContent(strings.Join(m.messages, "\n"))

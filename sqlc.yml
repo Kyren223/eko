@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "./query/"
+    schema: "./migrations"
+    gen:
+      go:
+        package: "data"
+        out: "./internal/data/"
+        emit_pointers_for_null_types: true
+        overrides:
+          - column: "*.id"
+            go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
+          - column: "*.*_id"
+            go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
+          - column: "users.public_key"
+            go_type: "crypto/ed25519.PublicKey"
