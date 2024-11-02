@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/kyren223/eko/internal/data"
@@ -14,28 +15,32 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 	sess, ok := session.FromContext(ctx)
 	assert.Assert(ok, "context in process packet should always have a session")
 
+	if (request.ReceiverID != nil) != (request.FrequencyID != nil) {
+		return &packet.ErrorMessage{Error: "either receiver id or frequency id must exist"}
+	}
+
 	content := strings.TrimSpace(request.Content)
 	if content == "" {
 		return &packet.ErrorMessage{Error: "message content must not be blank"}
 	}
 
 	node := sess.Manager().Node()
-	message := data.Message{
-		Id:          node.Generate(),
-		SenderId:    sess.ID(),
-		FrequencyId: node.Generate(), // TODO: replace with actual ID
-		NetworkId:   node.Generate(), // TODO: replace with actual ID
-		Contents:    content,
+
+	queries := data.New(db)
+	message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
+		ID:          node.Generate(),
+		SenderID:    sess.ID(),
+		Content:     content,
+		FrequencyID: request.FrequencyID,
+		ReceiverID:  request.ReceiverID,
+	})
+	if err != nil {
+		log.Println(sess.Addr(), "SendMessage database error:", err)
+		return &packet.ErrorMessage{Error: "internal server error"}
 	}
 
-	messages = append(messages, message)
-
-	// TODO: broadcast message
-	payload := &packet.Messages{Messages: messages}
-	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.WriteQueue <- pkt
-
-	return packet.NewOkMessage()
+	return &packet.Messages{Messages: []data.Message{message}}
 }
 
-var messages []data.Message
+func GetMessages(ctx context.Context, request *packet.GetMessagesRange) packet.Payload {
+}

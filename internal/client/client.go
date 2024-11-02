@@ -135,7 +135,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case *packet.Messages:
 			slices.SortFunc(msg.Messages, func(a, b data.Message) int {
-				if a.ID - b.ID < 0 { return -1 } else { return 1 }
+				if a.ID-b.ID < 0 {
+					return -1
+				} else {
+					return 1
+				}
 			})
 
 			m.messages = []string{}

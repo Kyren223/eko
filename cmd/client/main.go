@@ -16,5 +16,4 @@ func main() {
 	log.SetOutput(logFile)
 
 	client.Run()
-
 }

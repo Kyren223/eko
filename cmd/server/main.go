@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/kyren223/eko/internal/server"
+	"github.com/kyren223/eko/internal/server/api"
 )
 
 const port = 7223
@@ -19,6 +20,9 @@ func main() {
 	}
 	defer logFile.Close()
 	log.SetOutput(logFile)
+
+	api.ConnectToDatabase()
+	defer api.CloseDatabase()
 
 	server := server.NewServer(port)
 
@@ -33,3 +37,4 @@ func main() {
 
 	server.ListenAndServe(ctx)
 }
+
