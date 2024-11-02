@@ -15,7 +15,7 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 	sess, ok := session.FromContext(ctx)
 	assert.Assert(ok, "context in process packet should always have a session")
 
-	if (request.ReceiverID != nil) != (request.FrequencyID != nil) {
+	if (request.ReceiverID != nil) == (request.FrequencyID != nil) {
 		return &packet.ErrorMessage{Error: "either receiver id or frequency id must exist"}
 	}
 
@@ -43,4 +43,11 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 }
 
 func GetMessages(ctx context.Context, request *packet.GetMessagesRange) packet.Payload {
+	queries := data.New(db)
+	messages, err := queries.ListMessages(ctx)
+	if err != nil {
+		log.Println("database error when retrieving messages:", err)
+		return &packet.ErrorMessage{Error: "internal server error"}
+	}
+	return &packet.Messages{Messages: messages}
 }

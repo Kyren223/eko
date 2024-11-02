@@ -83,7 +83,7 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return textarea.Blink
+	return tea.Batch(textarea.Blink, api.GetMessages)
 }
 
 func (m model) View() string {
@@ -157,6 +157,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			return m, nil
 		}
+
+	case api.AppendMessage:
+		m.messages = append(m.messages, msg.Content)
+
+		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.viewport.GotoBottom()
+
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 
 	case cursor.BlinkMsg:
 		var cmd tea.Cmd
