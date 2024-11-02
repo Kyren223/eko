@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,12 +16,20 @@ import (
 const port = 7223
 
 func main() {
+	stdout := flag.Bool("stdout", false, "enable logging to stdout")
+	flag.Parse()
+
 	logFile, err := os.OpenFile("logs/server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer logFile.Close()
-	log.SetOutput(logFile)
+
+	if *stdout {
+		log.SetOutput(io.MultiWriter(logFile, os.Stdout))
+	} else {
+		log.SetOutput(logFile)
+	}
 
 	api.ConnectToDatabase()
 	defer api.CloseDatabase()
@@ -37,4 +47,3 @@ func main() {
 
 	server.ListenAndServe(ctx)
 }
-
