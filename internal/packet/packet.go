@@ -52,6 +52,8 @@ type PacketType uint8
 const (
 	PacketError PacketType = iota
 	PacketSendMessage
+	PacketPushedMessages
+	PacketGetMessageRange
 	PacketMessages
 )
 
@@ -61,6 +63,10 @@ func (t PacketType) String() string {
 		return "PacketError"
 	case PacketSendMessage:
 		return "PacketSendMessage"
+	case PacketPushedMessages:
+		return "PacketPushedMessages"
+	case PacketGetMessageRange:
+		return "PacketGetMessageRange"
 	case PacketMessages:
 		return "PacketMessages"
 	default:
@@ -70,7 +76,7 @@ func (t PacketType) String() string {
 
 func (e PacketType) IsSupported() bool {
 	switch e {
-	case PacketError, PacketSendMessage, PacketMessages:
+	case PacketError, PacketSendMessage, PacketPushedMessages, PacketGetMessageRange, PacketMessages:
 		return true
 	default:
 		return false
@@ -80,10 +86,13 @@ func (e PacketType) IsSupported() bool {
 // True for all packets that a server may push passively to the client.
 func (e PacketType) IsPush() bool {
 	switch e {
-	case PacketError, PacketSendMessage:
+	case PacketError, PacketSendMessage, PacketGetMessageRange, PacketMessages:
 		return false
-	default:
+	case PacketPushedMessages:
 		return true
+	default:
+		assert.Never("should never happen")
+		return false
 	}
 }
 
@@ -190,10 +199,14 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	switch p.Type() {
 	case PacketError:
 		payload = &ErrorMessage{}
-	case PacketMessages:
-		payload = &Messages{}
+	case PacketPushedMessages:
+		payload = &PushedMessages{}
 	case PacketSendMessage:
 		payload = &SendMessage{}
+	case PacketGetMessageRange:
+		payload = &GetMessagesRange{}
+	case PacketMessages:
+		payload = &Messages{}
 	default:
 		assert.Never("packet type of a packet struct must always be valid")
 	}
@@ -212,7 +225,7 @@ type PacketFramer struct {
 	Out    chan Packet
 }
 
-func NewFramer(ctx context.Context) PacketFramer {
+func NewFramer() PacketFramer {
 	return PacketFramer{
 		Out: make(chan Packet, 10),
 	}

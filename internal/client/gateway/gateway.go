@@ -57,7 +57,7 @@ func Connect(ctx context.Context, program *tea.Program, privKey ed25519.PrivateK
 	}
 	log.Println("successfully authenticated with server")
 
-	framer := packet.NewFramer(ctx)
+	framer := packet.NewFramer()
 
 	go func() {
 		connection = conn

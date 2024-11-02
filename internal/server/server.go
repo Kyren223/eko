@@ -152,7 +152,7 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 	sess := session.NewSession(server, addr, id, pubKey)
 	server.AddSession(sess)
 	ctx = session.NewContext(ctx, sess)
-	framer := packet.NewFramer(ctx)
+	framer := packet.NewFramer()
 
 	defer func() {
 		conn.Close()
@@ -292,9 +292,11 @@ func processRequest(ctx context.Context, request packet.Payload) packet.Payload 
 
 	switch request := request.(type) {
 	case *packet.SendMessage:
-		return timeout(100 * time.Millisecond, api.SendMessage, ctx, request)
+		return timeout(50 * time.Millisecond, api.SendMessage, ctx, request)
+	case *packet.GetMessagesRange:
+		return timeout(100 * time.Millisecond, api.GetMessages, ctx, request)
 	default:
-		return &packet.ErrorMessage{Error: "use of unsupported packet type"}
+		return &packet.ErrorMessage{Error: "use of disallowed packet type for request"}
 	}
 }
 
