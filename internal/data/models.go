@@ -19,8 +19,8 @@ type Message struct {
 	ID          snowflake.ID
 	SenderID    snowflake.ID
 	Content     string
-	FrequencyID snowflake.ID
-	ReceiverID  snowflake.ID
+	FrequencyID *snowflake.ID
+	ReceiverID  *snowflake.ID
 }
 
 type Network struct {

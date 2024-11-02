@@ -11,45 +11,11 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-const createDirectMessage = `-- name: CreateDirectMessage :one
-INSERT INTO messages (
-  id, content, sender_id, receiver_id
-) VALUES (
-  ?, ?, ?, ?
-)
-RETURNING id, sender_id, content, frequency_id, receiver_id
-`
-
-type CreateDirectMessageParams struct {
-	ID         snowflake.ID
-	Content    string
-	SenderID   snowflake.ID
-	ReceiverID snowflake.ID
-}
-
-func (q *Queries) CreateDirectMessage(ctx context.Context, arg CreateDirectMessageParams) (Message, error) {
-	row := q.db.QueryRowContext(ctx, createDirectMessage,
-		arg.ID,
-		arg.Content,
-		arg.SenderID,
-		arg.ReceiverID,
-	)
-	var i Message
-	err := row.Scan(
-		&i.ID,
-		&i.SenderID,
-		&i.Content,
-		&i.FrequencyID,
-		&i.ReceiverID,
-	)
-	return i, err
-}
-
 const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (
-  id, content, sender_id, frequency_id
+  id, content, sender_id, frequency_id, receiver_id
 ) VALUES (
-  ?, ?, ?, ?
+  ?, ?, ?, ?, ?
 )
 RETURNING id, sender_id, content, frequency_id, receiver_id
 `
@@ -58,7 +24,8 @@ type CreateMessageParams struct {
 	ID          snowflake.ID
 	Content     string
 	SenderID    snowflake.ID
-	FrequencyID snowflake.ID
+	FrequencyID *snowflake.ID
+	ReceiverID  *snowflake.ID
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
@@ -67,6 +34,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.Content,
 		arg.SenderID,
 		arg.FrequencyID,
+		arg.ReceiverID,
 	)
 	var i Message
 	err := row.Scan(
