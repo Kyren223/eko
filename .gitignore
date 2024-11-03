@@ -2,3 +2,5 @@ internal/server/certs/
 *.crt
 *.log
 *.db
+*.db-shm
+*.db-wal
