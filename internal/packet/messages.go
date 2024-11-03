@@ -14,9 +14,9 @@ func (m *ErrorMessage) Type() PacketType {
 }
 
 type SendMessage struct {
-	ReceiverID *snowflake.ID
+	ReceiverID  *snowflake.ID
 	FrequencyID *snowflake.ID
-	Content string
+	Content     string
 }
 
 func (m *SendMessage) Type() PacketType {
@@ -41,11 +41,27 @@ func (m *Messages) Type() PacketType {
 
 type GetMessagesRange struct {
 	FrequencyID *snowflake.ID
-	ReceiverID *snowflake.ID
-	From *int64
-	To *int64
+	ReceiverID  *snowflake.ID
+	From        *int64
+	To          *int64
 }
 
 func (m *GetMessagesRange) Type() PacketType {
 	return PacketGetMessageRange
+}
+
+type GetUserByID struct {
+	UserID snowflake.ID
+}
+
+func (m *GetUserByID) Type() PacketType {
+	return PacketGetUserById
+}
+
+type Users struct {
+	Users []data.User
+}
+
+func (m *Users) Type() PacketType {
+	return PacketUsers
 }

@@ -16,30 +16,43 @@ const createUser = `-- name: CreateUser :one
 INSERT INTO users (
   id, name, public_key
 ) VALUES (
-  ?, 'User' || abs(random()) % 1000000, ?
+  ?, ?, ?
 )
 RETURNING id, name, public_key
 `
 
 type CreateUserParams struct {
 	ID        snowflake.ID
+	Name      string
 	PublicKey ed25519.PublicKey
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.PublicKey)
+	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Name, arg.PublicKey)
 	var i User
 	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
 	return i, err
 }
 
-const getUser = `-- name: GetUser :one
+const getUserById = `-- name: GetUserById :one
 SELECT id, name, public_key FROM users
 WHERE id = ?
 `
 
-func (q *Queries) GetUser(ctx context.Context, id snowflake.ID) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, id)
+func (q *Queries) GetUserById(ctx context.Context, id snowflake.ID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserById, id)
+	var i User
+	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	return i, err
+}
+
+const getUserByPublicKey = `-- name: GetUserByPublicKey :one
+SELECT id, name, public_key FROM users
+WHERE public_key = ?
+`
+
+func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.PublicKey) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByPublicKey, publicKey)
 	var i User
 	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
 	return i, err

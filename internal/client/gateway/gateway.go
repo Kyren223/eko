@@ -196,6 +196,11 @@ func Send(request packet.Payload) <-chan packet.Payload {
 		asyncResponses = append(asyncResponses, responseChan)
 		responsesMu.Unlock()
 
+		// TODO: this is a really bad implementation
+		// Should refactor to make it better
+		// Maybe have a timeout function similar to the one on the server?
+		// In any case this is like super bad to just arbitrary hang for 5 seconds
+		// And then try to close the thing so it times out
 		time.Sleep(5 * time.Second)
 		responsesMu.Lock()
 		index := -1

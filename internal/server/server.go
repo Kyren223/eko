@@ -147,9 +147,14 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 		return
 	}
 
-	// TODO: replace this with DB query for id
-	id := server.Node().Generate()
-	sess := session.NewSession(server, addr, id, pubKey)
+	user, err := api.CreateOrGetUser(ctx, server.Node(), pubKey)
+	if err != nil {
+		log.Println(addr, "user creation/fetching error:", err)
+		conn.Close()
+		log.Println(addr, "disconnected")
+		return
+	}
+	sess := session.NewSession(server, addr, user.ID, pubKey)
 	server.AddSession(sess)
 	ctx = session.NewContext(ctx, sess)
 	framer := packet.NewFramer()
@@ -290,11 +295,15 @@ func processRequest(ctx context.Context, request packet.Payload) packet.Payload 
 	assert.Assert(ok, "context in process packet should always have a session")
 	log.Println(session.Addr(), "processing", request.Type(), "request:", request)
 
+	// TODO: add a way to measure the time each request/response took and log it
+	// Potentially even separate time for code vs DB operations
 	switch request := request.(type) {
 	case *packet.SendMessage:
-		return timeout(50 * time.Millisecond, api.SendMessage, ctx, request)
+		return timeout(20*time.Millisecond, api.SendMessage, ctx, request)
 	case *packet.GetMessagesRange:
-		return timeout(100 * time.Millisecond, api.GetMessages, ctx, request)
+		return timeout(50*time.Millisecond, api.GetMessages, ctx, request)
+	case *packet.GetUserByID:
+		return timeout(50*time.Millisecond, api.GetUserById, ctx, request)
 	default:
 		return &packet.ErrorMessage{Error: "use of disallowed packet type for request"}
 	}

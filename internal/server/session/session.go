@@ -38,11 +38,12 @@ type Session struct {
 
 func NewSession(manager SessionManager, addr *net.TCPAddr, id snowflake.ID, pubKey ed25519.PublicKey) *Session {
 	session := &Session{
+		WriteQueue: make(chan packet.Packet, 10),
+		PubKey:     pubKey,
 		manager:    manager,
 		addr:       addr,
-		PubKey:     pubKey,
-		WriteQueue: make(chan packet.Packet, 10),
-		challenge:  make([]byte, 32), // Recommended nonce size
+		id:         id,
+		challenge:  make([]byte, 32),
 	}
 	session.Challenge() // Make sure an initial nonce is generated
 	return session

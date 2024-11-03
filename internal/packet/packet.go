@@ -55,6 +55,8 @@ const (
 	PacketPushedMessages
 	PacketGetMessageRange
 	PacketMessages
+	PacketGetUserById
+	PacketUsers
 )
 
 func (t PacketType) String() string {
@@ -69,29 +71,25 @@ func (t PacketType) String() string {
 		return "PacketGetMessageRange"
 	case PacketMessages:
 		return "PacketMessages"
+	case PacketGetUserById:
+		return "PacketGetUserById"
+	case PacketUsers:
+		return "PacketUsers"
 	default:
 		return fmt.Sprintf("PacketInvalidType(%v)", byte(t))
 	}
 }
 
 func (e PacketType) IsSupported() bool {
-	switch e {
-	case PacketError, PacketSendMessage, PacketPushedMessages, PacketGetMessageRange, PacketMessages:
-		return true
-	default:
-		return false
-	}
+	return e <= PacketUsers
 }
 
 // True for all packets that a server may push passively to the client.
 func (e PacketType) IsPush() bool {
 	switch e {
-	case PacketError, PacketSendMessage, PacketGetMessageRange, PacketMessages:
-		return false
 	case PacketPushedMessages:
 		return true
 	default:
-		assert.Never("should never happen")
 		return false
 	}
 }
@@ -207,6 +205,10 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &GetMessagesRange{}
 	case PacketMessages:
 		payload = &Messages{}
+	case PacketGetUserById:
+		payload = &GetUserByID{}
+	case PacketUsers:
+		payload = &Users{}
 	default:
 		assert.Never("packet type of a packet struct must always be valid")
 	}

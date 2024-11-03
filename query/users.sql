@@ -1,12 +1,16 @@
--- name: GetUser :one
+-- name: GetUserById :one
 SELECT * FROM users
 WHERE id = ?;
+
+-- name: GetUserByPublicKey :one
+SELECT * FROM users
+WHERE public_key = ?;
 
 -- name: CreateUser :one
 INSERT INTO users (
   id, name, public_key
 ) VALUES (
-  ?, 'User' || abs(random()) % 1000000, ?
+  ?, ?, ?
 )
 RETURNING *;
 

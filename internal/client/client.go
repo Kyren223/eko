@@ -5,17 +5,16 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"log"
-	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/kyren223/eko/internal/client/api"
 	"github.com/kyren223/eko/internal/client/gateway"
+	"github.com/kyren223/eko/internal/client/ui/messagebox"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
@@ -45,11 +44,9 @@ func Run() {
 }
 
 type model struct {
-	viewport    viewport.Model
-	messages    []string
-	textarea    textarea.Model
-	senderStyle lipgloss.Style
-	err         error
+	messagebox messagebox.Model
+	textarea   textarea.Model
+	err        error
 }
 
 func initialModel() model {
@@ -68,17 +65,12 @@ func initialModel() model {
 
 	ta.ShowLineNumbers = false
 
-	vp := viewport.New(30, 20)
-	// vp.SetContent("Welcome to Eko!\n Type a message and press Enter to send.")
-
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
 	return model{
-		textarea:    ta,
-		messages:    []string{},
-		viewport:    vp,
-		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
-		err:         nil,
+		textarea:   ta,
+		messagebox: messagebox.New(30, 20),
+		err:        nil,
 	}
 }
 
@@ -89,7 +81,7 @@ func (m model) Init() tea.Cmd {
 func (m model) View() string {
 	return fmt.Sprintf(
 		"%s\n%s",
-		m.viewport.View(),
+		m.messagebox.View(),
 		m.textarea.View(),
 	) + ""
 }
@@ -97,17 +89,17 @@ func (m model) View() string {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - m.textarea.Height()
-		m.viewport.GotoBottom()
+		m.messagebox.Viewport.Width = msg.Width
+		m.messagebox.Viewport.Height = msg.Height - m.textarea.Height()
+		m.messagebox.Viewport.GotoBottom()
 
 		m.textarea.SetWidth(msg.Width)
 		log.Println("resized to:", msg.Width, "x", msg.Height)
 
-		var vpCmd, taCmd tea.Cmd
-		m.viewport, vpCmd = m.viewport.Update(msg)
+		var mbCmd, taCmd tea.Cmd
+		m.messagebox, mbCmd = m.messagebox.Update(msg)
 		m.textarea, taCmd = m.textarea.Update(msg)
-		return m, tea.Batch(vpCmd, taCmd)
+		return m, tea.Batch(mbCmd, taCmd)
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -121,8 +113,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if content == "" {
 				return m, nil
 			}
-
 			m.textarea.Reset()
+
 			return m, api.SendMessage(content)
 
 		default:
@@ -134,24 +126,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case packet.Payload:
 		switch msg := msg.(type) {
 		case *packet.Messages:
-			slices.SortFunc(msg.Messages, func(a, b data.Message) int {
-				if a.ID-b.ID < 0 {
-					return -1
-				} else {
-					return 1
-				}
-			})
-
-			m.messages = []string{}
-			for _, message := range msg.Messages {
-				m.messages = append(m.messages, message.Content)
-			}
-
-			m.viewport.SetContent(strings.Join(m.messages, "\n"))
-			m.viewport.GotoBottom()
+			m.messagebox.SetMessages(msg.Messages)
 
 			var cmd tea.Cmd
-			m.viewport, cmd = m.viewport.Update(msg)
+			m.messagebox, cmd = m.messagebox.Update(msg)
 			return m, cmd
 
 		default:
@@ -159,13 +137,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case api.AppendMessage:
-		m.messages = append(m.messages, msg.Content)
-
-		m.viewport.SetContent(strings.Join(m.messages, "\n"))
-		m.viewport.GotoBottom()
+		m.messagebox.AppendMessage(data.Message(msg))
 
 		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
+		m.messagebox, cmd = m.messagebox.Update(msg)
+		return m, cmd
+
+	case api.UserProfileUpdate:
+		var cmd tea.Cmd
+		m.messagebox, cmd = m.messagebox.Update(msg)
 		return m, cmd
 
 	case cursor.BlinkMsg:

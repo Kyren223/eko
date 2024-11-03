@@ -14,7 +14,10 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-type AppendMessage data.Message
+type (
+	AppendMessage     data.Message
+	UserProfileUpdate data.User
+)
 
 func SendMessage(message string) tea.Cmd {
 	return func() tea.Msg {
@@ -26,8 +29,7 @@ func SendMessage(message string) tea.Cmd {
 		}
 		response, ok := <-gateway.Send(&request)
 		if !ok {
-			log.Println()
-			return errors.New("request timeout")
+			return errors.New("request SendMessage timeout")
 		}
 		log.Println("request SendMessage received response")
 
@@ -53,8 +55,7 @@ func GetMessages() tea.Msg {
 	}
 	response, ok := <-gateway.Send(&request)
 	if !ok {
-		log.Println()
-		return errors.New("request timeout")
+		return errors.New("request GetMessages timeout")
 	}
 	log.Println("request GetMessages received response")
 
@@ -65,4 +66,28 @@ func GetMessages() tea.Msg {
 		return response
 	}
 	return fmt.Errorf("received invalid response from server: %v", response.Type())
+}
+
+func GetUserById(id snowflake.ID) tea.Cmd {
+	return func() tea.Msg {
+		log.Println("request GetUserById for ID", id, "sent")
+		request := packet.GetUserByID{UserID: id}
+		response, ok := <-gateway.Send(&request)
+		if !ok {
+			return errors.New("request GetUserById timeout")
+		}
+		log.Println("request GetUserById received response")
+
+		switch response := response.(type) {
+		case *packet.ErrorMessage:
+			return errors.New(response.Error)
+		case *packet.Users:
+			if len(response.Users) == 0 {
+				return fmt.Errorf("requested user id %v not found", id)
+			}
+			assert.Assert(len(response.Users) == 1, "server must return only one user with the matching id")
+			return UserProfileUpdate(response.Users[0])
+		}
+		return fmt.Errorf("received invalid response from server: %v", response.Type())
+	}
 }
