@@ -1,20 +1,20 @@
 package field
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/kyren223/eko/internal/client/ui"
 )
 
-
 type Model struct {
-	Input textinput.Model
-	Style lipgloss.Style
+	Input        textinput.Model
+	Style        lipgloss.Style
 	FocusedStyle lipgloss.Style
 	BlurredStyle lipgloss.Style
-	ErrorStyle lipgloss.Style
+	ErrorStyle   lipgloss.Style
+	Header       string
 }
 
 func New(width int) Model {
@@ -37,15 +37,18 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	var builder strings.Builder
-
-	builder.WriteString(m.Style.Render(m.Input.View()))
-	builder.WriteRune('\n')
+	style := m.Style
+	error := ""
 	if m.Input.Err != nil {
-		builder.WriteString(m.ErrorStyle.Render(m.Input.Err.Error()))
+		error = m.Input.Err.Error()
+		style = style.BorderForeground(m.ErrorStyle.GetForeground())
 	}
+	field := ui.AddBorderHeader(m.Header, 1, style, m.Input.View())
 
-	return builder.String()
+	error = m.ErrorStyle.MaxWidth(lipgloss.Width(field)).Render(error)
+
+	// return lipgloss.JoinVertical(lipgloss.Left, borderTop, field, error)
+	return lipgloss.JoinVertical(lipgloss.Left, field, error)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
