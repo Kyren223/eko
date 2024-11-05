@@ -14,6 +14,11 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+var (
+	senderStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)
+	timestampStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#585c62")).Italic(true)
+)
+
 type user struct {
 	name       string
 	isFetching bool
@@ -22,20 +27,14 @@ type user struct {
 type Model struct {
 	Viewport viewport.Model
 	messages []data.Message
-
-	senderStyle    lipgloss.Style
-	timestampStyle lipgloss.Style
-
-	users map[snowflake.ID]user
+	users    map[snowflake.ID]user
 }
 
 func New(width, height int) Model {
 	return Model{
-		Viewport:       viewport.New(width, height),
-		messages:       nil,
-		senderStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true),
-		timestampStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#585c62")).Italic(true),
-		users:          make(map[snowflake.ID]user),
+		Viewport: viewport.New(width, height),
+		messages: nil,
+		users:    make(map[snowflake.ID]user),
 	}
 }
 
@@ -112,11 +111,11 @@ func (m *Model) updateContent() {
 
 	for _, message := range m.messages {
 		sender := m.users[message.SenderID].name
-		builder.WriteString(m.senderStyle.Render(sender))
+		builder.WriteString(senderStyle.Render(sender))
 		builder.WriteByte(' ')
 
 		timestamp := timestampFromID(message.ID)
-		builder.WriteString(m.timestampStyle.Render(timestamp))
+		builder.WriteString(timestampStyle.Render(timestamp))
 		builder.WriteByte('\n')
 
 		builder.WriteString(message.Content)
