@@ -56,6 +56,10 @@ ___] | |__] | \|    | | \|
 
 	revealIcon  = lipgloss.NewStyle().PaddingLeft(1).Render("󰈈 ")
 	concealIcon = lipgloss.NewStyle().PaddingLeft(1).Render("󰈉 ")
+
+	popupStyle            = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+	choiceSelectedStyle   = lipgloss.NewStyle().Background(focusedStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+	choiceUnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
 )
 
 type Model struct {
@@ -87,6 +91,7 @@ func New() Model {
 		case usernameField:
 			field.Header = headerStyle.Render("Username")
 			field.Input.Placeholder = "Username"
+			field.Input.CharLimit = 48
 			field.Input.Validate = func(username string) error {
 				if len(username) == 0 {
 					return errors.New("Required")
@@ -96,12 +101,7 @@ func New() Model {
 		case privateKeyField:
 			field.Header = headerStyle.Render("Private Key")
 			field.Input.Placeholder = "Path to Private Key"
-			// TODO: Consider if I need a custom validate function or not
-			// I most likely need it for prompts
-			// So if signup is on and private key file exists suggest to either:
-			// 1. Overwrite it 2. Switch to sign-in 3. Cancel
-			// And if it's off and the file doesn't exist, suggest:
-			// 1. Switch to sign-up 2. Cancel
+			field.Input.CharLimit = 100
 			field.Input.Validate = func(privKey string) error {
 				if len(privKey) == 0 {
 					return errors.New("Required")
@@ -194,7 +194,10 @@ func (m Model) View() string {
 	)
 
 	if m.popup != nil {
-		result = ui.PlaceOverlay(0, 0, m.popup.View(), result)
+		popup := m.popup.View()
+		x := (m.width - lipgloss.Width(popup)) / 2
+		y := (m.height - lipgloss.Height(popup)) / 2
+		result = ui.PlaceOverlay(x, y, popup, result)
 	}
 
 	return result
@@ -212,9 +215,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
-		case tea.KeyCtrlS:
-			return m, m.SetSignup(!m.signup)
-
 		case tea.KeyCtrlT:
 			if m.popup == nil && (m.focusIndex == passphraseField || m.focusIndex == passphraseConfirmField) {
 				m.fields[m.focusIndex].SetRevealed(!m.fields[m.focusIndex].Revealed())
@@ -226,7 +226,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				_, choice := m.popup.Select()
 				if choice == "sign-up" {
 					m.popup = nil
-					return m, m.SetSignup(!m.signup)
+					return m, m.SetSignup(true)
+				}
+				if choice == "sign-in" {
+					m.popup = nil
+					return m, m.SetSignup(false)
+				}
+				if choice == "overwrite" {
+					// TODO: how should I handle this
+					// I need to somehow use this to notify that the file
+					// should be overwritten, or maybe I should remove this option?
+					// And make sure the user manually deletes/renames/moves the file
+					// So nobody can claim that this deleted their SSH keys
+					// (or more likely: I won't accidentally delete my SSH keys)
+					m.popup = nil
+					return m, nil
 				}
 				if choice == "cancel" {
 					m.popup = nil
@@ -352,27 +366,31 @@ func (m *Model) ButtonPressed(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) Signup() tea.Cmd {
-	return tea.Quit
+	// So if signup is on and private key file exists suggest to either:
+	// 1. Overwrite it 2. Switch to sign-in 3. Cancel
+	privateKeyFilepath := m.fields[privateKeyField].Input.Value()
+	_, err := os.ReadFile(privateKeyFilepath)
+	if errors.Is(err, os.ErrNotExist) {
+		return tea.Quit
+	}
+
+	if err != nil {
+		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
+		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
+		return nil
+	}
+
+	content := fmt.Sprintf("File '%s' exist.\nDo you want to overwrite or sign-in instead?", privateKeyFilepath)
+	m.popup = createPopup(content, []string{"sign-in", "overwrite"}, []string{"cancel"})
+	return nil
 }
 
 func (m *Model) signin() tea.Cmd {
 	privateKeyFilepath := m.fields[privateKeyField].Input.Value()
 	_, err := os.ReadFile(privateKeyFilepath)
 	if errors.Is(err, os.ErrNotExist) {
-		// TODO: add suggestion to move to signup, a popup like:
-		// File <file> doesn't exist.
-		// Do you want to go to sign-up?
-		// Sign-up        Cancel
-		popup := choicepopup.New(40, 10)
-		popup.Dialogue.SetContent(fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath))
-		popup.Dialogue.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, true)
-		popup.SetChoices("sign-up", "cancel")
-		popup.Style = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-		popup.SelectedStyle = lipgloss.NewStyle().Background(focusedStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
-		popup.UnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
-		popup.ChoicesStyle = lipgloss.NewStyle().AlignHorizontal(lipgloss.Right)
-		popup.Cycle = true
-		m.popup = &popup
+		content := fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath)
+		m.popup = createPopup(content, []string{"sign-up"}, []string{"cancel"})
 		return nil
 	}
 	if err != nil {
@@ -381,6 +399,24 @@ func (m *Model) signin() tea.Cmd {
 		return nil
 	}
 	return tea.Quit
+}
+
+func createPopup(content string, leftChoices, rightChoices []string) *choicepopup.Model {
+	content = lipgloss.NewStyle().Padding(0, 1).
+		Border(lipgloss.NormalBorder(), false, false, true).
+		Render(content)
+
+	popup := choicepopup.New(lipgloss.Width(content), lipgloss.Height(content)+1)
+
+	popup.SetContent(content)
+	popup.SetChoices(leftChoices, rightChoices)
+	popup.Cycle = true
+
+	popup.Style = popupStyle
+	popup.SelectedStyle = choiceSelectedStyle
+	popup.UnselectedStyle = choiceUnselectedStyle
+
+	return &popup
 }
 
 func test() {

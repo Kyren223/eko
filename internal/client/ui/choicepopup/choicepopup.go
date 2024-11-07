@@ -1,7 +1,8 @@
 package choicepopup
 
 import (
-	"github.com/charmbracelet/bubbles/viewport"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -11,12 +12,12 @@ import (
 type Model struct {
 	Width  int
 	Height int
+	Cycle  bool
 
-	Dialogue viewport.Model
-	Cycle    bool
-
-	choices []string
-	index   int
+	content   string
+	choices   []string
+	index     int
+	leftCount int
 
 	SelectedStyle   lipgloss.Style
 	UnselectedStyle lipgloss.Style
@@ -26,9 +27,8 @@ type Model struct {
 
 func New(width, height int) Model {
 	return Model{
-		Width:    width,
-		Height:   height,
-		Dialogue: viewport.New(0, 0),
+		Width:  width,
+		Height: height,
 	}
 }
 
@@ -37,34 +37,56 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	var choices []string
+	var leftChoices []string
+	var rightChoices []string
 	for i, choice := range m.choices {
 		if i == m.index {
-			choices = append(choices, m.SelectedStyle.Render(choice))
+			choice = m.SelectedStyle.Render(choice)
 		} else {
-			choices = append(choices, m.UnselectedStyle.Render(choice))
+			choice = m.UnselectedStyle.Render(choice)
+		}
+
+		if i < m.leftCount {
+			leftChoices = append(leftChoices, choice)
+		} else {
+			rightChoices = append(rightChoices, choice)
 		}
 	}
-	styledChoices := m.ChoicesStyle.MaxWidth(m.Width).MaxHeight(m.Height).
-		Render(lipgloss.JoinHorizontal(lipgloss.Center, choices...))
 
-	m.Dialogue.Width = m.Width
-	m.Dialogue.Height = m.Height - lipgloss.Height(styledChoices)
+	left := lipgloss.JoinHorizontal(lipgloss.Center, leftChoices...)
+	right := lipgloss.JoinHorizontal(lipgloss.Center, rightChoices...)
+	leftWidth := lipgloss.Width(left)
+	rightWidth := lipgloss.Width(right)
 
-	popup := lipgloss.JoinVertical(lipgloss.Left, m.Dialogue.View(), styledChoices)
+	paddingSize := m.Width - leftWidth - rightWidth
+	assert.Assert(paddingSize >= 0, "there should be enough space for all choices", "remaining", paddingSize)
+	padding := strings.Repeat(" ", paddingSize)
+	choices := lipgloss.JoinHorizontal(lipgloss.Center, left, padding, right)
+	styledChoices := m.ChoicesStyle.MaxWidth(m.Width).MaxHeight(m.Height).Render(choices)
+
+	maxContentHeight := m.Height - lipgloss.Height(styledChoices)
+	content := lipgloss.NewStyle().MaxWidth(m.Width).MaxHeight(maxContentHeight).
+		Render(m.content)
+
+	popup := lipgloss.JoinVertical(lipgloss.Left, content, styledChoices)
 	return m.Style.Render(popup)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	var cmd tea.Cmd
-	m.Dialogue, cmd = m.Dialogue.Update(msg)
-	return m, cmd
+	return m, nil
 }
 
-func (m *Model) SetChoices(choices ...string) {
-	assert.Assert(len(choices) != 0, "choices must have at least 1 element")
-	m.choices = choices
+func (m *Model) SetContent(content string) {
+	m.content = content
+}
+
+func (m *Model) SetChoices(leftChoices, rightChoices []string) {
+	assert.Assert(len(leftChoices)+len(rightChoices) != 0, "choices must have at least 1 element")
 	m.index = 0
+	m.leftCount = len(leftChoices)
+	m.choices = nil
+	m.choices = append(m.choices, leftChoices...)
+	m.choices = append(m.choices, rightChoices...)
 }
 
 func (m *Model) ScrollLeft() {
