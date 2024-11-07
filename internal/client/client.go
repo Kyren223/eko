@@ -26,12 +26,6 @@ func Run() {
 	log.Println("client started")
 	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
-	defer func() {
-		if r := recover(); r != nil {
-			program.Kill()
-			log.Println("recovered from panic:", r)
-		}
-	}()
 
 	_, privKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(err, "private key gen should not error")
