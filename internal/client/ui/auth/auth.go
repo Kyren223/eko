@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -366,27 +367,38 @@ func (m *Model) ButtonPressed(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) Signup() tea.Cmd {
-	// So if signup is on and private key file exists suggest to either:
-	// 1. Overwrite it 2. Switch to sign-in 3. Cancel
-	privateKeyFilepath := m.fields[privateKeyField].Input.Value()
-	_, err := os.ReadFile(privateKeyFilepath)
-	if errors.Is(err, os.ErrNotExist) {
-		return tea.Quit
+	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
+	err := os.MkdirAll(filepath.Dir(privateKeyFilepath), 0o755)
+	if err != nil {
+		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
+		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
+		return nil
 	}
-
+	file, err := os.OpenFile(privateKeyFilepath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if errors.Is(err, os.ErrExist) {
+		info, e := os.Stat(privateKeyFilepath)
+		assert.NoError(e, "if file exists it should be fine to stat it")
+		if info.IsDir() {
+			m.fields[privateKeyField].Input.Err = errors.New("directory exists")
+			return nil
+		}
+		content := fmt.Sprintf("File '%s' exists.\nDo you want to overwrite or sign-in instead?", privateKeyFilepath)
+		m.popup = createPopup(content, []string{"sign-in", "overwrite"}, []string{"cancel"})
+		return nil
+	}
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
 
-	content := fmt.Sprintf("File '%s' exist.\nDo you want to overwrite or sign-in instead?", privateKeyFilepath)
-	m.popup = createPopup(content, []string{"sign-in", "overwrite"}, []string{"cancel"})
-	return nil
+	file.Close()
+	os.Remove(privateKeyFilepath)
+	return tea.Quit
 }
 
 func (m *Model) signin() tea.Cmd {
-	privateKeyFilepath := m.fields[privateKeyField].Input.Value()
+	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
 	_, err := os.ReadFile(privateKeyFilepath)
 	if errors.Is(err, os.ErrNotExist) {
 		content := fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath)
@@ -417,6 +429,18 @@ func createPopup(content string, leftChoices, rightChoices []string) *choicepopu
 	popup.UnselectedStyle = choiceUnselectedStyle
 
 	return &popup
+}
+
+func expandPath(path string) string {
+	if strings.HasPrefix(path, "~") {
+		home, err := os.UserHomeDir()
+		assert.NoError(err, "home directory should always be defined")
+		if !strings.HasPrefix(path, "~/") {
+			return home
+		}
+		return filepath.Join(home, path[2:])
+	}
+	return path
 }
 
 func test() {
