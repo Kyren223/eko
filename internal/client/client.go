@@ -18,7 +18,7 @@ type BubbleTeaCloser struct {
 }
 
 func (c BubbleTeaCloser) Close() error {
-	c.program.Quit()
+	c.program.Kill()
 	return nil
 }
 
