@@ -9,25 +9,36 @@ import (
 )
 
 type Model struct {
-	Input        textinput.Model
+	Input    textinput.Model
+	Header   string
+	Visisble bool
+	width    int
+
+	reveal      bool
+	revealIcon  string
+	concealIcon string
+	icon        string
+
 	Style        lipgloss.Style
 	FocusedStyle lipgloss.Style
 	BlurredStyle lipgloss.Style
 	ErrorStyle   lipgloss.Style
-	Header       string
+	HeaderStyle  lipgloss.Style
 }
 
 func New(width int) Model {
-	t := textinput.New()
-	t.Width = width
-	t.CharLimit = width
-	t.Prompt = ""
+	input := textinput.New()
+	input.Prompt = ""
+	input.Width = width
 
 	m := Model{
-		Input: t,
+		width:    width,
+		Visisble: true,
+		Input:    input,
 	}
 
 	m.Blur()
+	m.SetRevealed(true)
 
 	return m
 }
@@ -37,21 +48,29 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	style := m.Style
-	error := ""
-	if m.Input.Err != nil {
-		error = m.Input.Err.Error()
-		style = style.BorderForeground(m.ErrorStyle.GetForeground())
+	if !m.Visisble {
+		return ""
 	}
-	field := ui.AddBorderHeader(m.Header, 1, style, m.Input.View())
 
-	error = m.ErrorStyle.MaxWidth(lipgloss.Width(field)).Render(error)
+	style := m.Style
+	header := m.HeaderStyle.Render(m.Header)
+	if m.Input.Err != nil {
+		error := m.Input.Err.Error()
+		style = style.BorderForeground(m.ErrorStyle.GetForeground())
+		header = lipgloss.NewStyle().
+			MaxWidth(m.width).
+			Render(header + m.ErrorStyle.Render(" - "+error))
+	}
 
-	// return lipgloss.JoinVertical(lipgloss.Left, borderTop, field, error)
-	return lipgloss.JoinVertical(lipgloss.Left, field, error)
+	field := ui.AddBorderHeader(header, 1, style, m.Input.View()+m.icon)
+	return field
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if !m.Visisble {
+		return m, nil
+	}
+
 	var cmd tea.Cmd
 	m.Input, cmd = m.Input.Update(msg)
 	return m, cmd
@@ -67,4 +86,57 @@ func (m *Model) Blur() {
 	m.Input.Blur()
 	m.Input.PromptStyle = m.BlurredStyle
 	m.Input.TextStyle = m.BlurredStyle
+}
+
+func (m *Model) SetWidth(width int) {
+	m.width = width
+	m.recalculateWidth()
+}
+
+func (m Model) Width() int {
+	return m.width
+}
+
+func (m *Model) SetRevealed(revealed bool) {
+	m.reveal = revealed
+	if m.reveal {
+		m.Input.EchoMode = textinput.EchoNormal
+		m.icon = m.revealIcon
+	} else {
+		m.Input.EchoMode = textinput.EchoPassword
+		m.icon = m.concealIcon
+	}
+	m.recalculateWidth()
+}
+
+func (m Model) Revealed() bool {
+	return m.reveal
+}
+
+func (m *Model) SetRevealIcon(icon string) {
+	m.revealIcon = icon
+	if m.reveal {
+		m.icon = icon
+	}
+	m.recalculateWidth()
+}
+
+func (m Model) RevealIcon() string {
+	return m.revealIcon
+}
+
+func (m *Model) SetConcealIcon(icon string) {
+	m.concealIcon = icon
+	if !m.reveal {
+		m.icon = icon
+	}
+	m.recalculateWidth()
+}
+
+func (m Model) ConcealIcon() string {
+	return m.concealIcon
+}
+
+func (m *Model) recalculateWidth() {
+	m.Input.Width = m.width - lipgloss.Width(m.icon)
 }
