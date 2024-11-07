@@ -10,7 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/kyren223/eko/internal/client/ui"
 	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
+	"github.com/kyren223/eko/internal/client/ui/choicepopup"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -64,6 +66,8 @@ type Model struct {
 	fields     []authfield.Model
 
 	signup bool
+
+	popup *choicepopup.Model
 }
 
 func New() Model {
@@ -183,11 +187,17 @@ func (m Model) View() string {
 		// NOTE: Without -1 it wraps/truncates, not sure why
 		Padding(0, (vp.Width-width)/2-1, 1)
 
-	return lipgloss.Place(
+	result := lipgloss.Place(
 		m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
 		vp.View(),
 	)
+
+	if m.popup != nil {
+		result = ui.PlaceOverlay(0, 0, m.popup.View(), result)
+	}
+
+	return result
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -206,36 +216,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.SetSignup(!m.signup)
 
 		case tea.KeyCtrlT:
-			if m.focusIndex == passphraseField || m.focusIndex == passphraseConfirmField {
+			if m.popup == nil && (m.focusIndex == passphraseField || m.focusIndex == passphraseConfirmField) {
 				m.fields[m.focusIndex].SetRevealed(!m.fields[m.focusIndex].Revealed())
 			}
 			return m, nil
 
 		case tea.KeyEnter:
+			if m.popup != nil {
+				_, choice := m.popup.Select()
+				if choice == "sign-up" {
+					m.popup = nil
+					return m, m.SetSignup(!m.signup)
+				}
+				if choice == "cancel" {
+					m.popup = nil
+					return m, nil
+				}
+				assert.Never("unexpected choice", "choice", choice)
+			}
+
 			pressedButton := key == tea.KeyEnter && m.focusIndex == len(m.fields)
 			if pressedButton {
 				return m, m.ButtonPressed(msg)
 			}
 
 		case tea.KeyShiftTab, tea.KeyUp:
+			if m.popup != nil {
+				m.popup.ScrollLeft()
+				return m, nil
+			}
 			m.CycleBack()
 			return m, m.updateFocus()
 
 		case tea.KeyDown, tea.KeyTab:
+			if m.popup != nil {
+				m.popup.ScrollRight()
+				return m, nil
+			}
 			m.CycleForward()
 			return m, m.updateFocus()
 		}
 	}
 
-	cmd := func() tea.Cmd {
-		cmds := make([]tea.Cmd, len((&m).fields))
-		for i := range (&m).fields {
-			(&m).fields[i], cmds[i] = (&m).fields[i].Update(msg)
-		}
-		return tea.Batch(cmds...)
-	}()
+	if m.popup != nil {
+		return m, nil
+	}
 
-	return m, cmd
+	cmds := make([]tea.Cmd, len(m.fields))
+	for i := range m.fields {
+		m.fields[i], cmds[i] = m.fields[i].Update(msg)
+	}
+	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) CycleBack() {
@@ -332,6 +363,16 @@ func (m *Model) signin() tea.Cmd {
 		// File <file> doesn't exist.
 		// Do you want to go to sign-up?
 		// Sign-up        Cancel
+		popup := choicepopup.New(40, 10)
+		popup.Dialogue.SetContent(fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath))
+		popup.Dialogue.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, true)
+		popup.SetChoices("sign-up", "cancel")
+		popup.Style = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+		popup.SelectedStyle = lipgloss.NewStyle().Background(focusedStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+		popup.UnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+		popup.ChoicesStyle = lipgloss.NewStyle().AlignHorizontal(lipgloss.Right)
+		popup.Cycle = true
+		m.popup = &popup
 		return nil
 	}
 	if err != nil {
