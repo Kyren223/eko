@@ -1,13 +1,13 @@
 package client
 
 import (
-	"context"
-	"crypto/ed25519"
+	// "context"
+	// "crypto/ed25519"
 	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/kyren223/eko/internal/client/gateway"
+	// "github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
 	"github.com/kyren223/eko/pkg/assert"
@@ -27,10 +27,10 @@ func Run() {
 	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
 
-	_, privKey, err := ed25519.GenerateKey(nil)
-	assert.NoError(err, "private key gen should not error")
+	// _, privKey, err := ed25519.GenerateKey(nil)
+	// assert.NoError(err, "private key gen should not error")
 
-	gateway.Connect(context.Background(), program, privKey)
+	// gateway.Connect(context.Background(), program, privKey)
 	if _, err := program.Run(); err != nil {
 		log.Println(err)
 	}

@@ -19,11 +19,12 @@ type Model struct {
 	concealIcon string
 	icon        string
 
-	Style        lipgloss.Style
-	FocusedStyle lipgloss.Style
-	BlurredStyle lipgloss.Style
-	ErrorStyle   lipgloss.Style
-	HeaderStyle  lipgloss.Style
+	FocusedStyle     lipgloss.Style
+	BlurredStyle     lipgloss.Style
+	FocusedTextStyle lipgloss.Style
+	BlurredTextStyle lipgloss.Style
+	ErrorStyle       lipgloss.Style
+	HeaderStyle      lipgloss.Style
 }
 
 func New(width int) Model {
@@ -52,7 +53,12 @@ func (m Model) View() string {
 		return ""
 	}
 
-	style := m.Style
+	
+	style := m.BlurredStyle
+	if m.Input.Focused() {
+		style = m.FocusedStyle
+	}
+
 	header := m.HeaderStyle.Render(m.Header)
 	if m.Input.Err != nil {
 		error := m.Input.Err.Error()
@@ -77,15 +83,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m *Model) Focus() tea.Cmd {
-	m.Input.PromptStyle = m.FocusedStyle
-	m.Input.TextStyle = m.FocusedStyle
+	m.Input.PromptStyle = m.FocusedTextStyle
+	m.Input.TextStyle = m.FocusedTextStyle
 	return m.Input.Focus()
 }
 
 func (m *Model) Blur() {
 	m.Input.Blur()
-	m.Input.PromptStyle = m.BlurredStyle
-	m.Input.TextStyle = m.BlurredStyle
+	m.Input.PromptStyle = m.BlurredTextStyle
+	m.Input.TextStyle = m.BlurredTextStyle
 }
 
 func (m *Model) SetWidth(width int) {

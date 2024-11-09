@@ -1,15 +1,20 @@
 package auth
 
 import (
+	"crypto/ed25519"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/kyren223/eko/internal/client/ui"
 	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
@@ -26,29 +31,30 @@ const (
 
 var (
 	grayStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("198"))
-	cursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("198"))
+	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#5874FF"))
+	cursorStyle  = focusedStyle
 	noStyle      = lipgloss.NewStyle()
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F16265"))
-	fieldStyle   = lipgloss.NewStyle().
-			PaddingLeft(1).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#007E8A"))
 
-	focusedSignupButton = focusedStyle.Render("[ sign-up ]")
-	focusedSigninButton = focusedStyle.Render("[ sign-in ]")
+	fieldBlurredStyle = lipgloss.NewStyle().
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("#007E8A"))
+	fieldFocusedStyle = fieldBlurredStyle.BorderForeground(focusedStyle.GetForeground()).Border(lipgloss.ThickBorder())
+
+	focusedSignupButton = focusedStyle.Bold(true).Render("[ SIGN-UP ]")
+	focusedSigninButton = focusedStyle.Bold(true).Render("[ SIGN-IN ]")
 	blurredSignupButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-up"))
 	blurredSigninButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-in"))
 
 	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#54D7A9"))
-	titleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5874FF"))
+	titleStyle  = focusedStyle.Bold(true)
 
 	signupTitle = titleStyle.Render(`
 ____ _ ____ _  _    _  _ ___  
 [__  | | __ |\ | __ |  | |__] 
 ___] | |__] | \|    |__| |    
 		`)
-
 	signinTitle = titleStyle.Render(`
 ____ _ ____ _  _    _ _  _
 [__  | | __ |\ | __ | |\ |
@@ -59,7 +65,7 @@ ___] | |__] | \|    | | \|
 	concealIcon = lipgloss.NewStyle().PaddingLeft(1).Render("󰈉 ")
 
 	popupStyle            = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-	choiceSelectedStyle   = lipgloss.NewStyle().Background(focusedStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+	choiceSelectedStyle   = lipgloss.NewStyle().Background(lipgloss.Color("#0029f5")).Padding(0, 1).Margin(0, 1)
 	choiceUnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
 )
 
@@ -83,10 +89,11 @@ func New() Model {
 	for i := range m.fields {
 		field := authfield.New(48)
 		field.Input.Cursor.Style = cursorStyle
-		field.Style = fieldStyle
+		field.BlurredStyle = fieldBlurredStyle
+		field.FocusedStyle = fieldFocusedStyle
 		field.ErrorStyle = errorStyle
-		field.FocusedStyle = focusedStyle
-		field.BlurredStyle = noStyle
+		field.FocusedTextStyle = focusedStyle
+		field.BlurredTextStyle = noStyle
 
 		switch i {
 		case usernameField:
@@ -233,16 +240,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.popup = nil
 					return m, m.SetSignup(false)
 				}
-				if choice == "overwrite" {
-					// TODO: how should I handle this
-					// I need to somehow use this to notify that the file
-					// should be overwritten, or maybe I should remove this option?
-					// And make sure the user manually deletes/renames/moves the file
-					// So nobody can claim that this deleted their SSH keys
-					// (or more likely: I won't accidentally delete my SSH keys)
-					m.popup = nil
-					return m, nil
-				}
 				if choice == "cancel" {
 					m.popup = nil
 					return m, nil
@@ -367,6 +364,22 @@ func (m *Model) ButtonPressed(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) Signup() tea.Cmd {
+	passphrase := m.fields[passphraseField].Input.Value()
+	confirmation := m.fields[passphraseConfirmField].Input.Value()
+
+	hasPassphrase := len(passphrase) != 0
+	hasConfirmation := len(confirmation) != 0
+	if hasPassphrase && !hasConfirmation {
+		m.fields[passphraseConfirmField].Input.Err = errors.New("Confirmation required")
+		return nil
+	} else if !hasPassphrase && hasConfirmation {
+		m.fields[passphraseField].Input.Err = errors.New("Empty passphrase")
+		return nil
+	} else if hasPassphrase && hasConfirmation && passphrase != confirmation {
+		m.fields[passphraseConfirmField].Input.Err = errors.New("Passphrase mismatch")
+		return nil
+	}
+
 	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
 	err := os.MkdirAll(filepath.Dir(privateKeyFilepath), 0o755)
 	if err != nil {
@@ -379,27 +392,33 @@ func (m *Model) Signup() tea.Cmd {
 		info, e := os.Stat(privateKeyFilepath)
 		assert.NoError(e, "if file exists it should be fine to stat it")
 		if info.IsDir() {
-			m.fields[privateKeyField].Input.Err = errors.New("directory exists")
+			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
 			return nil
 		}
-		content := fmt.Sprintf("File '%s' exists.\nDo you want to overwrite or sign-in instead?", privateKeyFilepath)
-		m.popup = createPopup(content, []string{"sign-in", "overwrite"}, []string{"cancel"})
+		content := fmt.Sprintf("File '%s' exists.\nDo you want to sign-in instead?", privateKeyFilepath)
+		m.popup = createPopup(content, []string{"sign-in"}, []string{"cancel"})
 		return nil
 	}
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
+		if errors.Unwrap(err).Error() == "is a directory" {
+			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
+		}
+		log.Println("signup open file error:", err)
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
 
+	// file.Write()
 	file.Close()
 	os.Remove(privateKeyFilepath)
+
 	return tea.Quit
 }
 
 func (m *Model) signin() tea.Cmd {
 	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
-	_, err := os.ReadFile(privateKeyFilepath)
+	file, err := os.ReadFile(privateKeyFilepath)
 	if errors.Is(err, os.ErrNotExist) {
 		content := fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath)
 		m.popup = createPopup(content, []string{"sign-up"}, []string{"cancel"})
@@ -407,9 +426,54 @@ func (m *Model) signin() tea.Cmd {
 	}
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
+		if errors.Unwrap(err).Error() == "is a directory" {
+			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
+		}
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
+
+	var privateKey any
+	passphrase := m.fields[passphraseField].Input.Value()
+
+	if len(passphrase) == 0 {
+		privateKey, err = ssh.ParseRawPrivateKey(file)
+		if err, ok := err.(*ssh.PassphraseMissingError); ok {
+			m.fields[passphraseField].Input.Err = errors.New("Missing passphrase")
+			log.Println("passphrase missing:", err)
+			return nil
+		}
+		if err != nil {
+			m.fields[privateKeyField].Input.Err = errors.New("Invalid private key file format")
+			log.Println("passphrase error:", err)
+			return nil
+		}
+	} else {
+		privateKey, err = ssh.ParseRawPrivateKeyWithPassphrase(file, []byte(passphrase))
+		if err == x509.IncorrectPasswordError {
+			m.fields[passphraseField].Input.Err = errors.New("Incorrect Passphrase")
+			return nil
+		}
+		if err != nil && (err.Error() == "ssh: not an encrypted key" || err.Error() == "ssh: key is not password protected") {
+			privateKey, err = ssh.ParseRawPrivateKey(file)
+		}
+		if err != nil {
+			m.fields[privateKeyField].Input.Err = errors.New("Invalid private key file format")
+			log.Println("passphrase error:", err)
+			return nil
+		}
+	}
+
+	privKey, ok := privateKey.(*ed25519.PrivateKey)
+	if !ok {
+		m.fields[privateKeyField].Input.Err = errors.New("Must be ed25519")
+		keyType := reflect.TypeOf(privateKey)
+		log.Println("incorrect private key type, got:", keyType.String(), reflect.ValueOf(privateKey).String())
+		return nil
+	}
+
+	_ = privKey
+
 	return tea.Quit
 }
 
@@ -447,7 +511,7 @@ func test() {
 	// pubKey, privKey, err := ed25519.GenerateKey(nil)
 	// sshPrivKey, err := ssh.NewSignerFromSigner(privKey)
 	// ssh.MarshalPrivateKey()
-	// ssh.MarshalPrivateKey()
+	// ssh.MarshalAuthorizedKey()
 	// ssh.ParseRawPrivateKey()
 	// ssh.ParseRawPrivateKeyWithPassphrase()
 }
