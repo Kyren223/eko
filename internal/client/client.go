@@ -1,13 +1,11 @@
 package client
 
 import (
-	// "context"
-	// "crypto/ed25519"
 	"log"
+	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	// "github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
 	"github.com/kyren223/eko/pkg/assert"
@@ -54,7 +52,12 @@ func (m model) View() string {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		ui.Width, ui.Height = msg.Width, msg.Height
+		return m, nil
+
 	case ui.ModelTransition:
+		log.Println("Transition model from", reflect.TypeOf(m.model).String(), "to", reflect.TypeOf(msg.Model).String())
 		m.model = msg.Model
 		return m, nil
 	default:

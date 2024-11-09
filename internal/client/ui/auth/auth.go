@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/ed25519"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log"
@@ -19,6 +20,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui"
 	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
+	"github.com/kyren223/eko/internal/client/ui/loadscreen"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -70,9 +72,6 @@ ___] | |__] | \|    | | \|
 )
 
 type Model struct {
-	width  int
-	height int
-
 	focusIndex int
 	fields     []authfield.Model
 
@@ -196,15 +195,15 @@ func (m Model) View() string {
 		Padding(0, (vp.Width-width)/2-1, 1)
 
 	result := lipgloss.Place(
-		m.width, m.height,
+		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
 		vp.View(),
 	)
 
 	if m.popup != nil {
 		popup := m.popup.View()
-		x := (m.width - lipgloss.Width(popup)) / 2
-		y := (m.height - lipgloss.Height(popup)) / 2
+		x := (ui.Width - lipgloss.Width(popup)) / 2
+		y := (ui.Height - lipgloss.Height(popup)) / 2
 		result = ui.PlaceOverlay(x, y, popup, result)
 	}
 
@@ -213,10 +212,6 @@ func (m Model) View() string {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		return m, nil
-
 	case tea.KeyMsg:
 		key := msg.Type
 		switch key {
@@ -364,6 +359,8 @@ func (m *Model) ButtonPressed(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) Signup() tea.Cmd {
+	username := m.fields[usernameField].Input.Value()
+	assert.Assert(len(username) != 0, "username must not be empty")
 	passphrase := m.fields[passphraseField].Input.Value()
 	confirmation := m.fields[passphraseConfirmField].Input.Value()
 
@@ -387,7 +384,7 @@ func (m *Model) Signup() tea.Cmd {
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
-	file, err := os.OpenFile(privateKeyFilepath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	file, err := os.OpenFile(privateKeyFilepath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, os.ErrExist) {
 		info, e := os.Stat(privateKeyFilepath)
 		assert.NoError(e, "if file exists it should be fine to stat it")
@@ -408,12 +405,33 @@ func (m *Model) Signup() tea.Cmd {
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
+	defer file.Close()
 
-	// file.Write()
-	file.Close()
-	os.Remove(privateKeyFilepath)
+	_, privKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		m.fields[privateKeyField].Input.Err = errors.New("Failed private key generation")
+		log.Println("ed25519 generate key error:", err)
+		return nil
+	}
+	var pemBlock *pem.Block
+	if hasPassphrase {
+		pemBlock, err = ssh.MarshalPrivateKeyWithPassphrase(privKey, username, []byte(passphrase))
+	} else {
+		pemBlock, err = ssh.MarshalPrivateKey(privKey, username)
+	}
+	if err != nil {
+		m.fields[privateKeyField].Input.Err = errors.New("Failed private key marshaling")
+		log.Println("ssh marshaling error:", err)
+		return nil
+	}
+	err = pem.Encode(file, pemBlock)
+	if err != nil {
+		m.fields[privateKeyField].Input.Err = errors.New("Failed writing to disk")
+		log.Println("pem encoding to file error:", err)
+		return nil
+	}
 
-	return tea.Quit
+	return authenticate(privKey)
 }
 
 func (m *Model) signin() tea.Cmd {
@@ -472,9 +490,7 @@ func (m *Model) signin() tea.Cmd {
 		return nil
 	}
 
-	_ = privKey
-
-	return tea.Quit
+	return authenticate(*privKey)
 }
 
 func createPopup(content string, leftChoices, rightChoices []string) *choicepopup.Model {
@@ -507,11 +523,7 @@ func expandPath(path string) string {
 	return path
 }
 
-func test() {
-	// pubKey, privKey, err := ed25519.GenerateKey(nil)
-	// sshPrivKey, err := ssh.NewSignerFromSigner(privKey)
-	// ssh.MarshalPrivateKey()
-	// ssh.MarshalAuthorizedKey()
-	// ssh.ParseRawPrivateKey()
-	// ssh.ParseRawPrivateKeyWithPassphrase()
+func authenticate(privKey ed25519.PrivateKey) tea.Cmd {
+	return ui.Transition(loadscreen.New())
 }
+

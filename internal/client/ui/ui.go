@@ -15,8 +15,17 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
+var Width int
+var Height int
+
 type ModelTransition struct {
 	Model tea.Model
+}
+
+func Transition(model tea.Model) tea.Cmd {
+	return func() tea.Msg {
+		return ModelTransition{Model: model}
+	}
 }
 
 func AddBorderHeader(header string, headerOffset int, style lipgloss.Style, render string) string {
