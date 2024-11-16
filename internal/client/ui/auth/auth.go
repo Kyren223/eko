@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
@@ -366,6 +367,12 @@ func (m *Model) SetSignup(signup bool) tea.Cmd {
 	}
 	m.focusIndex = -1
 	m.CycleForward()
+
+	privateKey := config.Read().PrivateKeyPath
+	if !m.signup && privateKey != "" {
+		m.fields[privateKeyField].Input.SetValue(privateKey)
+	}
+
 	return m.updateFocus()
 }
 
@@ -526,6 +533,11 @@ func (m *Model) signin() tea.Cmd {
 		return nil
 	}
 
+	if m.remember {
+		config.Use(func(config *config.Config) {
+			config.PrivateKeyPath = privateKeyFilepath
+		})
+	}
 	return authenticate(*privKey)
 }
 
