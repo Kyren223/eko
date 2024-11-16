@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
 	"github.com/kyren223/eko/pkg/assert"
@@ -22,6 +23,12 @@ func (c BubbleTeaCloser) Close() error {
 
 func Run() {
 	log.Println("client started")
+
+	err := config.Load()
+	if err != nil {
+		log.Fatalf("Config file at '%v' was unable to load successfully\n%v\n", config.ConfigFile, err)
+	}
+
 	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
 
