@@ -66,7 +66,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.ModelTransition:
 		log.Println("Transition model from", reflect.TypeOf(m.model).String(), "to", reflect.TypeOf(msg.Model).String())
 		m.model = msg.Model
-		return m, nil
+		return m, m.model.Init()
+
 	default:
 		var cmd tea.Cmd
 		m.model, cmd = m.model.Update(msg)
