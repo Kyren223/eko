@@ -12,7 +12,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/crypto/ssh"
@@ -29,6 +28,8 @@ const (
 	privateKeyField
 	passphraseField
 	passphraseConfirmField
+	authWidth  = 52
+	authHeight = 21
 )
 
 var (
@@ -50,18 +51,17 @@ var (
 	blurredSigninButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-in"))
 
 	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#54D7A9"))
-	titleStyle  = focusedStyle.Bold(true)
+	titleStyle  = focusedStyle.Width(authWidth).Bold(true).AlignHorizontal(lipgloss.Center)
 
 	signupTitle = titleStyle.Render(`
-____ _ ____ _  _    _  _ ___  
-[__  | | __ |\ | __ |  | |__] 
-___] | |__] | \|    |__| |    
+____ _ ____ _  _    _  _ ___ 
+[__  | | __ |\ | __ |  | |__]
+___] | |__] | \|    |__| |   
 		`)
 	signinTitle = titleStyle.Render(`
 ____ _ ____ _  _    _ _  _
 [__  | | __ |\ | __ | |\ |
-___] | |__] | \|    | | \|
-		`)
+___] | |__] | \|    | | \|`)
 
 	revealIcon  = lipgloss.NewStyle().PaddingLeft(1).Render("󰈈 ")
 	concealIcon = lipgloss.NewStyle().PaddingLeft(1).Render("󰈉 ")
@@ -69,11 +69,19 @@ ___] | |__] | \|    | | \|
 	popupStyle            = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
 	choiceSelectedStyle   = lipgloss.NewStyle().Background(lipgloss.Color("#0029f5")).Padding(0, 1).Margin(0, 1)
 	choiceUnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+
+	focusedRememberChecked   = focusedStyle.Render("[x] Remember")
+	focusedRememberUnchecked = focusedStyle.Render("[ ] Remember")
+	blurredRememberChecked   = "[x] Remember"
+	blurredRememberUnchecked = "[ ] Remember"
+
+	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(0.5)
 )
 
 type Model struct {
 	focusIndex int
 	fields     []authfield.Model
+	remember   bool
 
 	signup bool
 
@@ -147,34 +155,6 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	var builder strings.Builder
 
-	builder.WriteRune('\n')
-	for i, field := range m.fields {
-		if field.Visisble {
-			builder.WriteString(m.fields[i].View())
-		} else {
-			builder.WriteString("\n\n")
-		}
-		if i < len(m.fields)-1 {
-			builder.WriteRune('\n')
-		}
-	}
-
-	var button *string
-	if m.signup {
-		if m.focusIndex == len(m.fields) {
-			button = &focusedSignupButton
-		} else {
-			button = &blurredSignupButton
-		}
-	} else {
-		if m.focusIndex == len(m.fields) {
-			button = &focusedSigninButton
-		} else {
-			button = &blurredSigninButton
-		}
-	}
-	fmt.Fprintf(&builder, "\n\n%s", *button)
-
 	var title string
 	if m.signup {
 		title = signupTitle
@@ -182,22 +162,70 @@ func (m Model) View() string {
 		title = signinTitle
 	}
 
-	// Tiny offset so odd numbers will have the extra char on the right, ie: 12 <thing> 13
-	content := lipgloss.JoinVertical(lipgloss.Center-0.01, title, builder.String())
-	width := lipgloss.Width(content)
+	builder.WriteString(title)
+	builder.WriteString("\n\n")
 
-	vp := viewport.New(64, 23)
-	vp.SetContent(content)
-	vp.Style = vp.Style.
+	if !m.signup {
+		builder.WriteString("\n")
+	}
+
+	for i, field := range m.fields {
+		if field.Visisble {
+			field := centerStyle.Render(m.fields[i].View())
+			builder.WriteString(field)
+		}
+		builder.WriteRune('\n')
+	}
+
+	var checkbox *string
+	if !m.signup {
+		if m.remember {
+			if m.focusIndex == len(m.fields) {
+				checkbox = &focusedRememberChecked
+			} else {
+				checkbox = &blurredRememberChecked
+			}
+		} else {
+			if m.focusIndex == len(m.fields) {
+				checkbox = &focusedRememberUnchecked
+			} else {
+				checkbox = &blurredRememberUnchecked
+			}
+		}
+		builder.WriteString(*checkbox)
+	}
+
+	var button *string
+	if m.signup {
+		if m.focusIndex == m.ButtonIndex() {
+			button = &focusedSignupButton
+		} else {
+			button = &blurredSignupButton
+		}
+	} else {
+		if m.focusIndex == m.ButtonIndex() {
+			button = &focusedSigninButton
+		} else {
+			button = &blurredSigninButton
+		}
+	}
+	height := authHeight - lipgloss.Height(builder.String())
+	builder.WriteString(centerStyle.Height(height).AlignVertical(lipgloss.Bottom).Render(*button))
+
+	result := lipgloss.NewStyle().
+		Width(authWidth).Height(authHeight).
+		Margin(0, 5).
+		Render(builder.String())
+
+	result = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#007E8A")).
-		// NOTE: Without -1 it wraps/truncates, not sure why
-		Padding(0, (vp.Width-width)/2-1, 1)
+		Render(result)
 
-	result := lipgloss.Place(
+	result = lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
-		vp.View(),
+		result,
 	)
 
 	if m.popup != nil {
@@ -215,6 +243,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		key := msg.Type
 		switch key {
+		case tea.KeyCtrlS:
+			cmd := m.SetSignup(!m.signup)
+			return m, cmd
+
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
@@ -242,8 +274,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				assert.Never("unexpected choice", "choice", choice)
 			}
 
-			pressedButton := key == tea.KeyEnter && m.focusIndex == len(m.fields)
-			if pressedButton {
+			if !m.signup && m.focusIndex == len(m.fields) {
+				m.remember = !m.remember
+				return m, nil
+			}
+
+			if m.focusIndex == m.ButtonIndex() {
 				return m, m.ButtonPressed(msg)
 			}
 
@@ -281,10 +317,10 @@ func (m *Model) CycleBack() {
 		m.focusIndex--
 
 		if m.focusIndex < 0 {
-			m.focusIndex = len(m.fields)
+			m.focusIndex = m.ButtonIndex()
 		}
 
-		if m.focusIndex == len(m.fields) || m.fields[m.focusIndex].Visisble {
+		if m.focusIndex >= len(m.fields) || m.fields[m.focusIndex].Visisble {
 			break
 		}
 
@@ -296,11 +332,11 @@ func (m *Model) CycleForward() {
 	for i := 0; ; i++ {
 		m.focusIndex++
 
-		if m.focusIndex > len(m.fields) {
+		if m.focusIndex > m.ButtonIndex() {
 			m.focusIndex = 0
 		}
 
-		if m.focusIndex == len(m.fields) || m.fields[m.focusIndex].Visisble {
+		if m.focusIndex >= len(m.fields) || m.fields[m.focusIndex].Visisble {
 			break
 		}
 
@@ -493,6 +529,14 @@ func (m *Model) signin() tea.Cmd {
 	return authenticate(*privKey)
 }
 
+func (m Model) ButtonIndex() int {
+	if m.signup {
+		return len(m.fields)
+	} else {
+		return len(m.fields) + 1
+	}
+}
+
 func createPopup(content string, leftChoices, rightChoices []string) *choicepopup.Model {
 	content = lipgloss.NewStyle().Padding(0, 1).
 		Border(lipgloss.NormalBorder(), false, false, true).
@@ -526,4 +570,3 @@ func expandPath(path string) string {
 func authenticate(privKey ed25519.PrivateKey) tea.Cmd {
 	return ui.Transition(loadscreen.New())
 }
-
