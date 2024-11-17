@@ -1,11 +1,9 @@
 package loadscreen
 
 import (
-	"log"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -14,35 +12,9 @@ import (
 )
 
 var (
-	style = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).Padding(1)
-	_     = spinner.Spinner{
-		Frames: []string{
-			"██▓▓▒▒\n    ░░\n      ",
-			"▓▓▒▒░░\n██    \n      ",
-			"▒▒░░  \n▓▓    \n██    ",
-			"░░    \n▒▒    \n▓▓██  ",
-			"      \n░░    \n▒▒▓▓██",
-			"      \n    ██\n░░▒▒▓▓",
-			"    ██\n    ▓▓\n  ░░▒▒",
-			"  ██▓▓\n    ▒▒\n    ░░",
-		},
-		FPS: time.Second / 8,
-	}
-
-	apple = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render("██")
-	// loadingFrames = circleTrail(5, 5, 0, true, "  ", "░░", "▒▒", "▓▓", "██")
-	// loadingFrames = circleTrail(5, 5, 0, true, "  ", "░░", "▒▒", "▓▓", "██", "  ", "  ", "  ", apple)
-	// loadingFrames = circleTrail(5, 5, 0, true, "  ", "░░", "░░", "▒▒", "▒▒", "▓▓", "▓▓", "██", "  ", "  ", "  ", apple)
-	loadingFrames = func() []string {
-		green := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
-		trail := []string{"░░", "░░", "▒▒", "▒▒", "▓▓",  "██", "  ", "  "}
-		for i := range trail {
-			trail[i] = green.Render(trail[i])
-		}
-		trail = append(trail, apple)
-		return circleTrail(5, 5, 0, true, "  ", trail...)
-	}()
-	loading = spinner.Spinner{
+	style         = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).Padding(1, 3).MarginTop(2)
+	loadingFrames = circleTrail(4, 4, 0, true, "  ", "░░", "▒▒", "▓▓", "██")
+	loading       = spinner.Spinner{
 		Frames: loadingFrames,
 		FPS:    time.Second / time.Duration(len(loadingFrames)),
 	}
@@ -142,21 +114,21 @@ func circleTrail(width int, height int, offset int, clockwise bool, bg string, t
 	return states
 }
 
+type Updater func(msg tea.Msg) tea.Cmd
+
 type Model struct {
 	sp      spinner.Model
 	content string
-
-	Style lipgloss.Style
-
-	delta time.Time
-	index int
+	updater Updater
 }
 
-func New() Model {
+func New(content string, updater Updater) Model {
+	width := lipgloss.Width(content)
+	height := lipgloss.Height(content)
+	content = lipgloss.NewStyle().Width(width).Height(height).Render(content)
 	return Model{
 		sp:      spinner.New(spinner.WithSpinner(loading)),
-		content: "Update Failed - retrying in 3 sec...",
-		Style:   style,
+		content: style.Render(content),
 	}
 }
 
@@ -165,16 +137,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	vp := viewport.New(40, 5)
-	vp.Style = m.Style
-	vp.SetContent(m.content)
-
-	result := lipgloss.JoinVertical(lipgloss.Center, m.sp.View(), vp.View())
-
 	return lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
-		result,
+		lipgloss.JoinVertical(lipgloss.Center, m.sp.View(), m.content),
 	)
 }
 
@@ -186,23 +152,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
-
-		case tea.KeyCtrlT:
-			return m, m.sp.Tick
 		}
 
 	case spinner.TickMsg:
-		if m.index == 0 {
-			m.delta = time.Now()
-		}
-		delta := time.Since(m.delta)
-		log.Printf("Frame %v Delta %v\n", m.index, delta)
-		m.index++
-		m.delta = time.Now()
 		var cmd tea.Cmd
 		m.sp, cmd = m.sp.Update(msg)
 		return m, cmd
 	}
 
-	return m, nil
+	return m, m.updater(msg)
 }
