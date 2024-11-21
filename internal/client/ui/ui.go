@@ -17,6 +17,9 @@ import (
 
 var Width int
 var Height int
+var BackgroundColor = "#1E1E2E"
+var Background = lipgloss.Color(BackgroundColor)
+var Style = lipgloss.NewStyle().Background(Background)
 
 type ModelTransition struct {
 	Model tea.Model
