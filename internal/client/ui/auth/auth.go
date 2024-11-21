@@ -12,8 +12,8 @@ import (
 	"reflect"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/kyren223/eko/internal/client/config"

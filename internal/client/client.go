@@ -4,7 +4,7 @@ import (
 	"log"
 	"reflect"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/muesli/termenv"
 
 	"github.com/kyren223/eko/internal/client/config"

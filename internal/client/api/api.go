@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/data"
