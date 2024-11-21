@@ -582,5 +582,7 @@ func expandPath(path string) string {
 func authenticate(privKey ed25519.PrivateKey) tea.Cmd {
 	text := lipgloss.NewStyle().Inline(true).
 		Render("Update Failed - retrying in 3 sec...")
-	return ui.Transition(loadscreen.New(text))
+	return ui.Transition(loadscreen.New(text, func(msg tea.Msg) tea.Cmd {
+		return nil
+	}))
 }

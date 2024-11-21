@@ -1,7 +1,4 @@
-#!/usr/bin/zsh
-
 # 2.1 means "1st pane of the 2nd window"
-echo "Starting bwatch..."
 tmux send-keys -t 2.1 C-c
 sleep 0.5
 tmux send-keys -t 2.1 clear C-m
