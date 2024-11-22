@@ -53,8 +53,10 @@ func init() {
 	}
 }
 
-func Connect(ctx context.Context, privKey ed25519.PrivateKey) tea.Cmd {
+func Connect(privKey ed25519.PrivateKey, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		err := connect(ctx, privKey)
 		if err != nil {
 			return ConnectionFailed(err)

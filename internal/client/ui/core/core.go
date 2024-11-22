@@ -2,35 +2,52 @@ package core
 
 import (
 	"crypto/ed25519"
-	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kyren223/eko/internal/client/gateway"
+	"github.com/kyren223/eko/internal/client/ui/loadscreen"
 )
 
-type Model struct{}
+var (
+	connectingToServer = "Connecting to server.."
+	connectionFailed   = "Connection failed - retrying in %d sec..."
+)
+
+type Model struct {
+	privKey ed25519.PrivateKey
+	name    string
+
+	loading   loadscreen.Model
+	connected bool
+}
 
 func New(privKey ed25519.PrivateKey, name string) Model {
-
-	// Connectiong to server...
-	// Connection failed - retrying in 3 sec...
-	// Connection failed - retrying in 3 sec...
-	return Model{}
+	return Model{
+		privKey:   privKey,
+		name:      name,
+		loading:   loadscreen.New(connectingToServer),
+		connected: false,
+	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(gateway.Connect(m.privKey, 5*time.Second), m.loading.Init())
 }
 
 func (m Model) View() string {
-	return fmt.Sprintf(
-		"%s",
-		"",
-	)
+	if !m.connected {
+		return m.loading.View()
+	}
+
+	return ""
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	default:
-		return m, nil
+	if !m.connected {
+		var loadscreenCmd tea.Cmd
+		m.loading, loadscreenCmd = m.loading.Update(msg)
+		return m, loadscreenCmd
 	}
+	return m, nil
 }

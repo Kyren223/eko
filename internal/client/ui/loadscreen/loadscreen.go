@@ -144,7 +144,7 @@ func (m Model) View() string {
 	)
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.sp, cmd = m.sp.Update(msg)
 	return m, cmd

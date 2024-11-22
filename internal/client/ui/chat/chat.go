@@ -76,8 +76,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyEsc, tea.KeyCtrlC:
-			return m, tea.Quit
 
 		case tea.KeyEnter:
 			value := m.textarea.Value()

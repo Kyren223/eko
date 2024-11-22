@@ -248,9 +248,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.SetSignup(!m.signup)
 			return m, cmd
 
-		case tea.KeyCtrlC:
-			return m, tea.Quit
-
 		case tea.KeyCtrlT:
 			if m.popup == nil && (m.focusIndex == passphraseField || m.focusIndex == passphraseConfirmField) {
 				m.fields[m.focusIndex].SetRevealed(!m.fields[m.focusIndex].Revealed())

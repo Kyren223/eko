@@ -63,6 +63,11 @@ func (m model) View() string {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+
 	case tea.WindowSizeMsg:
 		ui.Width, ui.Height = msg.Width, msg.Height
 		return m, nil
@@ -72,9 +77,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.model = msg.Model
 		return m, m.model.Init()
 
-	default:
-		var cmd tea.Cmd
-		m.model, cmd = m.model.Update(msg)
-		return m, cmd
 	}
+	var cmd tea.Cmd
+	m.model, cmd = m.model.Update(msg)
+	return m, cmd
 }
