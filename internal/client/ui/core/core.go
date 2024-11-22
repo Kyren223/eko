@@ -11,6 +11,7 @@ import (
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/client/ui/networks"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -32,6 +33,8 @@ type Model struct {
 	connected bool
 
 	id snowflake.ID
+
+	networks networks.Model
 }
 
 func New(privKey ed25519.PrivateKey, name string) Model {
@@ -42,6 +45,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		timeout:   initialTimeout,
 		timer:     newTimer(initialTimeout),
 		connected: false,
+		networks:  networks.New(),
 	}
 }
 
@@ -54,7 +58,7 @@ func (m Model) View() string {
 		return m.loading.View()
 	}
 
-	return ""
+	return m.networks.View()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
