@@ -1,10 +1,13 @@
 package client
 
 import (
+	"io"
 	"log"
+	"os"
 	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/muesli/termenv"
 
 	"github.com/kyren223/eko/internal/client/config"
@@ -23,6 +26,15 @@ func (c BubbleTeaCloser) Close() error {
 }
 
 func Run() {
+	var dump *os.File
+	if ui.DEBUG {
+		var err error
+		dump, err = os.OpenFile("messages.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+		if err != nil {
+			os.Exit(1)
+		}
+	}
+
 	log.Println("client started")
 
 	err := config.Load()
@@ -36,7 +48,7 @@ func Run() {
 	// It only changes the current pane so new terminal panes/windows are not affected.
 	termenv.DefaultOutput().SetBackgroundColor(termenv.RGBColor(ui.BackgroundColor))
 
-	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	program := tea.NewProgram(initialModel(dump), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
 	ui.Program = program
 
@@ -46,11 +58,15 @@ func Run() {
 }
 
 type model struct {
+	dump  io.Writer
 	model tea.Model
 }
 
-func initialModel() model {
-	return model{auth.New()}
+func initialModel(dump io.WriteCloser) model {
+	return model{
+		dump:  dump,
+		model: auth.New(),
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -62,10 +78,14 @@ func (m model) View() string {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.dump != nil {
+		spew.Fdump(m.dump, msg)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.Type == tea.KeyCtrlC {
-			return m, tea.Quit
+			return m, func() tea.Msg { return ui.QuitMsg{} }
 		}
 
 	case tea.WindowSizeMsg:
@@ -80,5 +100,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.model, cmd = m.model.Update(msg)
+
+	if _, ok := msg.(ui.QuitMsg); ok {
+		return m, tea.Quit
+	}
+
 	return m, cmd
 }

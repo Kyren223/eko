@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	_ "embed"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -158,6 +159,17 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 	server.AddSession(sess)
 	ctx = session.NewContext(ctx, sess)
 	framer := packet.NewFramer()
+
+	// Write ID back, it's useful for the client to know, and signals successful authentication
+	var id [8]byte
+	binary.BigEndian.PutUint64(id[:], uint64(user.ID))
+	_, err = conn.Write(id[:])
+	if err != nil {
+		log.Println(addr, "failed to write user id")
+		conn.Close()
+		log.Println(addr, "disconnected")
+		return
+	}
 
 	defer func() {
 		conn.Close()

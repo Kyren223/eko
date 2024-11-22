@@ -6,8 +6,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
+	"encoding/binary"
 	"errors"
-	"io"
 	"log"
 	"net"
 	"sync"
@@ -18,6 +18,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 //go:embed server.crt
@@ -32,10 +33,11 @@ var (
 	framer  packet.PacketFramer
 	conn    net.Conn
 	writeMu sync.Mutex
+	closed  = false
 )
 
 type (
-	ConnectionEstablished struct{}
+	ConnectionEstablished snowflake.ID
 	ConnectionFailed      error
 	ConnectionLost        error
 	ConnectionClosed      struct{}
@@ -57,17 +59,19 @@ func Connect(privKey ed25519.PrivateKey, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		err := connect(ctx, privKey)
+		id, err := connect(ctx, privKey)
 		if err != nil {
 			return ConnectionFailed(err)
 		}
-		return ConnectionEstablished{}
+		return ConnectionEstablished(id)
 	}
 }
 
-func connect(ctx context.Context, privKey ed25519.PrivateKey) error {
+func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, error) {
 	assert.Assert(conn == nil, "cannot connect, connection is active")
+	closed = false
 
+	var id snowflake.ID
 	connChan := make(chan net.Conn, 1)
 	errChan := make(chan error, 1)
 	go func() {
@@ -79,7 +83,7 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) error {
 		}
 		log.Println("established connection with server")
 
-		if err := handleAuth(ctx, privKey); err != nil {
+		if id, err = handleAuth(ctx, connection, privKey); err != nil {
 			errChan <- err
 			return
 		}
@@ -91,18 +95,18 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) error {
 	case connection := <-connChan:
 		conn = connection
 	case err := <-errChan:
-		return err
+		return 0, err
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	}
 
 	go readForever()
 	go handlePacketStream()
 
-	return nil
+	return id, nil
 }
 
-func handleAuth(ctx context.Context, privKey ed25519.PrivateKey) error {
+func handleAuth(ctx context.Context, conn net.Conn, privKey ed25519.PrivateKey) (snowflake.ID, error) {
 	const nonceSize = 32
 	challengeRequest := make([]byte, 1+nonceSize)
 
@@ -118,7 +122,7 @@ func handleAuth(ctx context.Context, privKey ed25519.PrivateKey) error {
 	for bytesRead < 1+nonceSize {
 		n, err := conn.Read(challengeRequest[bytesRead:])
 		if err != nil {
-			return err
+			return 0, err
 		}
 		bytesRead += n
 	}
@@ -134,10 +138,21 @@ func handleAuth(ctx context.Context, privKey ed25519.PrivateKey) error {
 
 	_, err = conn.Write(challengeResponse)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	var idBytes [8]byte
+	bytesRead = 0
+	for bytesRead < 8 {
+		n, err := conn.Read(idBytes[:])
+		if err != nil {
+			return 0, err
+		}
+		bytesRead += n
+	}
+	id := snowflake.ID(binary.BigEndian.Uint64(idBytes[:]))
+
+	return id, nil
 }
 
 func readForever() {
@@ -145,9 +160,6 @@ func readForever() {
 	for conn != nil {
 		n, err := conn.Read(buffer)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				err = nil
-			}
 			onDisconnect(err)
 			return
 		}
@@ -196,6 +208,7 @@ func handlePacketStream() {
 func Disconnect() {
 	assert.Assert(conn != nil, "cannot disconnect, connection is inactive")
 	conn.Close()
+	closed = true
 }
 
 func onDisconnect(err error) {
@@ -208,12 +221,12 @@ func onDisconnect(err error) {
 	}
 	asyncResponses = nil
 	responsesMu.Unlock()
-	if err != nil {
-		log.Println("connection lost:", err)
-		ui.Program.Send(ConnectionLost(err))
-	} else {
+	if closed {
 		log.Println("connection closed")
 		ui.Program.Send(ConnectionClosed{})
+	} else {
+		log.Println("connection lost:", err)
+		ui.Program.Send(ConnectionLost(err))
 	}
 }
 

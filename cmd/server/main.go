@@ -19,7 +19,7 @@ func main() {
 	stdout := flag.Bool("stdout", false, "enable logging to stdout")
 	flag.Parse()
 
-	logFile, err := os.OpenFile("logs/server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	logFile, err := os.OpenFile("server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -15,6 +15,8 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
+const DEBUG = true
+
 var Width int
 var Height int
 var BackgroundColor = "#1E1E2E"
@@ -31,6 +33,8 @@ func Transition(model tea.Model) tea.Cmd {
 		return ModelTransition{Model: model}
 	}
 }
+
+type QuitMsg struct{}
 
 func AddBorderHeader(header string, headerOffset int, style lipgloss.Style, render string) string {
 	b := style.GetBorderStyle()
