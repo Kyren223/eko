@@ -34,7 +34,7 @@ func New() Model {
 	ta.SetHeight(3)
 
 	// Remove cursor line styling
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.Styles.Focused.CursorLine = lipgloss.NewStyle()
 
 	ta.ShowLineNumbers = false
 
@@ -47,8 +47,8 @@ func New() Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, api.GetMessages)
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, tea.Batch(textarea.Blink, api.GetMessages)
 }
 
 func (m Model) View() string {
@@ -59,11 +59,11 @@ func (m Model) View() string {
 	) + ""
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.messagebox.Viewport.Width = msg.Width
-		m.messagebox.Viewport.Height = msg.Height - m.textarea.Height()
+		m.messagebox.Viewport.SetWidth(msg.Width)
+		m.messagebox.Viewport.SetHeight(msg.Height - m.textarea.Height())
 		m.messagebox.Viewport.GotoBottom()
 
 		m.textarea.SetWidth(msg.Width)

@@ -25,28 +25,28 @@ type user struct {
 }
 
 type Model struct {
+	users    map[snowflake.ID]user
 	Viewport viewport.Model
 	messages []data.Message
-	users    map[snowflake.ID]user
 }
 
 func New(width, height int) Model {
 	return Model{
-		Viewport: viewport.New(width, height),
+		Viewport: viewport.New(viewport.WithWidth(width), viewport.WithHeight(height)),
 		messages: nil,
 		users:    make(map[snowflake.ID]user),
 	}
 }
 
-func (m Model) Init() tea.Cmd {
-	return api.GetMessages
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, api.GetMessages
 }
 
 func (m Model) View() string {
 	return m.Viewport.View()
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	for id, user := range m.users {

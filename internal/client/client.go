@@ -56,8 +56,10 @@ func initialModel() model {
 	return model{auth.New()}
 }
 
-func (m model) Init() tea.Cmd {
-	return m.model.Init()
+func (m model) Init() (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.model, cmd = m.model.Init()
+	return m, cmd
 }
 
 func (m model) View() string {
@@ -73,7 +75,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.ModelTransition:
 		log.Println("Transition model from", reflect.TypeOf(m.model).String(), "to", reflect.TypeOf(msg.Model).String())
 		m.model = msg.Model
-		return m, m.model.Init()
+		return m.model.Init()
 
 	default:
 		var cmd tea.Cmd

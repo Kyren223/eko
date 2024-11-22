@@ -149,8 +149,8 @@ func New() Model {
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, nil
 }
 
 func (m Model) View() string {

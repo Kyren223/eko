@@ -32,8 +32,8 @@ func New(width, height int) Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, nil
 }
 
 func (m Model) View() string {
@@ -72,7 +72,7 @@ func (m Model) View() string {
 	return m.Style.Render(popup)
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 

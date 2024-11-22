@@ -132,8 +132,8 @@ func New(content string, updater Updater) Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
-	return m.sp.Tick
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, m.sp.Tick
 }
 
 func (m Model) View() string {

@@ -44,7 +44,7 @@ func New(width int) Model {
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
+func (m model) Init() (tea.Model, tea.Cmd) {
 	return nil
 }
 
