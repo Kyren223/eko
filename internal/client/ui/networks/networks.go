@@ -33,15 +33,20 @@ var (
 
 	label1 = lipgloss.NewStyle().
 		Background(lipgloss.Color("#20999D")).Foreground(lipgloss.Color("#000000")).
-		// Padding(0, 1).
+		Padding(0, 1).
 		Bold(true).
-		Render("Dev")
+		Render("󰜈")
 	label2 = reverse.Render("") + label1 + reverse.Render("")
+	label3 = ""
+	label4 = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#20999D")).
+		Bold(true).
+		Render("󰜈")
 
 	name = lipgloss.NewStyle().
 		Bold(true).
 		Render("Kyren223")
-	user = lipgloss.JoinHorizontal(lipgloss.Center, label2, " ", name)
+	user = lipgloss.JoinHorizontal(lipgloss.Center, label4, " ", name)
 )
 
 type Model struct {
