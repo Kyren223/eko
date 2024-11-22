@@ -6,6 +6,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
+	"errors"
+	"io"
 	"log"
 	"net"
 	"sync"
@@ -13,6 +15,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 )
@@ -31,6 +34,13 @@ var (
 	writeMu sync.Mutex
 )
 
+type (
+	ConnectionEstablished struct{}
+	ConnectionFailed      error
+	ConnectionLost        error
+	ConnectionClosed      struct{}
+)
+
 func init() {
 	certPool := x509.NewCertPool()
 	if !certPool.AppendCertsFromPEM(certPEM) {
@@ -43,7 +53,17 @@ func init() {
 	}
 }
 
-func Connect(ctx context.Context, program *tea.Program, privKey ed25519.PrivateKey) error {
+func Connect(ctx context.Context, privKey ed25519.PrivateKey) tea.Cmd {
+	return func() tea.Msg {
+		err := connect(ctx, privKey)
+		if err != nil {
+			return ConnectionFailed(err)
+		}
+		return ConnectionEstablished{}
+	}
+}
+
+func connect(ctx context.Context, privKey ed25519.PrivateKey) error {
 	assert.Assert(conn == nil, "cannot connect, connection is active")
 
 	connChan := make(chan net.Conn, 1)
@@ -74,23 +94,10 @@ func Connect(ctx context.Context, program *tea.Program, privKey ed25519.PrivateK
 		return ctx.Err()
 	}
 
-	go readUntilDisconnected()
-	go handlePacketStream(program)
+	go readForever()
+	go handlePacketStream()
 
 	return nil
-}
-
-func Disconnect() {
-	assert.Assert(conn != nil, "cannot disconnect, connection is inactive")
-	close(framer.Out)
-	conn.Close()
-	conn = nil
-	responsesMu.Lock()
-	for _, responseChan := range asyncResponses {
-		close(responseChan)
-	}
-	asyncResponses = nil
-	responsesMu.Unlock()
 }
 
 func handleAuth(ctx context.Context, privKey ed25519.PrivateKey) error {
@@ -131,41 +138,31 @@ func handleAuth(ctx context.Context, privKey ed25519.PrivateKey) error {
 	return nil
 }
 
-func readUntilDisconnected() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if conn == nil {
-					cancel()
-					return
-				}
-			}
-		}
-	}()
-
+func readForever() {
 	buffer := make([]byte, 512)
 	for conn != nil {
 		n, err := conn.Read(buffer)
 		if err != nil {
-			log.Println("server connectivity error: ", err)
-			break
+			if errors.Is(err, io.EOF) {
+				err = nil
+			}
+			onDisconnect(err)
+			return
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		err = framer.Push(ctx, buffer[:n])
 		if ctx.Err() != nil {
-			log.Println("server connectivity error: ", ctx.Err())
-			break
+			cancel()
+			onDisconnect(errors.New("framer blocked for more than a second, closing connection"))
+			return
 		}
+		cancel()
 		assert.NoError(err, "packets from server should always be correctly formatted")
 	}
 }
 
-func handlePacketStream(program *tea.Program) {
+func handlePacketStream() {
 	for {
 		pkt, ok := <-framer.Out
 		if !ok {
@@ -177,7 +174,7 @@ func handlePacketStream(program *tea.Program) {
 
 		if pkt.Type().IsPush() {
 			log.Println("received streamed packet:", payload)
-			program.Send(payload)
+			ui.Program.Send(payload)
 			continue
 		}
 
@@ -194,8 +191,32 @@ func handlePacketStream(program *tea.Program) {
 	}
 }
 
+func Disconnect() {
+	assert.Assert(conn != nil, "cannot disconnect, connection is inactive")
+	conn.Close()
+}
+
+func onDisconnect(err error) {
+	conn.Close()
+	conn = nil
+	close(framer.Out)
+	responsesMu.Lock()
+	for _, responseChan := range asyncResponses {
+		close(responseChan)
+	}
+	asyncResponses = nil
+	responsesMu.Unlock()
+	if err != nil {
+		log.Println("connection lost:", err)
+		ui.Program.Send(ConnectionLost(err))
+	} else {
+		log.Println("connection closed")
+		ui.Program.Send(ConnectionClosed{})
+	}
+}
+
 func Send(request packet.Payload) <-chan packet.Payload {
-	responseChan := make(chan packet.Payload)
+	responseChan := make(chan packet.Payload, 1)
 	go func() {
 		pkt := packet.NewPacket(packet.NewMsgPackEncoder(request))
 
@@ -205,7 +226,6 @@ func Send(request packet.Payload) <-chan packet.Payload {
 
 		if conn == nil {
 			log.Println("request send error:", "connection is closed")
-			close(responseChan)
 			return
 		}
 
@@ -214,7 +234,6 @@ func Send(request packet.Payload) <-chan packet.Payload {
 		writeMu.Unlock()
 		if err != nil {
 			log.Println("request send error:", err)
-			close(responseChan)
 			return
 		}
 	}()

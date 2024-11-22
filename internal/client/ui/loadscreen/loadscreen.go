@@ -117,18 +117,14 @@ func circleTrail(width int, height int, offset int, clockwise bool, bg string, t
 type Updater func(msg tea.Msg) tea.Cmd
 
 type Model struct {
-	sp      spinner.Model
 	content string
-	updater Updater
+	sp      spinner.Model
 }
 
-func New(content string, updater Updater) Model {
-	width := lipgloss.Width(content)
-	height := lipgloss.Height(content)
-	content = lipgloss.NewStyle().Width(width).Height(height).Render(content)
+func New(content string) Model {
 	return Model{
 		sp:      spinner.New(spinner.WithSpinner(loading)),
-		content: style.Render(content),
+		content: content,
 	}
 }
 
@@ -137,28 +133,23 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	width := lipgloss.Width(m.content)
+	height := lipgloss.Height(m.content)
+	content := lipgloss.NewStyle().Width(width).Height(height).Render(m.content)
+	content = style.Render(content)
 	return lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, m.sp.View(), m.content),
+		lipgloss.JoinVertical(lipgloss.Center, m.sp.View(), content),
 	)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
+	var cmd tea.Cmd
+	m.sp, cmd = m.sp.Update(msg)
+	return m, cmd
+}
 
-	case tea.KeyMsg:
-		key := msg.Type
-		switch key {
-		case tea.KeyCtrlC:
-			return m, tea.Quit
-		}
-
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.sp, cmd = m.sp.Update(msg)
-		return m, cmd
-	}
-
-	return m, m.updater(msg)
+func (m *Model) SetContent(content string) {
+	m.content = content
 }

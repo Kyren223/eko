@@ -20,7 +20,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui"
 	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
-	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/client/ui/core"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -474,7 +474,8 @@ func (m *Model) Signup() tea.Cmd {
 		return nil
 	}
 
-	return authenticate(privKey)
+
+	return ui.Transition(core.New(privKey, username))
 }
 
 func (m *Model) signin() tea.Cmd {
@@ -538,7 +539,8 @@ func (m *Model) signin() tea.Cmd {
 			config.PrivateKeyPath = privateKeyFilepath
 		})
 	}
-	return authenticate(*privKey)
+
+	return ui.Transition(core.New(*privKey, ""))
 }
 
 func (m Model) ButtonIndex() int {
@@ -579,10 +581,3 @@ func expandPath(path string) string {
 	return path
 }
 
-func authenticate(privKey ed25519.PrivateKey) tea.Cmd {
-	text := lipgloss.NewStyle().Inline(true).
-		Render("Update Failed - retrying in 3 sec...")
-	return ui.Transition(loadscreen.New(text, func(msg tea.Msg) tea.Cmd {
-		return nil
-	}))
-}

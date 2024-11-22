@@ -38,11 +38,8 @@ func Run() {
 
 	program := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
+	ui.Program = program
 
-	// _, privKey, err := ed25519.GenerateKey(nil)
-	// assert.NoError(err, "private key gen should not error")
-
-	// gateway.Connect(context.Background(), program, privKey)
 	if _, err := program.Run(); err != nil {
 		log.Println(err)
 	}
