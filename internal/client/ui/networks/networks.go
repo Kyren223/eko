@@ -28,12 +28,20 @@ var (
 		// "Another",
 	}
 
-	label = lipgloss.NewStyle().
-		Background(lipgloss.Color("#20999D")).Foreground(lipgloss.Color("#FFFFFF")).
+	reverse = lipgloss.NewStyle().Foreground(lipgloss.Color("#20999D"))
+		// Render("")
+
+	label1 = lipgloss.NewStyle().
+		Background(lipgloss.Color("#20999D")).Foreground(lipgloss.Color("#000000")).
+		// Padding(0, 1).
+		Bold(true).
 		Render("Dev")
+	label2 = reverse.Render("") + label1 + reverse.Render("")
+
 	name = lipgloss.NewStyle().
+		Bold(true).
 		Render("Kyren223")
-	user = lipgloss.JoinHorizontal(lipgloss.Center, label, " ", name)
+	user = lipgloss.JoinHorizontal(lipgloss.Center, label2, " ", name)
 )
 
 type Model struct {
@@ -58,14 +66,9 @@ func (m Model) View() string {
 	// top := strings.Repeat(border.Top, 6)
 	// builder.WriteString(fmt.Sprintf("%s%s%s\n", border.TopLeft, top, border.TopRight))
 	builder.WriteString("\n")
-	for i, network := range m.networks {
-		if i != 0 {
-			// middle := strings.Repeat(border.Top, 6)
-			// builder.WriteString(fmt.Sprintf("\n%s%s%s\n", border.MiddleLeft, middle, border.MiddleRight))
-			// middle := strings.Repeat(" ", 8)
-			// builder.WriteString(fmt.Sprintf("\n%s\n", middle))
-		}
+	for _, network := range m.networks {
 		builder.WriteString(networkStyle.Render(network) + "\n")
+		
 	}
 	// bottom := strings.Repeat(border.Bottom, 6)
 	// builder.WriteString(fmt.Sprintf("\n%s%s%s", border.BottomLeft, bottom, border.BottomRight))
@@ -75,7 +78,7 @@ func (m Model) View() string {
 	sep := lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, true, false, false).Height(ui.Height).Width(0)
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.Render(""))
 
-	return result
+	return result + user
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
