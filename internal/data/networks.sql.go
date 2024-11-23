@@ -217,3 +217,120 @@ func (q *Queries) GetUsersInNetwork(ctx context.Context, networkID snowflake.ID)
 	}
 	return items, nil
 }
+
+const setNetworkIcon = `-- name: SetNetworkIcon :one
+UPDATE networks SET
+  icon = ?,
+  bg_hex_color = ?,
+  fg_hex_color = ?
+WHERE id = ?
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type SetNetworkIconParams struct {
+	Icon       string
+	BgHexColor *string
+	FgHexColor string
+	ID         snowflake.ID
+}
+
+func (q *Queries) SetNetworkIcon(ctx context.Context, arg SetNetworkIconParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, setNetworkIcon,
+		arg.Icon,
+		arg.BgHexColor,
+		arg.FgHexColor,
+		arg.ID,
+	)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}
+
+const setNetworkIsPublic = `-- name: SetNetworkIsPublic :one
+UPDATE networks SET
+  is_public = ?
+WHERE id = ?
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type SetNetworkIsPublicParams struct {
+	IsPublic bool
+	ID       snowflake.ID
+}
+
+func (q *Queries) SetNetworkIsPublic(ctx context.Context, arg SetNetworkIsPublicParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, setNetworkIsPublic, arg.IsPublic, arg.ID)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}
+
+const setNetworkName = `-- name: SetNetworkName :one
+UPDATE networks SET
+  name = ?
+WHERE id = ?
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type SetNetworkNameParams struct {
+	Name string
+	ID   snowflake.ID
+}
+
+func (q *Queries) SetNetworkName(ctx context.Context, arg SetNetworkNameParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, setNetworkName, arg.Name, arg.ID)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}
+
+const transferNetwork = `-- name: TransferNetwork :one
+UPDATE networks SET
+  owner_id = ?
+WHERE id = ?
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type TransferNetworkParams struct {
+	OwnerID snowflake.ID
+	ID      snowflake.ID
+}
+
+func (q *Queries) TransferNetwork(ctx context.Context, arg TransferNetworkParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, transferNetwork, arg.OwnerID, arg.ID)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}

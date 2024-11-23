@@ -48,13 +48,94 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 	return i, err
 }
 
-const listMessages = `-- name: ListMessages :many
+const deleteMessage = `-- name: DeleteMessage :exec
+DELETE FROM messages
+WHERE id = ?
+`
+
+func (q *Queries) DeleteMessage(ctx context.Context, id snowflake.ID) error {
+	_, err := q.db.ExecContext(ctx, deleteMessage, id)
+	return err
+}
+
+const editMessage = `-- name: EditMessage :one
+UPDATE messages SET
+  edited = true,
+  content = ?
+WHERE id = ?
+RETURNING id, sender_id, content, edited, frequency_id, receiver_id
+`
+
+type EditMessageParams struct {
+	Content string
+	ID      snowflake.ID
+}
+
+func (q *Queries) EditMessage(ctx context.Context, arg EditMessageParams) (Message, error) {
+	row := q.db.QueryRowContext(ctx, editMessage, arg.Content, arg.ID)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.SenderID,
+		&i.Content,
+		&i.Edited,
+		&i.FrequencyID,
+		&i.ReceiverID,
+	)
+	return i, err
+}
+
+const getDirectMessages = `-- name: GetDirectMessages :many
 SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+WHERE
+  (sender_id = ?1 AND receiver_id = ?2) OR 
+  (sender_id = ?2 AND receiver_id = ?1)
 ORDER BY id
 `
 
-func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, listMessages)
+type GetDirectMessagesParams struct {
+	User1 snowflake.ID
+	User2 *snowflake.ID
+}
+
+func (q *Queries) GetDirectMessages(ctx context.Context, arg GetDirectMessagesParams) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, getDirectMessages, arg.User1, arg.User2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Message
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.SenderID,
+			&i.Content,
+			&i.Edited,
+			&i.FrequencyID,
+			&i.ReceiverID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFrequencyMessages = `-- name: GetFrequencyMessages :many
+SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+WHERE frequency_id = ?
+ORDER BY id
+`
+
+func (q *Queries) GetFrequencyMessages(ctx context.Context, frequencyID *snowflake.ID) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, getFrequencyMessages, frequencyID)
 	if err != nil {
 		return nil, err
 	}

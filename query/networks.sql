@@ -42,8 +42,8 @@ RETURNING *;
 
 -- name: SetNetworkIcon :one
 UPDATE networks SET
-  icon - ?
-  bg_hex_color = ?
+  icon = ?,
+  bg_hex_color = ?,
   fg_hex_color = ?
 WHERE id = ?
 RETURNING *;

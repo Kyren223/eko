@@ -60,10 +60,28 @@ func (q *Queries) DeleteFrequency(ctx context.Context, id snowflake.ID) error {
 	return err
 }
 
+const getFrequencyById = `-- name: GetFrequencyById :one
+SELECT id, network_id, name, hex_color, perms, position FROM frequencies
+WHERE id = ?
+`
+
+func (q *Queries) GetFrequencyById(ctx context.Context, id snowflake.ID) (Frequency, error) {
+	row := q.db.QueryRowContext(ctx, getFrequencyById, id)
+	var i Frequency
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
+	return i, err
+}
+
 const getNetworkFrequencies = `-- name: GetNetworkFrequencies :many
 SELECT id, network_id, name, hex_color, perms, position FROM frequencies
 WHERE network_id = ?
-ORDER BY id
 `
 
 func (q *Queries) GetNetworkFrequencies(ctx context.Context, networkID snowflake.ID) ([]Frequency, error) {
@@ -94,6 +112,84 @@ func (q *Queries) GetNetworkFrequencies(ctx context.Context, networkID snowflake
 		return nil, err
 	}
 	return items, nil
+}
+
+const setFrequencyColor = `-- name: SetFrequencyColor :one
+UPDATE frequencies SET
+  hex_color = ?
+WHERE id = ?
+RETURNING id, network_id, name, hex_color, perms, position
+`
+
+type SetFrequencyColorParams struct {
+	HexColor *string
+	ID       snowflake.ID
+}
+
+func (q *Queries) SetFrequencyColor(ctx context.Context, arg SetFrequencyColorParams) (Frequency, error) {
+	row := q.db.QueryRowContext(ctx, setFrequencyColor, arg.HexColor, arg.ID)
+	var i Frequency
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
+	return i, err
+}
+
+const setFrequencyName = `-- name: SetFrequencyName :one
+UPDATE frequencies SET
+  name = ?
+WHERE id = ?
+RETURNING id, network_id, name, hex_color, perms, position
+`
+
+type SetFrequencyNameParams struct {
+	Name string
+	ID   snowflake.ID
+}
+
+func (q *Queries) SetFrequencyName(ctx context.Context, arg SetFrequencyNameParams) (Frequency, error) {
+	row := q.db.QueryRowContext(ctx, setFrequencyName, arg.Name, arg.ID)
+	var i Frequency
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
+	return i, err
+}
+
+const setFrequencyPerms = `-- name: SetFrequencyPerms :one
+UPDATE frequencies SET
+  perms = ?
+WHERE id = ?
+RETURNING id, network_id, name, hex_color, perms, position
+`
+
+type SetFrequencyPermsParams struct {
+	Perms int64
+	ID    snowflake.ID
+}
+
+func (q *Queries) SetFrequencyPerms(ctx context.Context, arg SetFrequencyPermsParams) (Frequency, error) {
+	row := q.db.QueryRowContext(ctx, setFrequencyPerms, arg.Perms, arg.ID)
+	var i Frequency
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
+	return i, err
 }
 
 const swapFrequencies = `-- name: SwapFrequencies :exec
