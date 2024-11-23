@@ -13,29 +13,61 @@ type Frequency struct {
 	ID        snowflake.ID
 	NetworkID snowflake.ID
 	Name      string
+	HexColor  *string
+	Perms     int64
+	Position  int64
 }
 
 type Message struct {
 	ID          snowflake.ID
 	SenderID    snowflake.ID
 	Content     string
+	Edited      bool
 	FrequencyID *snowflake.ID
 	ReceiverID  *snowflake.ID
 }
 
 type Network struct {
-	ID      snowflake.ID
-	Name    string
-	OwnerID snowflake.ID
+	ID         snowflake.ID
+	OwnerID    snowflake.ID
+	Name       string
+	Icon       string
+	BgHexColor *string
+	FgHexColor string
+	IsPublic   bool
+}
+
+type NetworkBannedUser struct {
+	NetworkID    snowflake.ID
+	BannedUserID snowflake.ID
+	BannedAt     string
+	Reason       *string
 }
 
 type User struct {
-	ID        snowflake.ID
-	Name      string
-	PublicKey ed25519.PublicKey
+	ID          snowflake.ID
+	Name        string
+	PublicKey   ed25519.PublicKey
+	Description *string
+	IsPublicDm  bool
+	IsDeleted   bool
+}
+
+type UserBlockedUser struct {
+	BlockerUserID snowflake.ID
+	BlockedUserID snowflake.ID
+}
+
+type UserTrustedUser struct {
+	TrusterUserID    snowflake.ID
+	TrustedUserID    snowflake.ID
+	TrustedPublicKey []byte
 }
 
 type UsersNetwork struct {
 	UserID    snowflake.ID
 	NetworkID snowflake.ID
+	JoinedAt  string
+	IsAdmin   bool
+	IsMuted   bool
 }

@@ -17,7 +17,7 @@ INSERT INTO networks (
 ) VALUES (
   ?, ?, ?
 )
-RETURNING id, name, owner_id
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
 `
 
 type CreateNetworkParams struct {
@@ -29,24 +29,40 @@ type CreateNetworkParams struct {
 func (q *Queries) CreateNetwork(ctx context.Context, arg CreateNetworkParams) (Network, error) {
 	row := q.db.QueryRowContext(ctx, createNetwork, arg.ID, arg.Name, arg.OwnerID)
 	var i Network
-	err := row.Scan(&i.ID, &i.Name, &i.OwnerID)
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
 	return i, err
 }
 
 const getNetwork = `-- name: GetNetwork :one
-SELECT id, name, owner_id FROM networks
+SELECT id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public FROM networks
 WHERE id = ?
 `
 
 func (q *Queries) GetNetwork(ctx context.Context, id snowflake.ID) (Network, error) {
 	row := q.db.QueryRowContext(ctx, getNetwork, id)
 	var i Network
-	err := row.Scan(&i.ID, &i.Name, &i.OwnerID)
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
 	return i, err
 }
 
 const listNetworks = `-- name: ListNetworks :many
-SELECT id, name, owner_id FROM networks
+SELECT id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public FROM networks
 ORDER BY id
 `
 
@@ -59,7 +75,15 @@ func (q *Queries) ListNetworks(ctx context.Context) ([]Network, error) {
 	var items []Network
 	for rows.Next() {
 		var i Network
-		if err := rows.Scan(&i.ID, &i.Name, &i.OwnerID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.Name,
+			&i.Icon,
+			&i.BgHexColor,
+			&i.FgHexColor,
+			&i.IsPublic,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

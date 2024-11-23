@@ -17,7 +17,7 @@ INSERT INTO messages (
 ) VALUES (
   ?, ?, ?, ?, ?
 )
-RETURNING id, sender_id, content, frequency_id, receiver_id
+RETURNING id, sender_id, content, edited, frequency_id, receiver_id
 `
 
 type CreateMessageParams struct {
@@ -41,6 +41,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ID,
 		&i.SenderID,
 		&i.Content,
+		&i.Edited,
 		&i.FrequencyID,
 		&i.ReceiverID,
 	)
@@ -48,7 +49,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT id, sender_id, content, frequency_id, receiver_id FROM messages
+SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
 ORDER BY id
 `
 
@@ -65,6 +66,7 @@ func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
 			&i.ID,
 			&i.SenderID,
 			&i.Content,
+			&i.Edited,
 			&i.FrequencyID,
 			&i.ReceiverID,
 		); err != nil {

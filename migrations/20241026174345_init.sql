@@ -73,11 +73,23 @@ CREATE TABLE network_banned_users (
   PRIMARY KEY (network_id, banned_user_id)
 );
 
-CREATE INDEX idx_is_deleted_false ON users (is_deleted) WHERE is_deleted = 0;
 CREATE INDEX idx_network_name ON networks (name) WHERE is_public = 1;
 CREATE INDEX idx_frequency_network ON frequencies (network_id);
 CREATE INDEX idx_blocked_by_user ON user_blocked_users (blocker_user_id);
 CREATE INDEX idx_banned_by_network ON network_banned_users (network_id);
+
+-- +goose StatementBegin
+CREATE TRIGGER on_user_delete
+AFTER UPDATE OF is_deleted ON users
+WHEN NEW.is_deleted = true
+BEGIN
+  DELETE FROM networks WHERE owner_id = NEW.id;
+  DELETE FROM users_networks WHERE user_id = NEW.id;
+  DELETE FROM user_blocked_users WHERE blocker_user_id = NEW.id OR blocked_user_id = NEW.id;
+  DELETE FROM user_trusted_users WHERE truster_user_id = NEW.id OR trusted_user_id = NEW.id;
+  DELETE FROM network_banned_users WHERE banned_user_id = NEW.id;
+END
+-- +goose StatementEnd
 
 -- +goose Down
 DROP TABLE messages;
@@ -89,7 +101,6 @@ DROP TABLE user_trusted_users;
 DROP TABLE user_blocked_users;
 DROP TABLE network_banned_users;
 
-DROP INDEX idx_is_deleted_false;
 DROP INDEX idx_network_name;
 DROP INDEX idx_frequency_network;
 DROP INDEX idx_blocked_by_user;

@@ -18,7 +18,7 @@ INSERT INTO users (
 ) VALUES (
   ?, ?, ?
 )
-RETURNING id, name, public_key
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
 type CreateUserParams struct {
@@ -30,39 +30,152 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Name, arg.PublicKey)
 	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
+const deleteUser = `-- name: DeleteUser :one
+UPDATE users SET
+  is_deleted = true
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id snowflake.ID) (User, error) {
+	row := q.db.QueryRowContext(ctx, deleteUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
+const getDeletedUserById = `-- name: GetDeletedUserById :one
+SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+WHERE id = ? AND is_deleted = true
+`
+
+func (q *Queries) GetDeletedUserById(ctx context.Context, id snowflake.ID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getDeletedUserById, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
 	return i, err
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, name, public_key FROM users
-WHERE id = ?
+SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+WHERE id = ? AND is_deleted = false
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id snowflake.ID) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
 	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
 	return i, err
 }
 
 const getUserByPublicKey = `-- name: GetUserByPublicKey :one
-SELECT id, name, public_key FROM users
-WHERE public_key = ?
+SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+WHERE public_key = ? AND is_deleted = false
 `
 
 func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.PublicKey) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByPublicKey, publicKey)
 	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
+const serUserPublicDMs = `-- name: SerUserPublicDMs :one
+UPDATE users SET
+  is_public_dm = ?
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
+`
+
+type SerUserPublicDMsParams struct {
+	IsPublicDm bool
+	ID         snowflake.ID
+}
+
+func (q *Queries) SerUserPublicDMs(ctx context.Context, arg SerUserPublicDMsParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, serUserPublicDMs, arg.IsPublicDm, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
+const setUserDescription = `-- name: SetUserDescription :one
+UPDATE users SET
+  description = ?
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
+`
+
+type SetUserDescriptionParams struct {
+	Description *string
+	ID          snowflake.ID
+}
+
+func (q *Queries) SetUserDescription(ctx context.Context, arg SetUserDescriptionParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, setUserDescription, arg.Description, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
 	return i, err
 }
 
 const setUserName = `-- name: SetUserName :one
 UPDATE users SET
   name = ?
-WHERE id = ?
-RETURNING id, name, public_key
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
 type SetUserNameParams struct {
@@ -73,15 +186,22 @@ type SetUserNameParams struct {
 func (q *Queries) SetUserName(ctx context.Context, arg SetUserNameParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, setUserName, arg.Name, arg.ID)
 	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
 	return i, err
 }
 
 const setUserPublicKey = `-- name: SetUserPublicKey :one
 UPDATE users SET
   public_key = ?
-WHERE id = ?
-RETURNING id, name, public_key
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
 type SetUserPublicKeyParams struct {
@@ -92,6 +212,51 @@ type SetUserPublicKeyParams struct {
 func (q *Queries) SetUserPublicKey(ctx context.Context, arg SetUserPublicKeyParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, setUserPublicKey, arg.PublicKey, arg.ID)
 	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.PublicKey)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET
+  name = COALESCE(?, name),
+  public_key = COALESCE(?, public_key),
+  description = COALESCE(?, description),
+  is_public_dm = COALESCE(?, is_public_dm)
+WHERE id = ? AND is_deleted = false
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
+`
+
+type UpdateUserParams struct {
+	Name        string
+	PublicKey   ed25519.PublicKey
+	Description *string
+	IsPublicDm  bool
+	ID          snowflake.ID
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.Name,
+		arg.PublicKey,
+		arg.Description,
+		arg.IsPublicDm,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDm,
+		&i.IsDeleted,
+	)
 	return i, err
 }

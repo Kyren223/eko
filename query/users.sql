@@ -1,10 +1,14 @@
 -- name: GetUserById :one
 SELECT * FROM users
-WHERE id = ?;
+WHERE id = ? AND is_deleted = false;
 
 -- name: GetUserByPublicKey :one
 SELECT * FROM users
-WHERE public_key = ?;
+WHERE public_key = ? AND is_deleted = false;
+
+-- name: GetDeletedUserById :one
+SELECT * FROM users
+WHERE id = ? AND is_deleted = true;
 
 -- name: CreateUser :one
 INSERT INTO users (
@@ -17,11 +21,38 @@ RETURNING *;
 -- name: SetUserName :one
 UPDATE users SET
   name = ?
-WHERE id = ?
+WHERE id = ? AND is_deleted = false
 RETURNING *;
 
 -- name: SetUserPublicKey :one
 UPDATE users SET
   public_key = ?
-WHERE id = ?
+WHERE id = ? AND is_deleted = false
+RETURNING *;
+
+-- name: SetUserDescription :one
+UPDATE users SET
+  description = ?
+WHERE id = ? AND is_deleted = false
+RETURNING *;
+
+-- name: SerUserPublicDMs :one
+UPDATE users SET
+  is_public_dm = ?
+WHERE id = ? AND is_deleted = false
+RETURNING *;
+
+-- name: UpdateUser :one
+UPDATE users SET
+  name = COALESCE(?, name),
+  public_key = COALESCE(?, public_key),
+  description = COALESCE(?, description),
+  is_public_dm = COALESCE(?, is_public_dm)
+WHERE id = ? AND is_deleted = false
+RETURNING *;
+
+-- name: DeleteUser :one
+UPDATE users SET
+  is_deleted = true
+WHERE id = ? AND is_deleted = false
 RETURNING *;

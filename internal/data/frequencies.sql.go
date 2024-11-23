@@ -17,7 +17,7 @@ INSERT INTO frequencies (
 ) VALUES (
   ?, ?, ?
 )
-RETURNING id, network_id, name
+RETURNING id, network_id, name, hex_color, perms, position
 `
 
 type CreateFrequencyParams struct {
@@ -29,12 +29,19 @@ type CreateFrequencyParams struct {
 func (q *Queries) CreateFrequency(ctx context.Context, arg CreateFrequencyParams) (Frequency, error) {
 	row := q.db.QueryRowContext(ctx, createFrequency, arg.ID, arg.NetworkID, arg.Name)
 	var i Frequency
-	err := row.Scan(&i.ID, &i.NetworkID, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
 	return i, err
 }
 
 const getNetworkFrequencies = `-- name: GetNetworkFrequencies :many
-SELECT id, network_id, name FROM frequencies
+SELECT id, network_id, name, hex_color, perms, position FROM frequencies
 WHERE network_id = ?
 ORDER BY id
 `
@@ -48,7 +55,14 @@ func (q *Queries) GetNetworkFrequencies(ctx context.Context, networkID snowflake
 	var items []Frequency
 	for rows.Next() {
 		var i Frequency
-		if err := rows.Scan(&i.ID, &i.NetworkID, &i.Name); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.NetworkID,
+			&i.Name,
+			&i.HexColor,
+			&i.Perms,
+			&i.Position,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
