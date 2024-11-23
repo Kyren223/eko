@@ -3,7 +3,7 @@ CREATE TABLE messages (
   id INTEGER PRIMARY KEY,
   sender_id INT NOT NULL REFERENCES users (id),
   content TEXT NOT NULL,
-  edited BOOLEAN NOT NULL CHECK (edited IN (0, 1)),
+  edited BOOLEAN NOT NULL CHECK (edited IN (0, 1)) DEFAULT 0,
 
   frequency_id INT REFERENCES frequencies (id) ON DELETE CASCADE,
   receiver_id INT REFERENCES users (id),
@@ -19,7 +19,8 @@ CREATE TABLE users (
   name TEXT NOT NULL,
   public_key BLOB NOT NULL UNIQUE,
   description TEXT,
-  is_public_dm BOOLEAN NOT NULL CHECK (is_public_dm IN (0, 1))
+  is_public_dm BOOLEAN NOT NULL CHECK (is_public_dm IN (0, 1)) DEFAULT 1,
+  is_deleted BOOLEAN NOT NULL CHECK (is_deleted IN (0, 1)) DEFAULT 0
 );
 
 CREATE TABLE networks (
@@ -39,21 +40,23 @@ CREATE TABLE frequencies (
   hex_color TEXT,
   perms INT NOT NULL CHECK (perms IN (0, 1, 2)),
   -- 0 rw admin | 1 r all w admin | 2 rw all
-  position INT NOT NULL
+  position INT NOT NULL -- TODO: make this auto inc
 );
 
 CREATE TABLE users_networks (
   user_id INT NOT NULL REFERENCES users (id),
   network_id INT NOT NULL REFERENCES networks (id) ON DELETE CASCADE,
   joined_at TEXT NOT NULL DEFAULT current_timestamp,
-  is_admin BOOLEAN NOT NULL CHECK (is_admin IN (0, 1)),
+  is_admin BOOLEAN NOT NULL CHECK (is_admin IN (0, 1)) DEFAULT 0,
+  is_muted BOOLEAN NOT NULL CHECK (is_muted IN (0, 1)) DEFAULT 0,
   PRIMARY KEY (user_id, network_id)
+  -- TODO: In discord, if u get "kicked" then join does your "joined_at" show the oldest or latest?
 );
 
 CREATE TABLE user_trusted_users (
   truster_user_id INT NOT NULL REFERENCES users (id),
   trusted_user_id INT NOT NULL REFERENCES users (id),
-  trusted_public_key BLOB NOT NULL UNIQUE,
+  trusted_public_key BLOB NOT NULL,
   PRIMARY KEY (truster_user_id, trusted_user_id)
 );
 
@@ -71,6 +74,12 @@ CREATE TABLE network_banned_users (
   PRIMARY KEY (network_id, banned_user_id)
 );
 
+CREATE INDEX idx_is_deleted_false ON users (is_deleted) WHERE is_deleted = 0;
+CREATE INDEX idx_network_name ON networks (name) WHERE is_public = 1;
+CREATE INDEX idx_frequency_network ON frequencies (network_id);
+CREATE INDEX idx_blocked_by_user ON user_blocked_users (blocker_user_id);
+CREATE INDEX idx_banned_by_network ON network_banned_users (network_id);
+
 -- +goose Down
 DROP TABLE messages;
 DROP TABLE users;
@@ -80,3 +89,9 @@ DROP TABLE users_networks;
 DROP TABLE user_trusted_users;
 DROP TABLE user_blocked_users;
 DROP TABLE network_banned_users;
+
+DROP INDEX idx_is_deleted_false;
+DROP INDEX idx_network_name;
+DROP INDEX idx_frequency_network;
+DROP INDEX idx_blocked_by_user;
+DROP INDEX idx_banned_by_network;
