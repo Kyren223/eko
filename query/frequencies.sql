@@ -1,7 +1,10 @@
 -- name: GetNetworkFrequencies :many
 SELECT * FROM frequencies
-WHERE network_id = ?
-ORDER BY id;
+WHERE network_id = ?;
+
+-- name: GetFrequencyById :one
+SELECT * FROM frequencies
+WHERE id = ?;
 
 -- name: CreateFrequency :one
 INSERT INTO frequencies (
@@ -21,6 +24,21 @@ UPDATE frequencies SET
     WHEN position = @pos2 THEN @pos1
   END
 WHERE network_id = ? AND position IN (@pos1, @pos2);
+
+-- name: SetFrequencyName :one
+UPDATE frequencies SET
+  name = ?
+WHERE id = ?;
+
+-- name: SetFrequencyColor :one
+UPDATE frequencies SET
+  hex_color = ?
+WHERE id = ?;
+
+-- name: SetFrequencyPerms :one
+UPDATE frequencies SET
+  perms = ?
+WHERE id = ?;
 
 -- name: DeleteFrequency :exec
 DELETE FROM frequencies WHERE id = ?;
