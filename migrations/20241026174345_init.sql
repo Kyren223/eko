@@ -40,7 +40,7 @@ CREATE TABLE frequencies (
   hex_color TEXT,
   perms INT NOT NULL CHECK (perms IN (0, 1, 2)),
   -- 0 rw admin | 1 r all w admin | 2 rw all
-  position INT NOT NULL -- TODO: make this auto inc
+  position INT NOT NULL
 );
 
 CREATE TABLE users_networks (
@@ -50,7 +50,6 @@ CREATE TABLE users_networks (
   is_admin BOOLEAN NOT NULL CHECK (is_admin IN (0, 1)) DEFAULT 0,
   is_muted BOOLEAN NOT NULL CHECK (is_muted IN (0, 1)) DEFAULT 0,
   PRIMARY KEY (user_id, network_id)
-  -- TODO: In discord, if u get "kicked" then join does your "joined_at" show the oldest or latest?
 );
 
 CREATE TABLE user_trusted_users (
