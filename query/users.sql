@@ -36,18 +36,9 @@ UPDATE users SET
 WHERE id = ? AND is_deleted = false
 RETURNING *;
 
--- name: SerUserPublicDMs :one
+-- name: SetUserPublicDMs :one
 UPDATE users SET
   is_public_dm = ?
-WHERE id = ? AND is_deleted = false
-RETURNING *;
-
--- name: UpdateUser :one
-UPDATE users SET
-  name = COALESCE(?, name),
-  public_key = COALESCE(?, public_key),
-  description = COALESCE(?, description),
-  is_public_dm = COALESCE(?, is_public_dm)
 WHERE id = ? AND is_deleted = false
 RETURNING *;
 

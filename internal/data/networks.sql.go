@@ -11,43 +11,58 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-const createNetwork = `-- name: CreateNetwork :one
-INSERT INTO networks (
-  id, name, owner_id
-) VALUES (
-  ?, ?, ?
-)
-RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+const getBannedUsersInNetwork = `-- name: GetBannedUsersInNetwork :many
+SELECT users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted, network_banned_users.banned_at, network_banned_users.reason
+FROM network_banned_users
+JOIN users ON users.id = network_banned_users.banned_user_id
+WHERE network_banned_users.network_id = ?
 `
 
-type CreateNetworkParams struct {
-	ID      snowflake.ID
-	Name    string
-	OwnerID snowflake.ID
+type GetBannedUsersInNetworkRow struct {
+	User     User
+	BannedAt string
+	Reason   *string
 }
 
-func (q *Queries) CreateNetwork(ctx context.Context, arg CreateNetworkParams) (Network, error) {
-	row := q.db.QueryRowContext(ctx, createNetwork, arg.ID, arg.Name, arg.OwnerID)
-	var i Network
-	err := row.Scan(
-		&i.ID,
-		&i.OwnerID,
-		&i.Name,
-		&i.Icon,
-		&i.BgHexColor,
-		&i.FgHexColor,
-		&i.IsPublic,
-	)
-	return i, err
+func (q *Queries) GetBannedUsersInNetwork(ctx context.Context, networkID snowflake.ID) ([]GetBannedUsersInNetworkRow, error) {
+	rows, err := q.db.QueryContext(ctx, getBannedUsersInNetwork, networkID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBannedUsersInNetworkRow
+	for rows.Next() {
+		var i GetBannedUsersInNetworkRow
+		if err := rows.Scan(
+			&i.User.ID,
+			&i.User.Name,
+			&i.User.PublicKey,
+			&i.User.Description,
+			&i.User.IsPublicDm,
+			&i.User.IsDeleted,
+			&i.BannedAt,
+			&i.Reason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-const getNetwork = `-- name: GetNetwork :one
+const getNetworkById = `-- name: GetNetworkById :one
 SELECT id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public FROM networks
 WHERE id = ?
 `
 
-func (q *Queries) GetNetwork(ctx context.Context, id snowflake.ID) (Network, error) {
-	row := q.db.QueryRowContext(ctx, getNetwork, id)
+func (q *Queries) GetNetworkById(ctx context.Context, id snowflake.ID) (Network, error) {
+	row := q.db.QueryRowContext(ctx, getNetworkById, id)
 	var i Network
 	err := row.Scan(
 		&i.ID,
@@ -61,13 +76,13 @@ func (q *Queries) GetNetwork(ctx context.Context, id snowflake.ID) (Network, err
 	return i, err
 }
 
-const listNetworks = `-- name: ListNetworks :many
+const getPublicNetworks = `-- name: GetPublicNetworks :many
 SELECT id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public FROM networks
-ORDER BY id
+WHERE is_public = true
 `
 
-func (q *Queries) ListNetworks(ctx context.Context) ([]Network, error) {
-	rows, err := q.db.QueryContext(ctx, listNetworks)
+func (q *Queries) GetPublicNetworks(ctx context.Context) ([]Network, error) {
+	rows, err := q.db.QueryContext(ctx, getPublicNetworks)
 	if err != nil {
 		return nil, err
 	}
