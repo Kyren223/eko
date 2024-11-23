@@ -9,3 +9,10 @@ INSERT INTO messages (
   ?, ?, ?, ?, ?
 )
 RETURNING *;
+
+-- name: EditMessage :one
+UPDATE messages SET
+  edited = true,
+  content = ?
+WHERE id = ?
+RETURNING *;

@@ -34,5 +34,31 @@ FROM users_networks
 JOIN users ON users.id = users_networks.user_id
 WHERE users_networks.network_id = ?;
 
+-- name: SetNetworkName :one
+UPDATE networks SET
+  name = ?
+WHERE id = ?
+RETURNING *;
+
+-- name: SetNetworkIcon :one
+UPDATE networks SET
+  icon - ?
+  bg_hex_color = ?
+  fg_hex_color = ?
+WHERE id = ?
+RETURNING *;
+
+-- name: SetNetworkIsPublic :one
+UPDATE networks SET
+  is_public = ?
+WHERE id = ?
+RETURNING *;
+
+-- name: TransferNetwork :one
+UPDATE networks SET
+  owner_id = ?
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteNetwork :exec
 DELETE FROM networks WHERE id = ?;
