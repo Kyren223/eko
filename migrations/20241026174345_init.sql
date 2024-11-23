@@ -77,6 +77,8 @@ CREATE INDEX idx_network_name ON networks (name) WHERE is_public = 1;
 CREATE INDEX idx_frequency_network ON frequencies (network_id);
 CREATE INDEX idx_blocked_by_user ON user_blocked_users (blocker_user_id);
 CREATE INDEX idx_banned_by_network ON network_banned_users (network_id);
+CREATE INDEX idx_direct_messages ON messages (sender_id, receiver_id);
+CREATE INDEX idx_frequency_messages ON messages (frequency_id);
 
 -- +goose StatementBegin
 CREATE TRIGGER on_user_delete
@@ -115,3 +117,5 @@ DROP INDEX idx_network_name;
 DROP INDEX idx_frequency_network;
 DROP INDEX idx_blocked_by_user;
 DROP INDEX idx_banned_by_network;
+DROP INDEX idx_direct_messages;
+DROP INDEX idx_frequency_messages;
