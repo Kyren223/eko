@@ -18,7 +18,7 @@ import (
 
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
-	authfield "github.com/kyren223/eko/internal/client/ui/auth/field"
+	authfield "github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
 	"github.com/kyren223/eko/internal/client/ui/core"
 	"github.com/kyren223/eko/pkg/assert"
@@ -471,7 +471,6 @@ func (m *Model) Signup() tea.Cmd {
 		return nil
 	}
 
-
 	return ui.Transition(core.New(privKey, username))
 }
 
@@ -577,4 +576,3 @@ func expandPath(path string) string {
 	}
 	return path
 }
-

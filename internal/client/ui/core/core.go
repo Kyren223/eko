@@ -8,10 +8,12 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
+	"github.com/kyren223/eko/internal/client/ui/core/networks"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
-	"github.com/kyren223/eko/internal/client/ui/networks"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -27,25 +29,26 @@ type Model struct {
 	name    string
 	privKey ed25519.PrivateKey
 
+	networks  networks.Model
 	loading   loadscreen.Model
-	timeout   time.Duration
 	timer     timer.Model
+	timeout   time.Duration
 	connected bool
 
 	id snowflake.ID
 
-	networks networks.Model
+	networkCreationPopup *networkcreation.Model
 }
 
 func New(privKey ed25519.PrivateKey, name string) Model {
 	return Model{
 		name:      name,
 		privKey:   privKey,
-		loading:   loadscreen.New(connectingToServer),
-		timeout:   initialTimeout,
-		timer:     newTimer(initialTimeout),
-		connected: false,
 		networks:  networks.New(),
+		loading:   loadscreen.New(connectingToServer),
+		timer:     newTimer(initialTimeout),
+		timeout:   initialTimeout,
+		connected: false,
 	}
 }
 
@@ -58,7 +61,22 @@ func (m Model) View() string {
 		return m.loading.View()
 	}
 
-	return m.networks.View()
+	result := m.networks.View()
+
+	result = lipgloss.Place(
+		ui.Width, ui.Height,
+		lipgloss.Left, lipgloss.Top,
+		result,
+	)
+
+	if m.networkCreationPopup != nil {
+		popup := m.networkCreationPopup.View()
+		x := (ui.Width - lipgloss.Width(popup)) / 2
+		y := (ui.Height - lipgloss.Height(popup)) / 2
+		result = ui.PlaceOverlay(x, y, popup, result)
+	}
+
+	return result
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -101,7 +119,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case gateway.ConnectionLost:
 		m.connected = false
 		m.timeout = initialTimeout
@@ -109,6 +127,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ui.QuitMsg:
 		gateway.Disconnect()
+
+	case tea.KeyMsg:
+		key := msg.Type
+		switch key {
+		case tea.KeyCtrlN:
+			if m.networkCreationPopup == nil {
+				popup := networkcreation.New()
+				m.networkCreationPopup = &popup
+			}
+		}
 	}
 
 	return m, nil

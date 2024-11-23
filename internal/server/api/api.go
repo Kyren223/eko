@@ -48,7 +48,7 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 
 func GetMessages(ctx context.Context, request *packet.GetMessagesRange) packet.Payload {
 	queries := data.New(db)
-	messages, err := queries.ListMessages(ctx)
+	messages, err := queries.GetFrequencyMessages(ctx, request.FrequencyID)
 	if err != nil {
 		log.Println("database error when retrieving messages:", err)
 		return &packet.ErrorMessage{Error: "internal server error"}
