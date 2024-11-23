@@ -91,6 +91,16 @@ BEGIN
 END
 -- +goose StatementEnd
 
+-- +goose StatementBegin
+CREATE TRIGGER on_frequency_delete
+AFTER DELETE ON frequencies
+BEGIN
+  UPDATE frequencies SET
+    position = position - 1
+  WHERE network_id = OLD.network_id AND position > OLD.position;
+END
+-- +goose StatementEnd
+
 -- +goose Down
 DROP TABLE messages;
 DROP TABLE users;

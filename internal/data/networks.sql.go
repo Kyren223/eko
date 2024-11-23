@@ -11,8 +11,63 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+const createNetwork = `-- name: CreateNetwork :one
+INSERT INTO networks (
+  id, owner_id, name, is_public,
+  icon, bg_hex_color, fg_hex_color
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type CreateNetworkParams struct {
+	ID         snowflake.ID
+	OwnerID    snowflake.ID
+	Name       string
+	IsPublic   bool
+	Icon       string
+	BgHexColor *string
+	FgHexColor string
+}
+
+func (q *Queries) CreateNetwork(ctx context.Context, arg CreateNetworkParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, createNetwork,
+		arg.ID,
+		arg.OwnerID,
+		arg.Name,
+		arg.IsPublic,
+		arg.Icon,
+		arg.BgHexColor,
+		arg.FgHexColor,
+	)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}
+
+const deleteNetwork = `-- name: DeleteNetwork :exec
+DELETE FROM networks WHERE id = ?
+`
+
+func (q *Queries) DeleteNetwork(ctx context.Context, id snowflake.ID) error {
+	_, err := q.db.ExecContext(ctx, deleteNetwork, id)
+	return err
+}
+
 const getBannedUsersInNetwork = `-- name: GetBannedUsersInNetwork :many
-SELECT users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted, network_banned_users.banned_at, network_banned_users.reason
+SELECT
+  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
+  network_banned_users.banned_at,
+  network_banned_users.reason
 FROM network_banned_users
 JOIN users ON users.id = network_banned_users.banned_user_id
 WHERE network_banned_users.network_id = ?
@@ -38,7 +93,7 @@ func (q *Queries) GetBannedUsersInNetwork(ctx context.Context, networkID snowfla
 			&i.User.Name,
 			&i.User.PublicKey,
 			&i.User.Description,
-			&i.User.IsPublicDm,
+			&i.User.IsPublicDM,
 			&i.User.IsDeleted,
 			&i.BannedAt,
 			&i.Reason,
@@ -98,6 +153,57 @@ func (q *Queries) GetPublicNetworks(ctx context.Context) ([]Network, error) {
 			&i.BgHexColor,
 			&i.FgHexColor,
 			&i.IsPublic,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUsersInNetwork = `-- name: GetUsersInNetwork :many
+SELECT
+  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
+  users_networks.joined_at,
+  users_networks.is_admin,
+  users_networks.is_muted
+FROM users_networks
+JOIN users ON users.id = users_networks.user_id
+WHERE users_networks.network_id = ?
+`
+
+type GetUsersInNetworkRow struct {
+	User     User
+	JoinedAt string
+	IsAdmin  bool
+	IsMuted  bool
+}
+
+func (q *Queries) GetUsersInNetwork(ctx context.Context, networkID snowflake.ID) ([]GetUsersInNetworkRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersInNetwork, networkID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersInNetworkRow
+	for rows.Next() {
+		var i GetUsersInNetworkRow
+		if err := rows.Scan(
+			&i.User.ID,
+			&i.User.Name,
+			&i.User.PublicKey,
+			&i.User.Description,
+			&i.User.IsPublicDM,
+			&i.User.IsDeleted,
+			&i.JoinedAt,
+			&i.IsAdmin,
+			&i.IsMuted,
 		); err != nil {
 			return nil, err
 		}

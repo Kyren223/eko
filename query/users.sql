@@ -42,8 +42,7 @@ UPDATE users SET
 WHERE id = ? AND is_deleted = false
 RETURNING *;
 
--- name: DeleteUser :one
+-- name: DeleteUser :exec
 UPDATE users SET
   is_deleted = true
-WHERE id = ? AND is_deleted = false
-RETURNING *;
+WHERE id = ? AND is_deleted = false;

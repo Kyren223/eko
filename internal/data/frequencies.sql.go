@@ -13,9 +13,12 @@ import (
 
 const createFrequency = `-- name: CreateFrequency :one
 INSERT INTO frequencies (
-  id, network_id, name
+  id, network_id,
+  name, hex_color,
+  perms, position
 ) VALUES (
-  ?, ?, ?
+  ?, ?, ?, ?, ?,
+  (SELECT COUNT(*) FROM frequencies WHERE network_id = ?)
 )
 RETURNING id, network_id, name, hex_color, perms, position
 `
@@ -24,10 +27,18 @@ type CreateFrequencyParams struct {
 	ID        snowflake.ID
 	NetworkID snowflake.ID
 	Name      string
+	HexColor  *string
+	Perms     int64
 }
 
 func (q *Queries) CreateFrequency(ctx context.Context, arg CreateFrequencyParams) (Frequency, error) {
-	row := q.db.QueryRowContext(ctx, createFrequency, arg.ID, arg.NetworkID, arg.Name)
+	row := q.db.QueryRowContext(ctx, createFrequency,
+		arg.ID,
+		arg.NetworkID,
+		arg.Name,
+		arg.HexColor,
+		arg.Perms,
+	)
 	var i Frequency
 	err := row.Scan(
 		&i.ID,
@@ -38,6 +49,15 @@ func (q *Queries) CreateFrequency(ctx context.Context, arg CreateFrequencyParams
 		&i.Position,
 	)
 	return i, err
+}
+
+const deleteFrequency = `-- name: DeleteFrequency :exec
+DELETE FROM frequencies WHERE id = ?
+`
+
+func (q *Queries) DeleteFrequency(ctx context.Context, id snowflake.ID) error {
+	_, err := q.db.ExecContext(ctx, deleteFrequency, id)
+	return err
 }
 
 const getNetworkFrequencies = `-- name: GetNetworkFrequencies :many
@@ -74,4 +94,24 @@ func (q *Queries) GetNetworkFrequencies(ctx context.Context, networkID snowflake
 		return nil, err
 	}
 	return items, nil
+}
+
+const swapFrequencies = `-- name: SwapFrequencies :exec
+UPDATE frequencies SET
+  position = CASE
+    WHEN position = ? THEN ?
+    WHEN position = ? THEN ?
+  END
+WHERE network_id = ? AND position IN (?, ?)
+`
+
+type SwapFrequenciesParams struct {
+	Pos1      int64
+	Pos2      int64
+	NetworkID snowflake.ID
+}
+
+func (q *Queries) SwapFrequencies(ctx context.Context, arg SwapFrequenciesParams) error {
+	_, err := q.db.ExecContext(ctx, swapFrequencies, arg.Pos1, arg.Pos2, arg.NetworkID)
+	return err
 }

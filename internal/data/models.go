@@ -49,7 +49,7 @@ type User struct {
 	Name        string
 	PublicKey   ed25519.PublicKey
 	Description *string
-	IsPublicDm  bool
+	IsPublicDM  bool
 	IsDeleted   bool
 }
 

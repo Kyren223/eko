@@ -19,3 +19,5 @@ sql:
             go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
           - column: "*.*_id"
             go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
+        rename:
+          is_public_dm: "IsPublicDM"

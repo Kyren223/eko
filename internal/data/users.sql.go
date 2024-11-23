@@ -35,31 +35,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
 }
 
-const deleteUser = `-- name: DeleteUser :one
+const deleteUser = `-- name: DeleteUser :exec
 UPDATE users SET
   is_deleted = true
 WHERE id = ? AND is_deleted = false
-RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id snowflake.ID) (User, error) {
-	row := q.db.QueryRowContext(ctx, deleteUser, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.PublicKey,
-		&i.Description,
-		&i.IsPublicDm,
-		&i.IsDeleted,
-	)
-	return i, err
+func (q *Queries) DeleteUser(ctx context.Context, id snowflake.ID) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	return err
 }
 
 const getDeletedUserById = `-- name: GetDeletedUserById :one
@@ -75,7 +65,7 @@ func (q *Queries) GetDeletedUserById(ctx context.Context, id snowflake.ID) (User
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -94,7 +84,7 @@ func (q *Queries) GetUserById(ctx context.Context, id snowflake.ID) (User, error
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -113,7 +103,7 @@ func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.Publ
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -139,7 +129,7 @@ func (q *Queries) SetUserDescription(ctx context.Context, arg SetUserDescription
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -165,7 +155,7 @@ func (q *Queries) SetUserName(ctx context.Context, arg SetUserNameParams) (User,
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -179,19 +169,19 @@ RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
 type SetUserPublicDMsParams struct {
-	IsPublicDm bool
+	IsPublicDM bool
 	ID         snowflake.ID
 }
 
 func (q *Queries) SetUserPublicDMs(ctx context.Context, arg SetUserPublicDMsParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, setUserPublicDMs, arg.IsPublicDm, arg.ID)
+	row := q.db.QueryRowContext(ctx, setUserPublicDMs, arg.IsPublicDM, arg.ID)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
@@ -217,7 +207,7 @@ func (q *Queries) SetUserPublicKey(ctx context.Context, arg SetUserPublicKeyPara
 		&i.Name,
 		&i.PublicKey,
 		&i.Description,
-		&i.IsPublicDm,
+		&i.IsPublicDM,
 		&i.IsDeleted,
 	)
 	return i, err
