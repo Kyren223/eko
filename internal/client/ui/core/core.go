@@ -137,7 +137,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.networkCreationPopup = &popup
 			}
 
-		default: 
+		case tea.KeyEscape:
+			if m.networkCreationPopup != nil {
+				m.networkCreationPopup = nil
+			}
+
+		case tea.KeyEnter:
+			if m.networkCreationPopup != nil {
+				return m, m.networkCreationPopup.Select()
+			}
+
+		default:
 			if m.networkCreationPopup != nil {
 				popup, cmd := m.networkCreationPopup.Update(msg)
 				m.networkCreationPopup = &popup

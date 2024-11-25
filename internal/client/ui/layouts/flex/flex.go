@@ -16,8 +16,18 @@ type Model struct {
 	Vertical bool
 }
 
-func New() Model {
-	return Model{}
+func NewHorizontal(contents ...string) Model {
+	return Model{
+		contents:  contents,
+		Vertical:  false,
+	}
+}
+
+func NewVertical(contents ...string) Model {
+	return Model{
+		contents:  contents,
+		Vertical:  true,
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -53,4 +63,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m *Model) SetContents(contents ...string) {
 	m.contents = contents
+}
+
+func (m Model) WithGap(gap int) Model {
+	m.Gap = gap
+	return m
 }
