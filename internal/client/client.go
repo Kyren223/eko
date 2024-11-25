@@ -13,6 +13,7 @@ import (
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -46,7 +47,7 @@ func Run() {
 	// I am not aware of a way to query the current background color (to revert this)
 	// Ideally bubbletea will handle the setting/reventing, for now it's fine
 	// It only changes the current pane so new terminal panes/windows are not affected.
-	termenv.DefaultOutput().SetBackgroundColor(termenv.RGBColor(ui.BackgroundColor))
+	termenv.DefaultOutput().SetBackgroundColor(termenv.RGBColor(colors.ToHex(colors.Background)))
 
 	program := tea.NewProgram(initialModel(dump), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})

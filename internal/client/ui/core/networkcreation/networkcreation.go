@@ -4,25 +4,27 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/field"
 )
 
 var (
-	style      = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-	focusColor = lipgloss.Color("#5874FF")
-
-	focusedStyle = lipgloss.NewStyle().Foreground(focusColor)
+	style        = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+	focusedStyle = lipgloss.NewStyle().Foreground(colors.Focus)
+	headerStyle  = lipgloss.NewStyle().Foreground(colors.Turquoise)
 
 	fieldBlurredStyle = lipgloss.NewStyle().
 				PaddingLeft(1).
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("#007E8A"))
-	fieldFocusedStyle = fieldBlurredStyle.BorderForeground(focusedStyle.GetForeground()).Border(lipgloss.ThickBorder())
+				BorderForeground(colors.DarkCyan)
+	fieldFocusedStyle = fieldBlurredStyle.
+				BorderForeground(colors.Focus).
+				Border(lipgloss.ThickBorder())
 
-	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#54D7A9"))
-
-	blurredUnderlineStyle = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, true, false).BorderForeground(lipgloss.Color("240"))
-	focusedUnderlineStyle = blurredUnderlineStyle.BorderForeground(focusColor)
+	blurredUnderlineStyle = lipgloss.NewStyle().
+				Border(lipgloss.ThickBorder(), false, false, true, false).
+				BorderForeground(colors.Gray)
+	focusedUnderlineStyle = blurredUnderlineStyle.BorderForeground(colors.Focus)
 )
 
 const (

@@ -19,6 +19,7 @@ import (
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core"
 	authfield "github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/pkg/assert"
@@ -34,24 +35,24 @@ const (
 )
 
 var (
-	grayStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#5874FF"))
-	cursorStyle  = focusedStyle
-	noStyle      = lipgloss.NewStyle()
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F16265"))
+	grayStyle    = lipgloss.NewStyle().Foreground(colors.Gray)
+	focusedStyle = lipgloss.NewStyle().Foreground(colors.Focus)
+	errorStyle   = lipgloss.NewStyle().Foreground(colors.Error)
 
 	fieldBlurredStyle = lipgloss.NewStyle().
 				PaddingLeft(1).
 				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("#007E8A"))
-	fieldFocusedStyle = fieldBlurredStyle.BorderForeground(focusedStyle.GetForeground()).Border(lipgloss.ThickBorder())
+				BorderForeground(colors.DarkCyan)
+	fieldFocusedStyle = fieldBlurredStyle.
+				BorderForeground(focusedStyle.GetForeground()).
+				Border(lipgloss.ThickBorder())
 
 	focusedSignupButton = focusedStyle.Bold(true).Render("[ SIGN-UP ]")
 	focusedSigninButton = focusedStyle.Bold(true).Render("[ SIGN-IN ]")
 	blurredSignupButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-up"))
 	blurredSigninButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-in"))
 
-	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#54D7A9"))
+	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
 	titleStyle  = focusedStyle.Width(authWidth).Bold(true).AlignHorizontal(lipgloss.Center)
 
 	signupTitle = titleStyle.Render(`
@@ -68,13 +69,13 @@ ___] | |__] | \|    | | \|`)
 	concealIcon = lipgloss.NewStyle().PaddingLeft(1).Render("󰈉 ")
 
 	popupStyle            = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-	choiceSelectedStyle   = lipgloss.NewStyle().Background(lipgloss.Color("#0029f5")).Padding(0, 1).Margin(0, 1)
-	choiceUnselectedStyle = lipgloss.NewStyle().Background(grayStyle.GetForeground()).Padding(0, 1).Margin(0, 1)
+	choiceSelectedStyle   = lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Blue)
+	choiceUnselectedStyle = lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Gray)
 
-	focusedRememberChecked   = focusedStyle.Render("[x] Remember")
-	focusedRememberUnchecked = focusedStyle.Render("[ ] Remember")
 	blurredRememberChecked   = "[x] Remember"
 	blurredRememberUnchecked = "[ ] Remember"
+	focusedRememberChecked   = focusedStyle.Render(blurredRememberChecked)
+	focusedRememberUnchecked = focusedStyle.Render(blurredRememberUnchecked)
 
 	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(0.5)
 )
@@ -96,12 +97,12 @@ func New() Model {
 
 	for i := range m.fields {
 		field := authfield.New(48)
-		field.Input.Cursor.Style = cursorStyle
+		field.Input.Cursor.Style = focusedStyle
 		field.BlurredStyle = fieldBlurredStyle
 		field.FocusedStyle = fieldFocusedStyle
 		field.ErrorStyle = errorStyle
 		field.FocusedTextStyle = focusedStyle
-		field.BlurredTextStyle = noStyle
+		field.BlurredTextStyle = lipgloss.NewStyle()
 
 		switch i {
 		case usernameField:
@@ -220,7 +221,7 @@ func (m Model) View() string {
 
 	result = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#007E8A")).
+		BorderForeground(colors.DarkCyan).
 		Render(result)
 
 	result = lipgloss.Place(
