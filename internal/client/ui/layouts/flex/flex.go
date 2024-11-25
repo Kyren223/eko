@@ -9,11 +9,11 @@ type Model struct {
 	Style     lipgloss.Style
 	ItemStyle lipgloss.Style
 
-	contents  []string
+	contents []string
 
-	Position  lipgloss.Position
-	Gap       int
-	Vertical  bool
+	Position lipgloss.Position
+	Gap      int
+	Vertical bool
 }
 
 func New() Model {
@@ -26,13 +26,13 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	contents := make([]string, len(m.contents))
-	for i, content := range contents {
-		content = m.ItemStyle.Render(content)
+	for i, content := range m.contents {
+		contents[i] = m.ItemStyle.Render(content)
 		if i != 0 {
 			if m.Vertical {
-				contents[i] = lipgloss.NewStyle().PaddingTop(m.Gap).Render(content)
+				contents[i] = lipgloss.NewStyle().PaddingTop(m.Gap).Render(contents[i])
 			} else {
-				contents[i] = lipgloss.NewStyle().PaddingLeft(m.Gap).Render(content)
+				contents[i] = lipgloss.NewStyle().PaddingLeft(m.Gap).Render(contents[i])
 			}
 		}
 	}
@@ -51,6 +51,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) SetContents(contents []string) {
+func (m *Model) SetContents(contents ...string) {
 	m.contents = contents
 }
