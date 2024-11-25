@@ -1,17 +1,19 @@
 package networkcreation
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/field"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 var (
-	style        = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-	focusedStyle = lipgloss.NewStyle().Foreground(colors.Focus)
-	headerStyle  = lipgloss.NewStyle().Foreground(colors.Turquoise)
+	style       = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
 
 	fieldBlurredStyle = lipgloss.NewStyle().
 				PaddingLeft(1).
@@ -21,10 +23,23 @@ var (
 				BorderForeground(colors.Focus).
 				Border(lipgloss.ThickBorder())
 
-	blurredUnderlineStyle = lipgloss.NewStyle().
-				Border(lipgloss.ThickBorder(), false, false, true, false).
-				BorderForeground(colors.Gray)
-	focusedUnderlineStyle = blurredUnderlineStyle.BorderForeground(colors.Focus)
+	underlineStyle = func(s string, width int, focus bool) string {
+		color := colors.Gray
+		if focus {
+			color = colors.Focus
+		}
+		underline := lipgloss.NewStyle().Foreground(color).
+			Render(strings.Repeat(lipgloss.ThickBorder().Bottom, width))
+		return lipgloss.JoinVertical(lipgloss.Left, s, underline)
+	}
+
+	iconHeader  = headerStyle.Bold(true).Render(" Icon: ")
+	colorHeader = headerStyle.Bold(true).Italic(true).Render("# ")
+)
+
+const (
+	MaxIconLength = 2
+	MaxHexDigits  = 6
 )
 
 const (
@@ -35,16 +50,15 @@ const (
 )
 
 type Model struct {
-	Width  int
-	Height int
+	name                 field.Model
+	Style                lipgloss.Style
+	precomputedIconStyle lipgloss.Style
 
-	name  field.Model
-	icon  textinput.Model
-	color textinput.Model
-
-	selected int
-
-	Style lipgloss.Style
+	icon                 textinput.Model
+	color                textinput.Model
+	Width                int
+	Height               int
+	selected             int
 }
 
 func New() Model {
@@ -53,14 +67,17 @@ func New() Model {
 	name.HeaderStyle = headerStyle
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
+	name.Input.CharLimit = 32
 	name.Focus()
 
 	icon := textinput.New()
 	icon.Prompt = ""
+	icon.CharLimit = MaxIconLength
 	icon.Placeholder = "ic"
 
 	color := textinput.New()
 	color.Prompt = ""
+	color.CharLimit = MaxHexDigits
 	color.Placeholder = "000000"
 
 	return Model{
@@ -70,6 +87,8 @@ func New() Model {
 		icon:   icon,
 		color:  color,
 		Style:  style,
+
+		precomputedIconStyle: lipgloss.NewStyle().Width(lipgloss.Width(name.View()) / 2),
 	}
 }
 
@@ -80,23 +99,13 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
-	var iconInput string
-	if m.selected == IconField {
-		iconInput = focusedUnderlineStyle.Render(m.icon.View())
-	} else {
-		iconInput = blurredUnderlineStyle.Render(m.icon.View())
-	}
+	iconInput := underlineStyle(m.icon.View(), MaxIconLength, m.selected == IconField)
+	iconText := m.precomputedIconStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, iconHeader, iconInput))
 
-	var colorInput string
-	if m.selected == ColorField {
-		colorInput = focusedUnderlineStyle.Render(m.color.View())
-	} else {
-		colorInput = blurredUnderlineStyle.Render(m.color.View())
-	}
+	colorInput := underlineStyle(m.color.View(), MaxHexDigits, m.selected == ColorField)
+	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader, colorInput)
 
-	iconText := lipgloss.JoinHorizontal(lipgloss.Top, " Icon: ", iconInput)
-	iconColor := lipgloss.JoinHorizontal(lipgloss.Top, "# ", colorInput)
-	icon := lipgloss.JoinHorizontal(lipgloss.Top, iconText, "     ", iconColor)
+	icon := lipgloss.JoinHorizontal(lipgloss.Top, iconText, colorText)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, name, "\n", icon)
 	popup := lipgloss.NewStyle().Width(m.Width).Height(m.Height).Render(content)
@@ -109,27 +118,50 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		key := msg.Type
 		switch key {
 		case tea.KeyTab:
-			m.Cycle(1)
-		case tea.KeyShiftDown:
-			m.Cycle(-1)
+			return m, m.cycle(1)
+		case tea.KeyShiftTab:
+			return m, m.cycle(-1)
 
+		default:
+			var cmd tea.Cmd
+			switch m.selected {
+			case NameField:
+				m.name, cmd = m.name.Update(msg)
+			case IconField:
+				m.icon, cmd = m.icon.Update(msg)
+			case ColorField:
+				m.color, cmd = m.color.Update(msg)
+			}
+			return m, cmd
 		}
-	}
-
-	if m.selected == NameField {
-		return m, m.name.Focus()
-	} else {
-		m.name.Blur()
 	}
 
 	return m, nil
 }
 
-func (m *Model) Cycle(step int) {
+func (m *Model) cycle(step int) tea.Cmd {
 	m.selected += step
 	if m.selected < 0 {
-		m.selected = 0
+		m.selected = FieldCount - 1
 	} else {
 		m.selected %= FieldCount
+	}
+	return m.updateFocus()
+}
+
+func (m *Model) updateFocus() tea.Cmd {
+	m.name.Blur()
+	m.icon.Blur()
+	m.color.Blur()
+	switch m.selected {
+	case NameField:
+		return m.name.Focus()
+	case IconField:
+		return m.icon.Focus()
+	case ColorField:
+		return m.color.Focus()
+	default:
+		assert.Never("missing switch statement field in update focus", "selected", m.selected)
+		return nil
 	}
 }
