@@ -18,9 +18,9 @@ import (
 
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
-	authfield "github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/choicepopup"
 	"github.com/kyren223/eko/internal/client/ui/core"
+	authfield "github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/pkg/assert"
 )
 

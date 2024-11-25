@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	style = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+	style      = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
+	focusColor = lipgloss.Color("#5874FF")
 
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#5874FF"))
+	focusedStyle = lipgloss.NewStyle().Foreground(focusColor)
 
 	fieldBlurredStyle = lipgloss.NewStyle().
 				PaddingLeft(1).
@@ -20,7 +21,15 @@ var (
 
 	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#54D7A9"))
 
-	iconStyle = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, true, false)
+	blurredUnderlineStyle = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, true, false).BorderForeground(lipgloss.Color("240"))
+	focusedUnderlineStyle = blurredUnderlineStyle.BorderForeground(focusColor)
+)
+
+const (
+	NameField = iota
+	IconField
+	ColorField
+	FieldCount
 )
 
 type Model struct {
@@ -30,6 +39,8 @@ type Model struct {
 	name  field.Model
 	icon  textinput.Model
 	color textinput.Model
+
+	selected int
 
 	Style lipgloss.Style
 }
@@ -55,7 +66,7 @@ func New() Model {
 		Height: 10,
 		name:   name,
 		icon:   icon,
-		color: color,
+		color:  color,
 		Style:  style,
 	}
 }
@@ -67,8 +78,22 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
-	iconText := lipgloss.JoinHorizontal(lipgloss.Top, "icon: ", iconStyle.Render(m.icon.View()))
-	iconColor := lipgloss.JoinHorizontal(lipgloss.Top, "# ", iconStyle.Render(m.color.View()))
+	var iconInput string
+	if m.selected == IconField {
+		iconInput = focusedUnderlineStyle.Render(m.icon.View())
+	} else {
+		iconInput = blurredUnderlineStyle.Render(m.icon.View())
+	}
+
+	var colorInput string
+	if m.selected == ColorField {
+		colorInput = focusedUnderlineStyle.Render(m.color.View())
+	} else {
+		colorInput = blurredUnderlineStyle.Render(m.color.View())
+	}
+
+	iconText := lipgloss.JoinHorizontal(lipgloss.Top, " Icon: ", iconInput)
+	iconColor := lipgloss.JoinHorizontal(lipgloss.Top, "# ", colorInput)
 	icon := lipgloss.JoinHorizontal(lipgloss.Top, iconText, "     ", iconColor)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, name, "\n", icon)
@@ -76,6 +101,33 @@ func (m Model) View() string {
 	return m.Style.Render(popup)
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		key := msg.Type
+		switch key {
+		case tea.KeyTab:
+			m.Cycle(1)
+		case tea.KeyShiftDown:
+			m.Cycle(-1)
+
+		}
+	}
+
+	if m.selected == NameField {
+		return m, m.name.Focus()
+	} else {
+		m.name.Blur()
+	}
+
 	return m, nil
+}
+
+func (m *Model) Cycle(step int) {
+	m.selected += step
+	if m.selected < 0 {
+		m.selected = 0
+	} else {
+		m.selected %= FieldCount
+	}
 }

@@ -136,6 +136,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				popup := networkcreation.New()
 				m.networkCreationPopup = &popup
 			}
+
+		default: 
+			if m.networkCreationPopup != nil {
+				popup, cmd := m.networkCreationPopup.Update(msg)
+				m.networkCreationPopup = &popup
+				return m, cmd
+			}
 		}
 	}
 
