@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/networks"
 	"github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
 	"github.com/kyren223/eko/pkg/assert"
@@ -38,7 +39,8 @@ var (
 	}
 
 	iconHeader  = headerStyle.Bold(true).Render(" Icon: ")
-	colorHeader = headerStyle.Bold(true).Italic(true).Render("# ")
+	bgColorHeader = headerStyle.Bold(true).Render("BG # ")
+	fgColorHeader = headerStyle.Bold(true).Render("FG # ")
 
 	blurredCreate = lipgloss.NewStyle().
 			Background(colors.Gray).Padding(0, 1).Render("Create Network")
@@ -53,22 +55,27 @@ const (
 
 const (
 	NameField = iota
+	FgColorField
+	BgColorField
 	IconField
-	ColorField
 	CreateField
 	FieldCount
 )
 
 type Model struct {
-	precomputedIconStyle lipgloss.Style
+	precomputedStyle lipgloss.Style
 
-	name   field.Model
-	icon   textinput.Model
-	color  textinput.Model
-	create string
+	name    field.Model
+	icon    textinput.Model
+	bgColor textinput.Model
+	fgColor textinput.Model
+	create  string
 
 	selected  int
 	nameWidth int
+
+	lastFg lipgloss.Color
+	lastBg lipgloss.Color
 }
 
 func New() Model {
@@ -103,25 +110,41 @@ func New() Model {
 		return nil
 	}
 
-	color := textinput.New()
-	color.Prompt = ""
-	color.CharLimit = MaxHexDigits
-	color.Placeholder = "000000"
-	color.Validate = func(s string) error {
-		if len(s) != 0 && len(s) != MaxHexDigits {
+	bgColor := textinput.New()
+	bgColor.Prompt = ""
+	bgColor.CharLimit = MaxHexDigits
+	bgColor.Placeholder = "000000"
+	bgColor.Validate = func(s string) error {
+		if len(s) != MaxHexDigits {
 			return errors.New("err")
 		}
 		return nil
 	}
+	bgColor.SetValue(string(colors.Gray)[1:])
+
+	fgColor := textinput.New()
+	fgColor.Prompt = ""
+	fgColor.CharLimit = MaxHexDigits
+	fgColor.Placeholder = "000000"
+	fgColor.Validate = func(s string) error {
+		if len(s) != MaxHexDigits {
+			return errors.New("err")
+		}
+		return nil
+	}
+	fgColor.SetValue(string(colors.White)[1:])
 
 	return Model{
-		name:   name,
-		icon:   icon,
-		color:  color,
-		create: blurredCreate,
+		name:    name,
+		icon:    icon,
+		bgColor: bgColor,
+		fgColor: fgColor,
+		lastBg:  lipgloss.Color("#" + bgColor.Value()),
+		lastFg:  lipgloss.Color("#" + fgColor.Value()),
+		create:  blurredCreate,
 
-		nameWidth:            nameWidth,
-		precomputedIconStyle: lipgloss.NewStyle().Width(nameWidth / 2),
+		nameWidth:        nameWidth,
+		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3),
 	}
 }
 
@@ -132,6 +155,9 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
+	iconPreview := networks.IconStyle(m.lastFg, m.lastBg).Render(m.icon.Value())
+	iconPreview = lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(iconPreview)
+
 	color := colors.Gray
 	if m.icon.Err != nil {
 		color = colors.Error
@@ -139,28 +165,38 @@ func (m Model) View() string {
 		color = colors.Focus
 	}
 	iconInput := underlineStyle(m.icon.View(), MaxIconLength, color)
-	iconText := m.precomputedIconStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, iconHeader, iconInput))
+	iconText := m.precomputedStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, iconHeader, iconInput))
 
 	color = colors.Gray
-	if m.color.Err != nil {
+	if m.bgColor.Err != nil {
 		color = colors.Error
-	} else if m.selected == ColorField {
+	} else if m.selected == BgColorField {
 		color = colors.Focus
 	}
-	colorInput := underlineStyle(m.color.View(), MaxHexDigits, color)
-	indicatorColor := colors.Background
-	if len(m.color.Value()) == 6 {
-		indicatorColor = lipgloss.Color("#" + m.color.Value())
+	bgColorInput := underlineStyle(m.bgColor.View(), MaxHexDigits, color)
+	bgColorInput = lipgloss.NewStyle().Width(MaxHexDigits + 1).Render(bgColorInput)
+	bgColorIndicator := lipgloss.NewStyle().Foreground(m.lastBg).Render("■")
+	bgColorText := lipgloss.JoinHorizontal(lipgloss.Top, bgColorHeader, bgColorInput, bgColorIndicator)
+	bgColorText = m.precomputedStyle.Render(bgColorText)
+
+	color = colors.Gray
+	if m.fgColor.Err != nil {
+		color = colors.Error
+	} else if m.selected == FgColorField {
+		color = colors.Focus
 	}
-	colorIndicator := lipgloss.NewStyle().Foreground(indicatorColor).Render(" ■")
-	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader, colorInput, colorIndicator)
+	fgColorInput := underlineStyle(m.fgColor.View(), MaxHexDigits, color)
+	fgColorInput = lipgloss.NewStyle().Width(MaxHexDigits + 1).Render(fgColorInput)
+	fgColorIndicator := lipgloss.NewStyle().Foreground(m.lastFg).Render("■")
+	fgColorText := lipgloss.JoinHorizontal(lipgloss.Top, fgColorHeader, fgColorInput, fgColorIndicator)
+	fgColorText = m.precomputedStyle.Render(fgColorText)
 
-	icon := lipgloss.JoinHorizontal(lipgloss.Top, iconText, colorText)
+	icon := lipgloss.JoinHorizontal(lipgloss.Top, fgColorText, bgColorText, iconText)
 
-	// create := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.create)
-	create := m.create
+	create := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.create)
+	// create := m.create
 
-	content := flex.NewVertical(name, icon, create).WithGap(1).View()
+	content := flex.NewVertical(iconPreview, name, icon, create).WithGap(1).View()
 	return style.Render(content)
 }
 
@@ -181,11 +217,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.name, cmd = m.name.Update(msg)
 			case IconField:
 				m.icon, cmd = m.icon.Update(msg)
-			case ColorField:
-				oldValue := m.color.Value()
-				position := m.color.Position()
-				m.color, cmd = m.color.Update(msg)
-				newValue := m.color.Value()
+			case BgColorField:
+				oldValue := m.bgColor.Value()
+				position := m.bgColor.Position()
+				m.bgColor, cmd = m.bgColor.Update(msg)
+				newValue := m.bgColor.Value()
 
 				hex := "0123456789abcdefABCDEF"
 				invalid := false
@@ -197,8 +233,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 
 				if invalid {
-					m.color.SetValue(oldValue)
-					m.color.SetCursor(position)
+					m.bgColor.SetValue(oldValue)
+					m.bgColor.SetCursor(position)
+				} else if len(m.bgColor.Value()) == 6 {
+					m.lastBg = lipgloss.Color("#" + m.bgColor.Value())
+				}
+			case FgColorField:
+				oldValue := m.fgColor.Value()
+				position := m.fgColor.Position()
+				m.fgColor, cmd = m.fgColor.Update(msg)
+				newValue := m.fgColor.Value()
+
+				hex := "0123456789abcdefABCDEF"
+				invalid := false
+				for _, c := range newValue {
+					if !strings.ContainsRune(hex, c) {
+						invalid = true
+						break
+					}
+				}
+
+				if invalid {
+					m.fgColor.SetValue(oldValue)
+					m.fgColor.SetCursor(position)
+				} else if len(m.fgColor.Value()) == 6 {
+					m.lastFg = lipgloss.Color("#" + m.fgColor.Value())
 				}
 
 			}
@@ -222,15 +281,18 @@ func (m *Model) cycle(step int) tea.Cmd {
 func (m *Model) updateFocus() tea.Cmd {
 	m.name.Blur()
 	m.icon.Blur()
-	m.color.Blur()
+	m.bgColor.Blur()
+	m.fgColor.Blur()
 	m.create = blurredCreate
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
 	case IconField:
 		return m.icon.Focus()
-	case ColorField:
-		return m.color.Focus()
+	case BgColorField:
+		return m.bgColor.Focus()
+	case FgColorField:
+		return m.fgColor.Focus()
 	case CreateField:
 		m.create = focusedCreate
 		return nil
@@ -247,8 +309,9 @@ func (m *Model) Select() tea.Cmd {
 
 	m.name.Input.Err = m.name.Input.Validate(m.name.Input.Value())
 	m.icon.Err = m.icon.Validate(m.icon.Value())
-	m.color.Err = m.color.Validate(m.color.Value())
-	if m.name.Input.Err != nil || m.icon.Err != nil || m.color.Err != nil {
+	m.bgColor.Err = m.bgColor.Validate(m.bgColor.Value())
+	m.fgColor.Err = m.fgColor.Validate(m.fgColor.Value())
+	if m.name.Input.Err != nil || m.icon.Err != nil || m.bgColor.Err != nil || m.fgColor.Err != nil {
 		return nil
 	}
 

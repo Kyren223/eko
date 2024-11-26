@@ -10,11 +10,10 @@ import (
 )
 
 var (
-	style        = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), true, false)
-	networkStyle = lipgloss.NewStyle().Width(6).Height(3).PaddingTop(1).Margin(0, 1, 1).
-			Align(lipgloss.Center).
-			Foreground(lipgloss.Color("#ffbf00")).Background(lipgloss.Color("#4a3d5c")).
-			Border(lipgloss.ThickBorder(), false, false)
+	style            = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), true, false)
+	partialIconStyle = lipgloss.NewStyle().Width(6).Height(3).PaddingTop(1).Margin(0, 1).
+				Align(lipgloss.Center).
+				Border(lipgloss.ThickBorder(), false, false)
 	networks = []string{
 		"󰜈 ",
 		" ",
@@ -29,7 +28,7 @@ var (
 	}
 
 	reverse = lipgloss.NewStyle().Foreground(lipgloss.Color("#20999D"))
-		// Render("")
+	// Render("")
 
 	label1 = lipgloss.NewStyle().
 		Background(lipgloss.Color("#20999D")).Foreground(lipgloss.Color("#000000")).
@@ -48,6 +47,10 @@ var (
 		Render("Kyren223")
 	user = lipgloss.JoinHorizontal(lipgloss.Center, label4, " ", name)
 )
+
+func IconStyle(fg, bg lipgloss.Color) lipgloss.Style {
+	return partialIconStyle.Foreground(fg).Background(bg)
+}
 
 type Model struct {
 	networks []string
@@ -72,8 +75,9 @@ func (m Model) View() string {
 	// builder.WriteString(fmt.Sprintf("%s%s%s\n", border.TopLeft, top, border.TopRight))
 	builder.WriteString("\n")
 	for _, network := range m.networks {
-		builder.WriteString(networkStyle.Render(network) + "\n")
-		
+		builder.WriteString(IconStyle(lipgloss.Color("#ffbf00"), lipgloss.Color("#4a3d5c")).
+			MarginBottom(1).Render(network))
+		builder.WriteString("\n")
 	}
 	// bottom := strings.Repeat(border.Bottom, 6)
 	// builder.WriteString(fmt.Sprintf("\n%s%s%s", border.BottomLeft, bottom, border.BottomRight))
