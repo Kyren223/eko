@@ -32,7 +32,7 @@ type Network struct {
 	OwnerID    snowflake.ID
 	Name       string
 	Icon       string
-	BgHexColor *string
+	BgHexColor string
 	FgHexColor string
 	IsPublic   bool
 }

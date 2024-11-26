@@ -38,9 +38,9 @@ var (
 		return lipgloss.JoinVertical(lipgloss.Left, s, underline)
 	}
 
-	iconHeader  = headerStyle.Bold(true).Render(" Icon: ")
+	iconHeader    = headerStyle.Bold(true).Render("Icon: ")
 	bgColorHeader = headerStyle.Bold(true).Render("BG # ")
-	fgColorHeader = headerStyle.Bold(true).Render("FG # ")
+	fgColorHeader = headerStyle.Bold(true).Render(" FG # ")
 
 	blurredCreate = lipgloss.NewStyle().
 			Background(colors.Gray).Padding(0, 1).Render("Create Network")
@@ -58,6 +58,7 @@ const (
 	FgColorField
 	BgColorField
 	IconField
+	PrivateField
 	CreateField
 	FieldCount
 )
@@ -69,6 +70,7 @@ type Model struct {
 	icon    textinput.Model
 	bgColor textinput.Model
 	fgColor textinput.Model
+	private bool
 	create  string
 
 	selected  int
@@ -193,10 +195,20 @@ func (m Model) View() string {
 
 	icon := lipgloss.JoinHorizontal(lipgloss.Top, fgColorText, bgColorText, iconText)
 
+	privateStyle := lipgloss.NewStyle().PaddingLeft(1)
+	if m.selected == PrivateField {
+		privateStyle = privateStyle.Foreground(colors.Focus)
+	}
+	private := "[ ] Private"
+	if m.private {
+		private = "[x] Private"
+	}
+	private = privateStyle.Render(private)
+
 	create := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.create)
 	// create := m.create
 
-	content := flex.NewVertical(iconPreview, name, icon, create).WithGap(1).View()
+	content := flex.NewVertical(iconPreview, name, icon, private, create).WithGap(1).View()
 	return style.Render(content)
 }
 
@@ -293,6 +305,8 @@ func (m *Model) updateFocus() tea.Cmd {
 		return m.bgColor.Focus()
 	case FgColorField:
 		return m.fgColor.Focus()
+	case PrivateField:
+		return nil
 	case CreateField:
 		m.create = focusedCreate
 		return nil
@@ -303,6 +317,11 @@ func (m *Model) updateFocus() tea.Cmd {
 }
 
 func (m *Model) Select() tea.Cmd {
+	if m.selected == PrivateField {
+		m.private = !m.private
+		return nil
+	}
+
 	if m.selected != CreateField {
 		return nil
 	}

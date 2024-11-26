@@ -91,3 +91,4 @@ func GetUserById(id snowflake.ID) tea.Cmd {
 		return fmt.Errorf("received invalid response from server: %v", response.Type())
 	}
 }
+

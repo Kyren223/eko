@@ -16,7 +16,8 @@ INSERT INTO networks (
   id, owner_id, name, is_public,
   icon, bg_hex_color, fg_hex_color
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, 
+  ?, ?, ?
 )
 RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
 `
@@ -27,7 +28,7 @@ type CreateNetworkParams struct {
 	Name       string
 	IsPublic   bool
 	Icon       string
-	BgHexColor *string
+	BgHexColor string
 	FgHexColor string
 }
 
@@ -229,7 +230,7 @@ RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
 
 type SetNetworkIconParams struct {
 	Icon       string
-	BgHexColor *string
+	BgHexColor string
 	FgHexColor string
 	ID         snowflake.ID
 }
