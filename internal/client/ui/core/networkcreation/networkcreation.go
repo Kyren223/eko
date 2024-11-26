@@ -148,7 +148,12 @@ func (m Model) View() string {
 		color = colors.Focus
 	}
 	colorInput := underlineStyle(m.color.View(), MaxHexDigits, color)
-	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader, colorInput)
+	indicatorColor := colors.Background
+	if len(m.color.Value()) == 6 {
+		indicatorColor = lipgloss.Color("#" + m.color.Value())
+	}
+	colorIndicator := lipgloss.NewStyle().Foreground(indicatorColor).Render(" ■")
+	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader, colorInput, colorIndicator)
 
 	icon := lipgloss.JoinHorizontal(lipgloss.Top, iconText, colorText)
 
