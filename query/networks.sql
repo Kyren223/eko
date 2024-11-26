@@ -11,7 +11,8 @@ INSERT INTO networks (
   id, owner_id, name, is_public,
   icon, bg_hex_color, fg_hex_color
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, 
+  ?, ?, ?
 )
 RETURNING *;
 

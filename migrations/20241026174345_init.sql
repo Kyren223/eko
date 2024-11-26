@@ -28,7 +28,7 @@ CREATE TABLE networks (
   owner_id INT NOT NULL REFERENCES users (id),
   name TEXT NOT NULL,
   icon TEXT NOT NULL,
-  bg_hex_color TEXT,
+  bg_hex_color TEXT NOT NULL,
   fg_hex_color TEXT NOT NULL,
   is_public BOOLEAN NOT NULL CHECK (is_public IN (0, 1))
 );
