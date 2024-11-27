@@ -1,4 +1,4 @@
-package networks
+package networklist
 
 import (
 	"strings"
@@ -6,7 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/ui"
-	"github.com/kyren223/eko/internal/data"
+	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/state"
 )
 
 var (
@@ -14,53 +15,18 @@ var (
 	partialIconStyle = lipgloss.NewStyle().Width(6).Height(3).PaddingTop(1).Margin(0, 1).
 				Align(lipgloss.Center).
 				Border(lipgloss.ThickBorder(), false, false)
-	networks = []string{
-		"󰜈 ",
-		" ",
-		"Kr",
-		" ",
-		// "Test",
-		// "██████\n██████\n██████",
-		// " ▄▄▄▄ \n █  █ \n ▀▀▀▀ ",
-		// "      \n  󰜈  \n     ",
-		// "Hmm",
-		// "Another",
-	}
-
-	reverse = lipgloss.NewStyle().Foreground(lipgloss.Color("#20999D"))
-	// Render("")
-
-	label1 = lipgloss.NewStyle().
-		Background(lipgloss.Color("#20999D")).Foreground(lipgloss.Color("#000000")).
-		Padding(0, 1).
-		Bold(true).
-		Render("󰜈")
-	label2 = reverse.Render("") + label1 + reverse.Render("")
-	label3 = ""
-	label4 = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#20999D")).
-		Bold(true).
-		Render("󰜈")
-
-	name = lipgloss.NewStyle().
-		Bold(true).
-		Render("Kyren223")
-	user = lipgloss.JoinHorizontal(lipgloss.Center, label4, " ", name)
+	trustedUsersButton = IconStyle(lipgloss.Color(colors.Turquoise), lipgloss.Color(colors.DarkerCyan)).
+			MarginBottom(1).Render(" ")
 )
 
 func IconStyle(fg, bg lipgloss.Color) lipgloss.Style {
 	return partialIconStyle.Foreground(fg).Background(bg)
 }
 
-type Model struct {
-	networks []string
-	a        data.Network
-}
+type Model struct{}
 
 func New() Model {
-	return Model{
-		networks: networks,
-	}
+	return Model{}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -74,9 +40,11 @@ func (m Model) View() string {
 	// top := strings.Repeat(border.Top, 6)
 	// builder.WriteString(fmt.Sprintf("%s%s%s\n", border.TopLeft, top, border.TopRight))
 	builder.WriteString("\n")
-	for _, network := range m.networks {
-		builder.WriteString(IconStyle(lipgloss.Color("#ffbf00"), lipgloss.Color("#4a3d5c")).
-			MarginBottom(1).Render(network))
+	builder.WriteString(trustedUsersButton)
+	builder.WriteString("\n")
+	for _, network := range state.State.Networks {
+		builder.WriteString(IconStyle(lipgloss.Color(network.FgHexColor), lipgloss.Color(network.BgHexColor)).
+			MarginBottom(1).Render(network.Icon))
 		builder.WriteString("\n")
 	}
 	// bottom := strings.Repeat(border.Bottom, 6)
@@ -87,7 +55,7 @@ func (m Model) View() string {
 	sep := lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, true, false, false).Height(ui.Height).Width(0)
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.Render(""))
 
-	return result + user
+	return result
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

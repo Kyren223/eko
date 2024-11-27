@@ -11,11 +11,15 @@ var (
 	LightBlue        = lipgloss.Color("#5874FF")
 	Blue             = lipgloss.Color("#0029f5")
 	DarkCyan         = lipgloss.Color("#007E8A")
+	DarkerCyan       = lipgloss.Color("#005d66")
 	DarkMidnightBlue = lipgloss.Color("#1E1E2E")
 	Turquoise        = lipgloss.Color("#54D7A9")
 	Red              = lipgloss.Color("#F16265")
 	White            = lipgloss.Color("#FFFFFF")
 	Black            = lipgloss.Color("#000000")
+	Green            = lipgloss.Color("#46d46c")
+	Purple           = lipgloss.Color("#BB91F0")
+	DarkPurple       = lipgloss.Color("#87123d")
 
 	Background = DarkMidnightBlue
 	Error      = Red

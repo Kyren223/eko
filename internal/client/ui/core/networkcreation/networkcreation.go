@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
-	"github.com/kyren223/eko/internal/client/ui/core/networks"
+	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
 	"github.com/kyren223/eko/internal/packet"
@@ -156,7 +156,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
-	iconPreview := networks.IconStyle(m.lastFg, m.lastBg).Render(m.icon.Value())
+	iconPreview := networklist.IconStyle(m.lastFg, m.lastBg).Render(m.icon.Value())
 	iconPreview = lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(iconPreview)
 
 	color := colors.Gray
