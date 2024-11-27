@@ -14,11 +14,11 @@ import (
 )
 
 func TestPacketEncodingDecoding(t *testing.T) {
-	testPacketEncodingDecoding(t, &ErrorMessage{"Hello, World!"})
+	testPacketEncodingDecoding(t, &Error{"Hello, World!"})
 
 	node := snowflake.NewNode(1)
 	id := node.Generate()
-	testPacketEncodingDecoding(t, &Messages{Messages: []data.Message{
+	testPacketEncodingDecoding(t, &MessagesInfo{Messages: []data.Message{
 		{
 			ID:          node.Generate(),
 			SenderID:    node.Generate(),
@@ -59,7 +59,7 @@ func TestPacketFramer(t *testing.T) {
 	defer cancel()
 	framer := NewFramer()
 
-	pkt := NewPacket(NewJsonEncoder(&ErrorMessage{"Hello, World!"}))
+	pkt := NewPacket(NewJsonEncoder(&Error{"Hello, World!"}))
 	length := len(pkt.data)
 	count := 5
 	data := make([]byte, length*count)

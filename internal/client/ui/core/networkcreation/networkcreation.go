@@ -7,10 +7,12 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/networks"
 	"github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
+	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -334,6 +336,12 @@ func (m *Model) Select() tea.Cmd {
 		return nil
 	}
 
-	// TODO: send api request for creating the server
-	return nil
+	request := packet.CreateNetwork{
+		Name:       m.name.Input.Value(),
+		Icon:       m.icon.Value(),
+		BgHexColor: "#" + m.bgColor.Value(),
+		FgHexColor: "#" + m.fgColor.Value(),
+		IsPublic:   !m.private,
+	}
+	return gateway.Send(&request)
 }
