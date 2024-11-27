@@ -186,9 +186,7 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 			if !ok {
 				break
 			}
-			if packet.Type().IsPush() {
-				log.Println(addr, "streaming packet:", packet)
-			}
+			log.Println(addr, "sending packet:", packet)
 			if _, err := packet.Into(conn); err != nil {
 				log.Println(addr, err)
 				break
@@ -212,6 +210,7 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 
 	buffer := make([]byte, 512)
 	for {
+		// TODO: do we need this deadline
 		err := conn.SetReadDeadline(time.Now().Add(time.Second))
 		assert.NoError(err, "setting read deadline should not error")
 		n, err := conn.Read(buffer)
@@ -233,7 +232,7 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 			if ctx.Err() != nil {
 				log.Println(addr, ctx.Err())
 			} else {
-				payload := packet.ErrorMessage{Error: err.Error()}
+				payload := packet.Error{Error: err.Error()}
 				pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
 				sess.WriteQueue <- pkt
 			}
@@ -292,7 +291,7 @@ func processPacket(ctx context.Context, pkt packet.Packet) packet.Packet {
 
 	request, err := pkt.DecodedPayload()
 	if err != nil {
-		response = &packet.ErrorMessage{Error: "malformed payload"}
+		response = &packet.Error{Error: "malformed payload"}
 	} else {
 		response = processRequest(ctx, request)
 	}
@@ -312,12 +311,10 @@ func processRequest(ctx context.Context, request packet.Payload) packet.Payload 
 	switch request := request.(type) {
 	case *packet.SendMessage:
 		return timeout(20*time.Millisecond, api.SendMessage, ctx, request)
-	case *packet.GetMessagesRange:
+	case *packet.RequestMessages:
 		return timeout(50*time.Millisecond, api.GetMessages, ctx, request)
-	case *packet.GetUserByID:
-		return timeout(50*time.Millisecond, api.GetUserById, ctx, request)
 	default:
-		return &packet.ErrorMessage{Error: "use of disallowed packet type for request"}
+		return &packet.Error{Error: "use of disallowed packet type for request"}
 	}
 }
 
@@ -341,7 +338,6 @@ func timeout[T packet.Payload](
 		sess, ok := session.FromContext(ctx)
 		assert.Assert(ok, "session should exist")
 		log.Println(sess.Addr(), "timeout of", request.Type(), "request")
-		// TODO: consider if we want to say it's a timeout or be vague to mitigate DOS attacks
-		return &packet.ErrorMessage{Error: "internal server error"}
+		return &packet.Error{Error: "request timeout"}
 	}
 }

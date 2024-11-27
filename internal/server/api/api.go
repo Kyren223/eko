@@ -20,12 +20,12 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 	assert.Assert(ok, "context in process packet should always have a session")
 
 	if (request.ReceiverID != nil) == (request.FrequencyID != nil) {
-		return &packet.ErrorMessage{Error: "either receiver id or frequency id must exist"}
+		return &packet.Error{Error: "either receiver id or frequency id must exist"}
 	}
 
 	content := strings.TrimSpace(request.Content)
 	if content == "" {
-		return &packet.ErrorMessage{Error: "message content must not be blank"}
+		return &packet.Error{Error: "message content must not be blank"}
 	}
 
 	node := sess.Manager().Node()
@@ -40,34 +40,34 @@ func SendMessage(ctx context.Context, request *packet.SendMessage) packet.Payloa
 	})
 	if err != nil {
 		log.Println(sess.Addr(), "SendMessage database error:", err)
-		return &packet.ErrorMessage{Error: "internal server error"}
+		return &packet.Error{Error: "internal server error"}
 	}
 
-	return &packet.Messages{Messages: []data.Message{message}}
+	return &packet.MessagesInfo{Messages: []data.Message{message}}
 }
 
-func GetMessages(ctx context.Context, request *packet.GetMessagesRange) packet.Payload {
+func GetMessages(ctx context.Context, request *packet.RequestMessages) packet.Payload {
 	queries := data.New(db)
 	messages, err := queries.GetFrequencyMessages(ctx, request.FrequencyID)
 	if err != nil {
 		log.Println("database error when retrieving messages:", err)
-		return &packet.ErrorMessage{Error: "internal server error"}
+		return &packet.Error{Error: "internal server error"}
 	}
-	return &packet.Messages{Messages: messages}
+	return &packet.MessagesInfo{Messages: messages}
 }
 
-func GetUserById(ctx context.Context, request *packet.GetUserByID) packet.Payload {
-	queries := data.New(db)
-	user, err := queries.GetUserById(ctx, request.UserID)
-	if err == sql.ErrNoRows {
-		return &packet.Users{Users: []data.User{}}
-	}
-	if err != nil {
-		log.Println("database error when retrieving user by id:", err)
-		return &packet.ErrorMessage{Error: "internal server error"}
-	}
-	return &packet.Users{Users: []data.User{user}}
-}
+// func GetUserById(ctx context.Context, request *packet.GetUserByID) packet.Payload {
+// 	queries := data.New(db)
+// 	user, err := queries.GetUserById(ctx, request.UserID)
+// 	if err == sql.ErrNoRows {
+// 		return &packet.Users{Users: []data.User{}}
+// 	}
+// 	if err != nil {
+// 		log.Println("database error when retrieving user by id:", err)
+// 		return &packet.ErrorMessage{Error: "internal server error"}
+// 	}
+// 	return &packet.Users{Users: []data.User{user}}
+// }
 
 func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.PublicKey) (data.User, error) {
 	queries := data.New(db)
@@ -76,7 +76,7 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 		id := node.Generate()
 		user, err = queries.CreateUser(ctx, data.CreateUserParams{
 			ID:        id,
-			Name:      "User" + strconv.FormatInt(id.Time() % 1000, 10),
+			Name:      "User" + strconv.FormatInt(id.Time()%1000, 10),
 			PublicKey: pubKey,
 		})
 	}
