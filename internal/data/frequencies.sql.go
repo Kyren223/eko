@@ -17,8 +17,8 @@ INSERT INTO frequencies (
   name, hex_color,
   perms, position
 ) VALUES (
-  ?, ?, ?, ?, ?,
-  (SELECT COUNT(*) FROM frequencies WHERE network_id = ?)
+  ?1, ?2, ?3, ?4, ?5,
+  (SELECT COUNT(*) FROM frequencies WHERE network_id = ?2)
 )
 RETURNING id, network_id, name, hex_color, perms, position
 `
@@ -195,10 +195,10 @@ func (q *Queries) SetFrequencyPerms(ctx context.Context, arg SetFrequencyPermsPa
 const swapFrequencies = `-- name: SwapFrequencies :exec
 UPDATE frequencies SET
   position = CASE
-    WHEN position = ? THEN ?
-    WHEN position = ? THEN ?
+    WHEN position = ?1 THEN ?2
+    WHEN position = ?2 THEN ?1
   END
-WHERE network_id = ? AND position IN (?, ?)
+WHERE network_id = ?3 AND position IN (?1, ?2)
 `
 
 type SwapFrequenciesParams struct {

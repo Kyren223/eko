@@ -46,8 +46,8 @@ func main() {
 		cancel()
 	}()
 
-	server := server.NewServer(port)
-	if err := server.Run(ctx); err != nil {
+	server := server.NewServer(ctx, port)
+	if err := server.Run(); err != nil {
 		log.Println(err)
 	}
 }

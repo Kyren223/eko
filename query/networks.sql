@@ -11,7 +11,7 @@ INSERT INTO networks (
   id, owner_id, name, is_public,
   icon, bg_hex_color, fg_hex_color
 ) VALUES (
-  ?, ?, ?, ?, 
+  ?, ?, ?, ?,
   ?, ?, ?
 )
 RETURNING *;
@@ -69,13 +69,13 @@ INSERT INTO users_networks (
   is_member, is_admin, is_muted,
   is_banned, ban_reason
 ) VALUES (
-  ?, ?,
-  ?, ?, ?,
-  ?, ?
+  ?1, ?2,
+  ?3, ?4, ?5,
+  ?6, ?7
 )
 ON CONFLICT DO 
 UPDATE SET
-  is_member = ?, is_admin = ?, is_muted = ?,
-  is_banned = ?, ban_reason = ?
-WHERE user_id = ? AND network_id = ?
+  is_member = ?3, is_admin = ?4, is_muted = ?5,
+  is_banned = ?6, ban_reason = ?7
+WHERE user_id = ?1 AND network_id = ?2
 RETURNING *;

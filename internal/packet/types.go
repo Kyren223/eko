@@ -73,7 +73,7 @@ type Member struct {
 }
 
 type FullNetwork struct {
-	Network     data.Network
+	data.Network
 	Frequencies []data.Frequency
 	Members     []Member
 }
@@ -137,8 +137,8 @@ func (m *SendMessage) Type() PacketType {
 }
 
 type EditMessage struct {
-	Message snowflake.ID
 	Content string
+	Message snowflake.ID
 }
 
 func (m *EditMessage) Type() PacketType {

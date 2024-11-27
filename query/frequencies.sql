@@ -12,7 +12,7 @@ INSERT INTO frequencies (
   name, hex_color,
   perms, position
 ) VALUES (
-  ?, @network_id, ?, ?, ?,
+  @id, @network_id, @name, @hex_color, @perms,
   (SELECT COUNT(*) FROM frequencies WHERE network_id = @network_id)
 )
 RETURNING *;
@@ -23,7 +23,7 @@ UPDATE frequencies SET
     WHEN position = @pos1 THEN @pos2
     WHEN position = @pos2 THEN @pos1
   END
-WHERE network_id = ? AND position IN (@pos1, @pos2);
+WHERE network_id = @network_id AND position IN (@pos1, @pos2);
 
 -- name: SetFrequencyName :one
 UPDATE frequencies SET

@@ -116,7 +116,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		FgHexColor: request.FgHexColor,
 	})
 	if err != nil {
-		log.Println("database error:", err)
+		log.Println("database error 1:", err)
 		return &internalError
 	}
 
@@ -128,7 +128,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		Perms:     PermReadWrite,
 	})
 	if err != nil {
-		log.Println("database error:", err)
+		log.Println("database error 2:", err)
 		return &internalError
 	}
 
@@ -142,13 +142,13 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		BanReason: nil,
 	})
 	if err != nil {
-		log.Println("database error:", err)
+		log.Println("database error 3:", err)
 		return &internalError
 	}
 
 	user, err := qtx.GetUserById(ctx, network.OwnerID)
 	if err != nil {
-		log.Println("database error:", err)
+		log.Println("database error 4:", err)
 		return &internalError
 	}
 
@@ -166,4 +166,3 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		Networks: []packet.FullNetwork{fullNetwork},
 	}
 }
-
