@@ -77,10 +77,7 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 			PublicKey: pubKey,
 		})
 	}
-	if err != nil {
-		return data.User{}, err
-	}
-	return user, nil
+	return user, err
 }
 
 func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.CreateNetwork) packet.Payload {

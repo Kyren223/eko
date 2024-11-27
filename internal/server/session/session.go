@@ -24,7 +24,7 @@ type SessionManager interface {
 type Session struct {
 	manager    SessionManager
 	addr       *net.TCPAddr
-	WriteQueue chan packet.Packet
+	writeQueue chan packet.Packet
 
 	issuedTime time.Time
 	challenge  []byte
@@ -37,7 +37,7 @@ type Session struct {
 
 func NewSession(manager SessionManager, addr *net.TCPAddr, id snowflake.ID, pubKey ed25519.PublicKey) *Session {
 	session := &Session{
-		WriteQueue: make(chan packet.Packet, 10),
+		writeQueue: make(chan packet.Packet, 10),
 		PubKey:     pubKey,
 		manager:    manager,
 		addr:       addr,
@@ -73,9 +73,18 @@ func (s *Session) Challenge() []byte {
 
 func (s *Session) Write(ctx context.Context, pkt packet.Packet) bool {
 	select {
-	case s.WriteQueue <- pkt:
+	case s.writeQueue <- pkt:
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+func (s *Session) Read(ctx context.Context) (packet.Packet, bool) {
+	select {
+	case pkt := <-s.writeQueue:
+		return pkt, true
+	case <-ctx.Done():
+		return packet.Packet{}, false
 	}
 }
