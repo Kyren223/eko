@@ -83,7 +83,7 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 	return user, nil
 }
 
-func CreateNetwork(ctx context.Context, sess *session.Session, request packet.CreateNetwork) packet.Payload {
+func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.CreateNetwork) packet.Payload {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return &packet.Error{Error: "server name must not be blank"}
