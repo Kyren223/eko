@@ -13,7 +13,7 @@ func isValidHexColor(color string) (bool, string) {
 		return false, "color must start with '#'"
 	}
 
-	for _, c := range color {
+	for _, c := range color[1:] {
 		if !strings.ContainsRune(hex, c) {
 			return false, "color must start with '#' and contain exactly 6 digits 0-9, a-f, A-F"
 		}

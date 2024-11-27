@@ -95,9 +95,6 @@ func New() Model {
 		if strings.TrimSpace(s) == "" {
 			return errors.New("cannot be empty")
 		}
-		if strings.TrimSpace(s) != s {
-			return errors.New("no leading/trailing spaces")
-		}
 		return nil
 	}
 

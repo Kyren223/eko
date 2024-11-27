@@ -144,7 +144,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyEnter:
 			if m.networkCreationPopup != nil {
-				return m, m.networkCreationPopup.Select()
+				cmd := m.networkCreationPopup.Select()
+				if cmd != nil {
+					m.networkCreationPopup = nil
+				}
+				return m, cmd
 			}
 
 		default:
