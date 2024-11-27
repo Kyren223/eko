@@ -11,6 +11,7 @@ import (
 
 	"github.com/kyren223/eko/internal/server"
 	"github.com/kyren223/eko/internal/server/api"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 const port = 7223
@@ -32,11 +33,11 @@ func main() {
 	}
 
 	api.ConnectToDatabase()
-	defer api.CloseDatabase()
-
-	server := server.NewServer(port)
+	assert.AddFlush(api.DB())
+	defer api.DB().Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -45,5 +46,8 @@ func main() {
 		cancel()
 	}()
 
-	server.ListenAndServe(ctx)
+	server := server.NewServer(port)
+	if err := server.Run(ctx); err != nil {
+		log.Println(err)
+	}
 }

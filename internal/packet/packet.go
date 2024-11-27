@@ -222,14 +222,14 @@ func (p Packet) DecodedPayload() (Payload, error) {
 }
 
 var (
-	PacketUnsupportedVersion  error = errors.New("packet error: unsupported version")
-	PacketUnsupportedEncoding error = errors.New("packet error: unsupported encoding")
-	PacketUnsupportedType     error = errors.New("packet error: unsupported type")
+	ErrUnsupportedVersion  error = errors.New("packet error: unsupported version")
+	ErrUnsupportedEncoding error = errors.New("packet error: unsupported encoding")
+	ErrUnsupportedType     error = errors.New("packet error: unsupported type")
 )
 
 type PacketFramer struct {
-	buffer []byte
 	Out    chan Packet
+	buffer []byte
 }
 
 func NewFramer() PacketFramer {
@@ -239,13 +239,22 @@ func NewFramer() PacketFramer {
 }
 
 func (f *PacketFramer) Push(ctx context.Context, data []byte) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	f.buffer = append(f.buffer, data...)
 
 	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		packet, err := f.parse()
 		if packet == nil || err != nil {
 			return err
 		}
+
 		select {
 		case f.Out <- *packet:
 		case <-ctx.Done():
@@ -260,17 +269,17 @@ func (f *PacketFramer) parse() (*Packet, error) {
 	}
 
 	if f.buffer[VERSION_OFFSET] != VERSION {
-		return nil, PacketUnsupportedVersion
+		return nil, ErrUnsupportedVersion
 	}
 
 	encoding := Encoding(f.buffer[ENCODING_OFFSET] >> 6)
 	if !encoding.IsSupported() {
-		return nil, PacketUnsupportedEncoding
+		return nil, ErrUnsupportedEncoding
 	}
 
 	packetType := PacketType(f.buffer[TYPE_OFFSET] & 63)
 	if !packetType.IsSupported() {
-		return nil, PacketUnsupportedType
+		return nil, ErrUnsupportedType
 	}
 
 	length := binary.BigEndian.Uint16(f.buffer[LENGTH_OFFSET:])

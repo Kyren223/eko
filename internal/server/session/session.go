@@ -22,18 +22,17 @@ type SessionManager interface {
 }
 
 type Session struct {
-	// Channel to directly write packets to the cient.
-	// Can be nil in cases where the connection is not available.
+	manager    SessionManager
+	addr       *net.TCPAddr
 	WriteQueue chan packet.Packet
-	PubKey     ed25519.PublicKey
 
-	manager SessionManager
-	addr    *net.TCPAddr
-	id      snowflake.ID
-
-	mu         sync.Mutex
-	challenge  []byte
 	issuedTime time.Time
+	challenge  []byte
+
+	PubKey ed25519.PublicKey
+	id     snowflake.ID
+
+	mu sync.Mutex
 }
 
 func NewSession(manager SessionManager, addr *net.TCPAddr, id snowflake.ID, pubKey ed25519.PublicKey) *Session {
@@ -72,15 +71,11 @@ func (s *Session) Challenge() []byte {
 	return s.challenge
 }
 
-type key struct{}
-
-var sessKey key
-
-func NewContext(ctx context.Context, sess *Session) context.Context {
-	return context.WithValue(ctx, sessKey, sess)
-}
-
-func FromContext(ctx context.Context) (*Session, bool) {
-	sess, ok := ctx.Value(sessKey).(*Session)
-	return sess, ok
+func (s *Session) Write(ctx context.Context, pkt packet.Packet) bool {
+	select {
+	case s.WriteQueue <- pkt:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }

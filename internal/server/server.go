@@ -12,7 +12,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -48,9 +47,9 @@ func init() {
 
 type server struct {
 	node     *snowflake.Node
-	Port     uint16
 	sessions map[snowflake.ID]*session.Session
 	sessMu   sync.RWMutex
+	Port     uint16
 }
 
 // Creates a new server on the given port.
@@ -90,12 +89,9 @@ func (s *server) Node() *snowflake.Node {
 	return s.node
 }
 
-// Starts listening and accepting clients on the server's port.
-//
-// The given context is used for cancellation,
-// note that the server will wait for all active connections to close before
-// returning, this is a blocking operation.
-func (s *server) ListenAndServe(ctx context.Context) {
+// Run starts listening and accepting clients,
+// blocking until it gets terminated by cancelling the context.
+func (s *server) Run(ctx context.Context) error {
 	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), tlsConfig)
 	if err != nil {
 		log.Fatalf("error starting server: %s", err)
@@ -108,7 +104,7 @@ func (s *server) ListenAndServe(ctx context.Context) {
 		listener.Close()
 	}()
 
-	log.Printf("started listening on port %v...\n", s.Port)
+	log.Println("started listening on port", s.Port)
 	var wg sync.WaitGroup
 	for {
 		conn, err := listener.Accept()
@@ -120,27 +116,25 @@ func (s *server) ListenAndServe(ctx context.Context) {
 		}
 		wg.Add(1)
 		go func() {
-			handleConnection(ctx, conn, s)
+			s.handleConnection(ctx, conn)
 			wg.Done()
 		}()
 	}
-	log.Printf("stopped listening on port %v\n", s.Port)
+	log.Println("stopped listening on port", s.Port)
 
 	log.Println("waiting for all active connections to close...")
 	wg.Wait()
 	log.Println("server shutdown complete")
+	return nil
 }
 
-func handleConnection(ctx context.Context, conn net.Conn, server *server) {
+func (server *server) handleConnection(ctx context.Context, conn net.Conn) {
 	addr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	assert.Assert(ok, "getting tcp address should never fail as we are using tcp connections")
 
 	log.Println(addr, "accepted")
 
-	nonce := [32]byte{}
-	_, err := rand.Read(nonce[:])
-	assert.NoError(err, "random should always produce a value")
-	pubKey, err := handleAuth(conn, nonce[:])
+	pubKey, err := handleAuth(conn)
 	if err != nil {
 		log.Println(addr, err)
 		conn.Close()
@@ -172,10 +166,8 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 
 	defer func() {
 		conn.Close()
-		close(framer.Out)
 		server.RemoveSession(sess.ID())
-		close(sess.WriteQueue)
-		sess.WriteQueue = nil
+		close(framer.Out) // avoid leaking goroutine
 		log.Println(addr, "disconnected")
 	}()
 
@@ -200,48 +192,42 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 				break
 			}
 			response := processPacket(ctx, sess, request)
-			if sess.WriteQueue == nil {
+			if ok := sess.Write(ctx, response); !ok {
 				break
 			}
-			sess.WriteQueue <- response
 		}
 	}()
 
 	buffer := make([]byte, 512)
 	for {
-		// TODO: do we need this deadline
-		err := conn.SetReadDeadline(time.Now().Add(time.Second))
-		assert.NoError(err, "setting read deadline should not error")
 		n, err := conn.Read(buffer)
-		deadlineExceeded := errors.Is(err, os.ErrDeadlineExceeded)
-		if err != nil && !deadlineExceeded {
+		if err != nil {
 			if !errors.Is(err, io.EOF) {
-				log.Println(addr, "read error:", err)
+				log.Println(addr, err)
 			}
-			break
-		}
-
-		if ctx.Err() != nil {
-			log.Println(addr, ctx.Err())
 			break
 		}
 
 		err = framer.Push(ctx, buffer[:n])
+		if ctx.Err() != nil {
+			log.Println(addr, ctx.Err())
+			break
+		}
 		if err != nil {
-			if ctx.Err() != nil {
-				log.Println(addr, ctx.Err())
-			} else {
-				payload := packet.Error{Error: err.Error()}
-				pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
-				sess.WriteQueue <- pkt
-			}
+			payload := packet.Error{Error: err.Error()}
+			pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
+			sess.Write(ctx, pkt)
 			break
 		}
 	}
 }
 
-func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
-	err := conn.SetDeadline(time.Now().Add(time.Second * 5))
+func handleAuth(conn net.Conn) (ed25519.PublicKey, error) {
+	nonce := [32]byte{}
+	_, err := rand.Read(nonce[:])
+	assert.NoError(err, "random should always produce a value")
+
+	err = conn.SetDeadline(time.Now().Add(time.Second * 5))
 	assert.NoError(err, "setting read deadline should not error")
 
 	defer func() {
@@ -251,7 +237,7 @@ func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
 
 	challengePacket := make([]byte, len(nonce)+1)
 	challengePacket[0] = packet.VERSION
-	copy(challengePacket[1:], nonce)
+	copy(challengePacket[1:], nonce[:])
 
 	_, err = conn.Write(challengePacket)
 	if err != nil {
@@ -275,7 +261,7 @@ func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
 	pubKey := ed25519.PublicKey(challengeResponsePacket[1 : 1+ed25519.PublicKeySize])
 	signature := ed25519.PrivateKey(challengeResponsePacket[1+ed25519.PublicKeySize:])
 
-	if ok := ed25519.Verify(pubKey, nonce, signature); !ok {
+	if ok := ed25519.Verify(pubKey, nonce[:], signature); !ok {
 		return nil, errors.New("signature verification failed")
 	}
 
@@ -329,8 +315,6 @@ func timeout[T packet.Payload](
 	case response := <-responseChan:
 		return response
 	case <-ctx.Done():
-		sess, ok := session.FromContext(ctx)
-		assert.Assert(ok, "session should exist")
 		log.Println(sess.Addr(), "timeout of", request.Type(), "request")
 		return &packet.Error{Error: "request timeout"}
 	}

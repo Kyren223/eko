@@ -36,10 +36,8 @@ func ConnectToDatabase() {
 	log.Println("database connection ready to be used")
 }
 
-func CloseDatabase() {
-	assert.NotNil(db, "db should only be closed if it exists")
-	db.Close()
-	log.Println("connection with database closed")
+func DB() *sql.DB {
+	return db
 }
 
 func demo() {
