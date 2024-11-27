@@ -221,6 +221,14 @@ func (server *server) handleConnection(conn net.Conn) {
 		}
 	}()
 
+	// Send initial packets
+	payload, err := api.GetNetworksInfo(server.ctx, sess)
+	if err != nil {
+		return // closes the connection
+	}
+	infoPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(server.ctx, infoPacket)
+
 	buffer := make([]byte, 512)
 	for {
 		n, err := conn.Read(buffer)

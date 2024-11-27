@@ -109,6 +109,43 @@ func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.Publ
 	return i, err
 }
 
+const getUserNetworks = `-- name: GetUserNetworks :many
+SELECT networks.id, networks.owner_id, networks.name, networks.icon, networks.bg_hex_color, networks.fg_hex_color, networks.is_public FROM networks
+JOIN users_networks ON networks.id = users_networks.network_id
+WHERE users_networks.user_id = ?
+`
+
+func (q *Queries) GetUserNetworks(ctx context.Context, userID snowflake.ID) ([]Network, error) {
+	rows, err := q.db.QueryContext(ctx, getUserNetworks, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Network
+	for rows.Next() {
+		var i Network
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.Name,
+			&i.Icon,
+			&i.BgHexColor,
+			&i.FgHexColor,
+			&i.IsPublic,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setUserDescription = `-- name: SetUserDescription :one
 UPDATE users SET
   description = ?

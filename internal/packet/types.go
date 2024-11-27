@@ -65,17 +65,10 @@ func (m *SetNetworkUser) Type() PacketType {
 	return PacketSetNetworkUser
 }
 
-type Member struct {
-	JoinedAt string
-	User     data.User
-	IsAdmin  bool
-	IsMuted  bool
-}
-
 type FullNetwork struct {
 	data.Network
 	Frequencies []data.Frequency
-	Members     []Member
+	Members     []data.GetNetworkMembersRow
 }
 
 type NetworksInfo struct {

@@ -102,6 +102,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		log.Println("database error:", err)
 		return &internalError
 	}
+	defer tx.Rollback() //nolint
 
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
@@ -161,7 +162,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	fullNetwork := packet.FullNetwork{
 		Network:     network,
 		Frequencies: []data.Frequency{frequency},
-		Members: []packet.Member{{
+		Members: []data.GetNetworkMembersRow{{
 			JoinedAt: networkUser.JoinedAt,
 			User:     user,
 			IsAdmin:  networkUser.IsAdmin,
@@ -171,4 +172,47 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	return &packet.NetworksInfo{
 		Networks: []packet.FullNetwork{fullNetwork},
 	}
+}
+
+func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload, error) {
+	networksInfo := &packet.NetworksInfo{}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint
+
+	queries := data.New(db)
+	qtx := queries.WithTx(tx)
+
+	networks, err := qtx.GetUserNetworks(ctx, sess.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, network := range networks {
+		frequencies, err := qtx.GetNetworkFrequencies(ctx, network.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		members, err := qtx.GetNetworkMembers(ctx, network.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		networksInfo.Networks = append(networksInfo.Networks, packet.FullNetwork{
+			Network:     network,
+			Frequencies: frequencies,
+			Members:     members,
+		})
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return networksInfo, nil
 }
