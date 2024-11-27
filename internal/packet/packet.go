@@ -51,47 +51,34 @@ type PacketType uint8
 
 const (
 	PacketError PacketType = iota
+
+	PacketCreateNetwork
+	PacketUpdateNetwork
+	PacketTransferNetwork
+	PacketDeleteNetwork
+	PacketSetNetworkUser
+	PacketNetworksInfo
+
+	PacketCreateFrequency
+	PacketUpdateFrequency
+	PacketDeleteFrequency
+	PacketSwapFrequencies
+
 	PacketSendMessage
-	PacketPushedMessages
-	PacketGetMessageRange
-	PacketMessages
-	PacketGetUserById
-	PacketUsers
+	PacketEditMessage
+	PacketDeleteMessage
+	PacketRequestMessages
+	PacketMessagesInfo
+
+	PacketMax
 )
 
-func (t PacketType) String() string {
-	switch t {
-	case PacketError:
-		return "PacketError"
-	case PacketSendMessage:
-		return "PacketSendMessage"
-	case PacketPushedMessages:
-		return "PacketPushedMessages"
-	case PacketGetMessageRange:
-		return "PacketGetMessageRange"
-	case PacketMessages:
-		return "PacketMessages"
-	case PacketGetUserById:
-		return "PacketGetUserById"
-	case PacketUsers:
-		return "PacketUsers"
-	default:
-		return fmt.Sprintf("PacketInvalidType(%v)", byte(t))
-	}
+func Init() {
+	assert.Assert(PacketMax <= 64, "packet types exceeded allowed limit of 64 types")
 }
 
 func (e PacketType) IsSupported() bool {
-	return e <= PacketUsers
-}
-
-// True for all packets that a server may push passively to the client.
-func (e PacketType) IsPush() bool {
-	switch e {
-	case PacketPushedMessages:
-		return true
-	default:
-		return false
-	}
+	return e < PacketMax
 }
 
 const (
@@ -166,7 +153,7 @@ func (p Packet) Payload() []byte {
 }
 
 func (p Packet) String() string {
-	return fmt.Sprintf("Packet(v%v %v %v [%v bytes...])", p.Version(), p.Encoding().String(), p.Type().String(), p.PayloadLength())
+	return fmt.Sprintf("Packet(v%v t%v %v [%v bytes...])", p.Version(), p.Encoding().String(), p.Type(), p.PayloadLength())
 }
 
 func (p Packet) Into(writer io.Writer) (int, error) {
@@ -196,21 +183,39 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	var payload Payload
 	switch p.Type() {
 	case PacketError:
-		payload = &ErrorMessage{}
-	case PacketPushedMessages:
-		payload = &PushedMessages{}
+		payload = &Error{}
+	case PacketCreateFrequency:
+		payload = &CreateFrequency{}
+	case PacketCreateNetwork:
+		payload = &CreateNetwork{}
+	case PacketDeleteFrequency:
+		payload = &DeleteFrequency{}
+	case PacketDeleteMessage:
+		payload = &DeleteMessage{}
+	case PacketDeleteNetwork:
+		payload = &DeleteNetwork{}
+	case PacketEditMessage:
+		payload = &EditMessage{}
+	case PacketMessagesInfo:
+		payload = &MessagesInfo{}
+	case PacketNetworksInfo:
+		payload = &NetworksInfo{}
+	case PacketRequestMessages:
+		payload = &RequestMessages{}
 	case PacketSendMessage:
 		payload = &SendMessage{}
-	case PacketGetMessageRange:
-		payload = &GetMessagesRange{}
-	case PacketMessages:
-		payload = &Messages{}
-	case PacketGetUserById:
-		payload = &GetUserByID{}
-	case PacketUsers:
-		payload = &Users{}
+	case PacketSetNetworkUser:
+		payload = &SetNetworkUser{}
+	case PacketSwapFrequencies:
+		payload = &SwapFrequencies{}
+	case PacketTransferNetwork:
+		payload = &TransferNetwork{}
+	case PacketUpdateFrequency:
+		payload = &UpdateFrequency{}
+	case PacketUpdateNetwork:
+		payload = &UpdateNetwork{}
 	default:
-		assert.Never("packet type of a packet struct must always be valid")
+		assert.Never("unexpected packet.PacketType", "type", p.Type())
 	}
 	err := p.DecodePayloadInto(payload)
 	return payload, err

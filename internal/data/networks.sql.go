@@ -67,17 +67,15 @@ func (q *Queries) DeleteNetwork(ctx context.Context, id snowflake.ID) error {
 const getBannedUsersInNetwork = `-- name: GetBannedUsersInNetwork :many
 SELECT
   users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
-  network_banned_users.banned_at,
-  network_banned_users.reason
-FROM network_banned_users
-JOIN users ON users.id = network_banned_users.banned_user_id
-WHERE network_banned_users.network_id = ?
+  users_networks.ban_reason
+FROM users_networks
+JOIN users ON users.id = users_networks.user_id
+WHERE users_networks.network_id = ?
 `
 
 type GetBannedUsersInNetworkRow struct {
-	User     User
-	BannedAt string
-	Reason   *string
+	User      User
+	BanReason *string
 }
 
 func (q *Queries) GetBannedUsersInNetwork(ctx context.Context, networkID snowflake.ID) ([]GetBannedUsersInNetworkRow, error) {
@@ -96,8 +94,7 @@ func (q *Queries) GetBannedUsersInNetwork(ctx context.Context, networkID snowfla
 			&i.User.Description,
 			&i.User.IsPublicDM,
 			&i.User.IsDeleted,
-			&i.BannedAt,
-			&i.Reason,
+			&i.BanReason,
 		); err != nil {
 			return nil, err
 		}
@@ -176,7 +173,7 @@ SELECT
   users_networks.is_muted
 FROM users_networks
 JOIN users ON users.id = users_networks.user_id
-WHERE users_networks.network_id = ?
+WHERE users_networks.network_id = ? AND is_member = true
 `
 
 type GetUsersInNetworkRow struct {

@@ -19,11 +19,10 @@ RETURNING *;
 -- name: GetBannedUsersInNetwork :many
 SELECT
   sqlc.embed(users),
-  network_banned_users.banned_at,
-  network_banned_users.reason
-FROM network_banned_users
-JOIN users ON users.id = network_banned_users.banned_user_id
-WHERE network_banned_users.network_id = ?;
+  users_networks.ban_reason
+FROM users_networks
+JOIN users ON users.id = users_networks.user_id
+WHERE users_networks.network_id = ?;
 
 -- name: GetUsersInNetwork :many
 SELECT
@@ -33,7 +32,7 @@ SELECT
   users_networks.is_muted
 FROM users_networks
 JOIN users ON users.id = users_networks.user_id
-WHERE users_networks.network_id = ?;
+WHERE users_networks.network_id = ? AND is_member = true;
 
 -- name: SetNetworkName :one
 UPDATE networks SET

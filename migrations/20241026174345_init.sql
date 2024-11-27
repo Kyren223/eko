@@ -3,7 +3,7 @@ CREATE TABLE messages (
   id INTEGER PRIMARY KEY,
   sender_id INT NOT NULL REFERENCES users (id),
   content TEXT NOT NULL,
-  edited BOOLEAN NOT NULL CHECK (edited IN (0, 1)) DEFAULT 0,
+  edited BOOLEAN NOT NULL CHECK (edited IN (false, true)) DEFAULT false,
 
   frequency_id INT REFERENCES frequencies (id) ON DELETE CASCADE,
   receiver_id INT REFERENCES users (id),
@@ -18,9 +18,9 @@ CREATE TABLE users (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   public_key BLOB NOT NULL UNIQUE,
-  description TEXT,
-  is_public_dm BOOLEAN NOT NULL CHECK (is_public_dm IN (0, 1)) DEFAULT 1,
-  is_deleted BOOLEAN NOT NULL CHECK (is_deleted IN (0, 1)) DEFAULT 0
+  description TEXT NOT NULL,
+  is_public_dm BOOLEAN NOT NULL CHECK (is_public_dm IN (false, true)) DEFAULT true,
+  is_deleted BOOLEAN NOT NULL CHECK (is_deleted IN (false, true)) DEFAULT false
 );
 
 CREATE TABLE networks (
@@ -30,7 +30,7 @@ CREATE TABLE networks (
   icon TEXT NOT NULL,
   bg_hex_color TEXT NOT NULL,
   fg_hex_color TEXT NOT NULL,
-  is_public BOOLEAN NOT NULL CHECK (is_public IN (0, 1))
+  is_public BOOLEAN NOT NULL CHECK (is_public IN (false, true))
 );
 
 CREATE TABLE frequencies (
@@ -39,7 +39,7 @@ CREATE TABLE frequencies (
   name TEXT NOT NULL,
   hex_color TEXT,
   perms INT NOT NULL CHECK (perms IN (0, 1, 2)),
-  -- 0 rw admin | 1 r all w admin | 2 rw all
+  -- 0 no access | 1 read | 2 read & write
   position INT NOT NULL
 );
 
@@ -47,8 +47,11 @@ CREATE TABLE users_networks (
   user_id INT NOT NULL REFERENCES users (id),
   network_id INT NOT NULL REFERENCES networks (id) ON DELETE CASCADE,
   joined_at TEXT NOT NULL DEFAULT current_timestamp,
-  is_admin BOOLEAN NOT NULL CHECK (is_admin IN (0, 1)) DEFAULT 0,
-  is_muted BOOLEAN NOT NULL CHECK (is_muted IN (0, 1)) DEFAULT 0,
+  is_member BOOLEAN NOT NULL CHECK (is_member IN (false, true)) DEFAULT true,
+  is_admin BOOLEAN NOT NULL CHECK (is_admin IN (false, true)) DEFAULT false,
+  is_muted BOOLEAN NOT NULL CHECK (is_muted IN (false, true)) DEFAULT false,
+  is_banned BOOLEAN NOT NULL CHECK (is_banned IN (false, true)) DEFAULT false,
+  ban_reason TEXT,
   PRIMARY KEY (user_id, network_id)
 );
 
@@ -65,18 +68,10 @@ CREATE TABLE user_blocked_users (
   PRIMARY KEY (blocker_user_id, blocked_user_id)
 );
 
-CREATE TABLE network_banned_users (
-  network_id INT NOT NULL REFERENCES networks (id) ON DELETE CASCADE,
-  banned_user_id INT NOT NULL REFERENCES users (id),
-  banned_at TEXT NOT NULL DEFAULT current_timestamp,
-  reason TEXT,
-  PRIMARY KEY (network_id, banned_user_id)
-);
-
-CREATE INDEX idx_network_name ON networks (name) WHERE is_public = 1;
+CREATE INDEX idx_network_name ON networks (name) WHERE is_public = true;
 CREATE INDEX idx_frequency_network ON frequencies (network_id);
 CREATE INDEX idx_blocked_by_user ON user_blocked_users (blocker_user_id);
-CREATE INDEX idx_banned_by_network ON network_banned_users (network_id);
+CREATE INDEX idx_banned_by_network ON users_networks (network_id) WHERE is_banned = true;
 CREATE INDEX idx_direct_messages ON messages (sender_id, receiver_id);
 CREATE INDEX idx_frequency_messages ON messages (frequency_id);
 

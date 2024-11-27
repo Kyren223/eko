@@ -37,18 +37,11 @@ type Network struct {
 	IsPublic   bool
 }
 
-type NetworkBannedUser struct {
-	NetworkID    snowflake.ID
-	BannedUserID snowflake.ID
-	BannedAt     string
-	Reason       *string
-}
-
 type User struct {
 	ID          snowflake.ID
 	Name        string
 	PublicKey   ed25519.PublicKey
-	Description *string
+	Description string
 	IsPublicDM  bool
 	IsDeleted   bool
 }
@@ -68,6 +61,9 @@ type UsersNetwork struct {
 	UserID    snowflake.ID
 	NetworkID snowflake.ID
 	JoinedAt  string
+	IsMember  bool
 	IsAdmin   bool
 	IsMuted   bool
+	IsBanned  bool
+	BanReason *string
 }

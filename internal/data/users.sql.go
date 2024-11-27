@@ -117,7 +117,7 @@ RETURNING id, name, public_key, description, is_public_dm, is_deleted
 `
 
 type SetUserDescriptionParams struct {
-	Description *string
+	Description string
 	ID          snowflake.ID
 }
 
