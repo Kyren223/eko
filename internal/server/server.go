@@ -157,7 +157,6 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 	}
 	sess := session.NewSession(server, addr, user.ID, pubKey)
 	server.AddSession(sess)
-	ctx = session.NewContext(ctx, sess)
 	framer := packet.NewFramer()
 
 	// Write ID back, it's useful for the client to know, and signals successful authentication
@@ -200,7 +199,7 @@ func handleConnection(ctx context.Context, conn net.Conn, server *server) {
 			if !ok {
 				break
 			}
-			response := processPacket(ctx, request)
+			response := processPacket(ctx, sess, request)
 			if sess.WriteQueue == nil {
 				break
 			}
@@ -283,36 +282,31 @@ func handleAuth(conn net.Conn, nonce []byte) (ed25519.PublicKey, error) {
 	return pubKey, nil
 }
 
-func processPacket(ctx context.Context, pkt packet.Packet) packet.Packet {
-	session, ok := session.FromContext(ctx)
-	assert.Assert(ok, "context in process packet should always have a session")
-
+func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) packet.Packet {
 	var response packet.Payload
 
 	request, err := pkt.DecodedPayload()
 	if err != nil {
 		response = &packet.Error{Error: "malformed payload"}
 	} else {
-		response = processRequest(ctx, request)
+		response = processRequest(ctx, sess, request)
 	}
 
 	assert.NotNil(response, "response must always be assigned to")
-	log.Println(session.Addr(), "sending", response.Type(), "response:", response)
+	log.Println(sess.Addr(), "sending", response.Type(), "response:", response)
 	return packet.NewPacket(packet.NewMsgPackEncoder(response))
 }
 
-func processRequest(ctx context.Context, request packet.Payload) packet.Payload {
-	session, ok := session.FromContext(ctx)
-	assert.Assert(ok, "context in process packet should always have a session")
-	log.Println(session.Addr(), "processing", request.Type(), "request:", request)
+func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
+	log.Println(sess.Addr(), "processing", request.Type(), "request:", request)
 
 	// TODO: add a way to measure the time each request/response took and log it
 	// Potentially even separate time for code vs DB operations
 	switch request := request.(type) {
 	case *packet.SendMessage:
-		return timeout(20*time.Millisecond, api.SendMessage, ctx, request)
+		return timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
 	case *packet.RequestMessages:
-		return timeout(50*time.Millisecond, api.GetMessages, ctx, request)
+		return timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
 	default:
 		return &packet.Error{Error: "use of disallowed packet type for request"}
 	}
@@ -320,15 +314,15 @@ func processRequest(ctx context.Context, request packet.Payload) packet.Payload 
 
 func timeout[T packet.Payload](
 	timeoutDuration time.Duration,
-	apiRequest func(context.Context, T) packet.Payload,
-	ctx context.Context, request T,
+	apiRequest func(context.Context, *session.Session, T) packet.Payload,
+	ctx context.Context, sess *session.Session, request T,
 ) packet.Payload {
 	responseChan := make(chan packet.Payload)
 	ctx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()
 
 	go func() {
-		responseChan <- apiRequest(ctx, request)
+		responseChan <- apiRequest(ctx, sess, request)
 	}()
 
 	select {
