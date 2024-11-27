@@ -16,7 +16,7 @@ INSERT INTO networks (
 )
 RETURNING *;
 
--- name: GetBannedUsersInNetwork :many
+-- name: GetNetworkBannedUsers :many
 SELECT
   sqlc.embed(users),
   users_networks.ban_reason
@@ -24,7 +24,7 @@ FROM users_networks
 JOIN users ON users.id = users_networks.user_id
 WHERE users_networks.network_id = ?;
 
--- name: GetUsersInNetwork :many
+-- name: GetNetworkMembers :many
 SELECT
   sqlc.embed(users),
   users_networks.joined_at,
@@ -62,3 +62,20 @@ RETURNING *;
 
 -- name: DeleteNetwork :exec
 DELETE FROM networks WHERE id = ?;
+
+-- name: SetNetworkUser :one
+INSERT INTO users_networks (
+  user_id, network_id,
+  is_member, is_admin, is_muted,
+  is_banned, ban_reason
+) VALUES (
+  ?, ?,
+  ?, ?, ?,
+  ?, ?
+)
+ON CONFLICT DO 
+UPDATE SET
+  is_member = ?, is_admin = ?, is_muted = ?,
+  is_banned = ?, ban_reason = ?
+WHERE user_id = ? AND network_id = ?
+RETURNING *;

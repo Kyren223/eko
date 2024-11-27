@@ -289,6 +289,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	// TODO: add a way to measure the time each request/response took and log it
 	// Potentially even separate time for code vs DB operations
 	switch request := request.(type) {
+	case *packet.CreateNetwork:
+		return timeout(20*time.Millisecond, api.CreateNetwork, ctx, sess, request)
 	case *packet.SendMessage:
 		return timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
 	case *packet.RequestMessages:
@@ -303,6 +305,7 @@ func timeout[T packet.Payload](
 	apiRequest func(context.Context, *session.Session, T) packet.Payload,
 	ctx context.Context, sess *session.Session, request T,
 ) packet.Payload {
+	// TODO: Remove the channel and just wait directly?
 	responseChan := make(chan packet.Payload)
 	ctx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()

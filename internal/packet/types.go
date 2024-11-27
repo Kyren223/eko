@@ -26,8 +26,8 @@ func (m *CreateNetwork) Type() PacketType {
 }
 
 type UpdateNetwork struct {
-	Network snowflake.ID
 	CreateNetwork
+	Network snowflake.ID
 }
 
 func (m *UpdateNetwork) Type() PacketType {
@@ -52,25 +52,34 @@ func (m *DeleteNetwork) Type() PacketType {
 }
 
 type SetNetworkUser struct {
-	Network   snowflake.ID
-	User      snowflake.ID
 	Member    *bool
 	Admin     *bool
 	Muted     *bool
 	Banned    *bool
 	BanReason *string
+	Network   snowflake.ID
+	User      snowflake.ID
 }
 
 func (m *SetNetworkUser) Type() PacketType {
 	return PacketSetNetworkUser
 }
 
+type Member struct {
+	JoinedAt string
+	User     data.User
+	IsAdmin  bool
+	IsMuted  bool
+}
+
+type FullNetwork struct {
+	Network     data.Network
+	Frequencies []data.Frequency
+	Members     []Member
+}
+
 type NetworksInfo struct {
-	Networks []struct {
-		Network data.Network
-		Frequencies []data.Frequency
-		Members []data.User
-	}
+	Networks []FullNetwork
 }
 
 func (m *NetworksInfo) Type() PacketType {
@@ -78,9 +87,9 @@ func (m *NetworksInfo) Type() PacketType {
 }
 
 type CreateFrequency struct {
-	Network  snowflake.ID
 	Name     string
 	HexColor string
+	Network  snowflake.ID
 	Perms    int
 }
 
@@ -89,9 +98,9 @@ func (m *CreateFrequency) Type() PacketType {
 }
 
 type UpdateFrequency struct {
-	Frequency snowflake.ID
 	Name      string
 	HexColor  string
+	Frequency snowflake.ID
 	Perms     byte
 }
 

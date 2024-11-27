@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
+
+var internalError = packet.Error{Error: "internal server error"}
 
 func SendMessage(ctx context.Context, sess *session.Session, request *packet.SendMessage) packet.Payload {
 	if (request.ReceiverID != nil) == (request.FrequencyID != nil) {
@@ -34,7 +37,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 	})
 	if err != nil {
 		log.Println(sess.Addr(), "database error:", err, "in SendMessage")
-		return &packet.Error{Error: "internal server error"}
+		return &internalError
 	}
 
 	return &packet.MessagesInfo{Messages: []data.Message{message}}
@@ -79,3 +82,91 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 	}
 	return user, nil
 }
+
+func CreateNetwork(ctx context.Context, sess *session.Session, request packet.CreateNetwork) packet.Payload {
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		return &packet.Error{Error: "server name must not be blank"}
+	}
+
+	if len(request.Icon) > MaxIconSize {
+		return &packet.Error{Error: fmt.Sprintf("icon is too large, must be smaller than %v bytes", MaxIconSize)}
+	}
+
+	if ok, err := isValidHexColor(request.BgHexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+	if ok, err := isValidHexColor(request.FgHexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	queries := data.New(db)
+	qtx := queries.WithTx(tx)
+
+	network, err := qtx.CreateNetwork(ctx, data.CreateNetworkParams{
+		ID:         sess.Manager().Node().Generate(),
+		OwnerID:    sess.ID(),
+		Name:       name,
+		IsPublic:   request.IsPublic,
+		Icon:       request.Icon,
+		BgHexColor: request.BgHexColor,
+		FgHexColor: request.FgHexColor,
+	})
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	frequency, err := qtx.CreateFrequency(ctx, data.CreateFrequencyParams{
+		ID:        sess.Manager().Node().Generate(),
+		NetworkID: network.ID,
+		Name:      DefaultFrequencyName,
+		HexColor:  nil,
+		Perms:     PermReadWrite,
+	})
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	networkUser, err := qtx.SetNetworkUser(ctx, data.SetNetworkUserParams{
+		UserID:    network.OwnerID,
+		NetworkID: network.ID,
+		IsMember:  true,
+		IsAdmin:   true,
+		IsMuted:   false,
+		IsBanned:  false,
+		BanReason: nil,
+	})
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	user, err := qtx.GetUserById(ctx, network.OwnerID)
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	fullNetwork := packet.FullNetwork{
+		Network:     network,
+		Frequencies: []data.Frequency{frequency},
+		Members: []packet.Member{{
+			JoinedAt: networkUser.JoinedAt,
+			User:     user,
+			IsAdmin:  networkUser.IsAdmin,
+			IsMuted:  networkUser.IsMuted,
+		}},
+	}
+	return &packet.NetworksInfo{
+		Networks: []packet.FullNetwork{fullNetwork},
+	}
+}
+
