@@ -152,6 +152,12 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		return &internalError
 	}
 
+	err = tx.Commit()
+	if err != nil {
+		log.Println("database error 5:", err)
+		return &internalError
+	}
+
 	fullNetwork := packet.FullNetwork{
 		Network:     network,
 		Frequencies: []data.Frequency{frequency},
