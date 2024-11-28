@@ -23,10 +23,14 @@ func IconStyle(fg, bg lipgloss.Color) lipgloss.Style {
 	return partialIconStyle.Foreground(fg).Background(bg)
 }
 
-type Model struct{}
+type Model struct{
+	focus bool
+}
 
 func New() Model {
-	return Model{}
+	return Model{
+		focus: false,
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -53,6 +57,9 @@ func (m Model) View() string {
 	result := builder.String()
 
 	sep := lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, true, false, false).Height(ui.Height).Width(0)
+	if m.focus {
+		sep = sep.BorderForeground(colors.Focus)
+	}
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.Render(""))
 
 	return result
@@ -60,4 +67,12 @@ func (m Model) View() string {
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
+}
+
+func (m *Model) Focus() {
+	m.focus = true
+}
+
+func (m *Model) Blur() {
+	m.focus = false
 }

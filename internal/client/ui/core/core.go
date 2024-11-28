@@ -18,6 +18,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -29,23 +30,31 @@ var (
 	timerInterval      = 50 * time.Millisecond
 )
 
+const (
+	FocusNetworkList = iota
+	FocusFrequencies
+	FocusChat
+	FocusUsers
+	FocusMax
+)
+
 type Model struct {
 	name    string
 	privKey ed25519.PrivateKey
+	id      snowflake.ID
 
-	networkList networklist.Model
-	loading     loadscreen.Model
-	timer       timer.Model
-	timeout     time.Duration
-	connected   bool
-
-	id snowflake.ID
+	loading   loadscreen.Model
+	timer     timer.Model
+	timeout   time.Duration
+	connected bool
 
 	networkCreationPopup *networkcreation.Model
+	networkList          networklist.Model
+	focus                int
 }
 
 func New(privKey ed25519.PrivateKey, name string) Model {
-	return Model{
+	m := Model{
 		name:        name,
 		privKey:     privKey,
 		networkList: networklist.New(),
@@ -53,7 +62,11 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		timer:       newTimer(initialTimeout),
 		timeout:     initialTimeout,
 		connected:   false,
+		focus:       FocusNetworkList,
 	}
+	m.move(0) // Update focus
+
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
@@ -201,4 +214,17 @@ func (m *Model) updateLoadScreenContent() {
 
 func newTimer(timeout time.Duration) timer.Model {
 	return timer.NewWithInterval(timeout.Truncate(time.Second)+(time.Second/2), timerInterval)
+}
+
+func (m *Model) move(direction int) {
+	focus := m.focus + direction
+	m.focus = max(0, min(FocusMax-1, focus))
+
+	m.networkList.Blur()
+	switch m.focus {
+	case FocusNetworkList:
+		m.networkList.Focus()
+	default:
+		assert.Never("missing switch statement field in move", "focus", m.focus)
+	}
 }
