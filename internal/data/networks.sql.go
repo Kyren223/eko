@@ -64,51 +64,6 @@ func (q *Queries) DeleteNetwork(ctx context.Context, id snowflake.ID) error {
 	return err
 }
 
-const getNetworkBannedUsers = `-- name: GetNetworkBannedUsers :many
-SELECT
-  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
-  users_networks.ban_reason
-FROM users_networks
-JOIN users ON users.id = users_networks.user_id
-WHERE users_networks.network_id = ?
-`
-
-type GetNetworkBannedUsersRow struct {
-	User      User
-	BanReason *string
-}
-
-func (q *Queries) GetNetworkBannedUsers(ctx context.Context, networkID snowflake.ID) ([]GetNetworkBannedUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, getNetworkBannedUsers, networkID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetNetworkBannedUsersRow
-	for rows.Next() {
-		var i GetNetworkBannedUsersRow
-		if err := rows.Scan(
-			&i.User.ID,
-			&i.User.Name,
-			&i.User.PublicKey,
-			&i.User.Description,
-			&i.User.IsPublicDM,
-			&i.User.IsDeleted,
-			&i.BanReason,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getNetworkById = `-- name: GetNetworkById :one
 SELECT id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public FROM networks
 WHERE id = ?
@@ -127,57 +82,6 @@ func (q *Queries) GetNetworkById(ctx context.Context, id snowflake.ID) (Network,
 		&i.IsPublic,
 	)
 	return i, err
-}
-
-const getNetworkMembers = `-- name: GetNetworkMembers :many
-SELECT
-  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
-  users_networks.joined_at,
-  users_networks.is_admin,
-  users_networks.is_muted
-FROM users_networks
-JOIN users ON users.id = users_networks.user_id
-WHERE users_networks.network_id = ? AND is_member = true
-`
-
-type GetNetworkMembersRow struct {
-	User     User
-	JoinedAt string
-	IsAdmin  bool
-	IsMuted  bool
-}
-
-func (q *Queries) GetNetworkMembers(ctx context.Context, networkID snowflake.ID) ([]GetNetworkMembersRow, error) {
-	rows, err := q.db.QueryContext(ctx, getNetworkMembers, networkID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetNetworkMembersRow
-	for rows.Next() {
-		var i GetNetworkMembersRow
-		if err := rows.Scan(
-			&i.User.ID,
-			&i.User.Name,
-			&i.User.PublicKey,
-			&i.User.Description,
-			&i.User.IsPublicDM,
-			&i.User.IsDeleted,
-			&i.JoinedAt,
-			&i.IsAdmin,
-			&i.IsMuted,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getPublicNetworks = `-- name: GetPublicNetworks :many
@@ -302,58 +206,6 @@ func (q *Queries) SetNetworkName(ctx context.Context, arg SetNetworkNameParams) 
 		&i.BgHexColor,
 		&i.FgHexColor,
 		&i.IsPublic,
-	)
-	return i, err
-}
-
-const setNetworkUser = `-- name: SetNetworkUser :one
-INSERT INTO users_networks (
-  user_id, network_id,
-  is_member, is_admin, is_muted,
-  is_banned, ban_reason
-) VALUES (
-  ?1, ?2,
-  ?3, ?4, ?5,
-  ?6, ?7
-)
-ON CONFLICT DO 
-UPDATE SET
-  is_member = ?3, is_admin = ?4, is_muted = ?5,
-  is_banned = ?6, ban_reason = ?7
-WHERE user_id = ?1 AND network_id = ?2
-RETURNING user_id, network_id, joined_at, is_member, is_admin, is_muted, is_banned, ban_reason
-`
-
-type SetNetworkUserParams struct {
-	UserID    snowflake.ID
-	NetworkID snowflake.ID
-	IsMember  bool
-	IsAdmin   bool
-	IsMuted   bool
-	IsBanned  bool
-	BanReason *string
-}
-
-func (q *Queries) SetNetworkUser(ctx context.Context, arg SetNetworkUserParams) (UsersNetwork, error) {
-	row := q.db.QueryRowContext(ctx, setNetworkUser,
-		arg.UserID,
-		arg.NetworkID,
-		arg.IsMember,
-		arg.IsAdmin,
-		arg.IsMuted,
-		arg.IsBanned,
-		arg.BanReason,
-	)
-	var i UsersNetwork
-	err := row.Scan(
-		&i.UserID,
-		&i.NetworkID,
-		&i.JoinedAt,
-		&i.IsMember,
-		&i.IsAdmin,
-		&i.IsMuted,
-		&i.IsBanned,
-		&i.BanReason,
 	)
 	return i, err
 }

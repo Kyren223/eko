@@ -52,6 +52,7 @@ CREATE TABLE users_networks (
   is_muted BOOLEAN NOT NULL CHECK (is_muted IN (false, true)) DEFAULT false,
   is_banned BOOLEAN NOT NULL CHECK (is_banned IN (false, true)) DEFAULT false,
   ban_reason TEXT,
+  position INT, -- null only if is_member = false
   PRIMARY KEY (user_id, network_id)
 );
 

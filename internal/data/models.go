@@ -66,4 +66,5 @@ type UsersNetwork struct {
 	IsMuted   bool
 	IsBanned  bool
 	BanReason *string
+	Position  *int64
 }

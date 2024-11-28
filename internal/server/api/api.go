@@ -168,6 +168,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 			IsAdmin:  networkUser.IsAdmin,
 			IsMuted:  networkUser.IsMuted,
 		}},
+		Position: int(*networkUser.Position),
 	}
 	return &packet.NetworksInfo{
 		Networks: []packet.FullNetwork{fullNetwork},
@@ -191,7 +192,9 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 		return nil, err
 	}
 
-	for _, network := range networks {
+	for _, userNetwork := range networks {
+		network := userNetwork.Network
+		position := int(*userNetwork.Position)
 		frequencies, err := qtx.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
 			return nil, err
@@ -206,6 +209,7 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 			Network:     network,
 			Frequencies: frequencies,
 			Members:     members,
+			Position:    position,
 		})
 	}
 

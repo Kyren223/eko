@@ -3,6 +3,8 @@ package core
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log"
+	"slices"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -138,8 +140,20 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
 
 	case *packet.NetworksInfo:
-		for _, network := range msg.Networks {
-			state.State.Networks[network.ID] = network
+		if msg.Set {
+			state.State.Networks = msg.Networks
+		} else {
+			// state.State.Networks = append(state.State.Networks, msg.Networks...)
+			networks := state.State.Networks
+			networks = append(networks, msg.Networks...)
+			networks = slices.DeleteFunc(networks, func(network packet.FullNetwork) bool {
+				return slices.Contains(msg.RemoveNetworks, network.ID)
+			})
+			slices.SortFunc(networks, func(a, b packet.FullNetwork) int {
+				return a.Position - b.Position
+			})
+			log.Println(networks)
+			state.State.Networks = networks
 		}
 
 	case ui.QuitMsg:

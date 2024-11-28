@@ -69,10 +69,13 @@ type FullNetwork struct {
 	data.Network
 	Frequencies []data.Frequency
 	Members     []data.GetNetworkMembersRow
+	Position int
 }
 
 type NetworksInfo struct {
-	Networks []FullNetwork
+	Networks       []FullNetwork
+	RemoveNetworks []snowflake.ID
+	Set            bool
 }
 
 func (m *NetworksInfo) Type() PacketType {
