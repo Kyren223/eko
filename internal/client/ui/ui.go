@@ -17,6 +17,8 @@ import (
 
 const DEBUG = true
 
+var Center lipgloss.Position = 0.499
+
 var Width int
 var Height int
 var Program *tea.Program

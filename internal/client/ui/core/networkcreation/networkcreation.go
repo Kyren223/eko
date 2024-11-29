@@ -156,7 +156,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
-	iconPreview := networklist.IconStyle(m.lastFg, m.lastBg).Render(m.icon.Value())
+	iconPreview := networklist.IconStyle(m.icon.Value(), m.lastFg, m.lastBg).String()
 	iconPreview = lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(iconPreview)
 
 	color := colors.Gray

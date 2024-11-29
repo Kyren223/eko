@@ -204,7 +204,13 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	return nil
+	var cmd tea.Cmd
+	switch m.focus {
+	case FocusNetworkList:
+		m.networkList, cmd = m.networkList.Update(msg)
+	}
+
+	return cmd
 }
 
 func (m *Model) updateLoadScreenContent() {
