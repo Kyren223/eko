@@ -56,6 +56,7 @@ const (
 	PacketUpdateNetwork
 	PacketTransferNetwork
 	PacketDeleteNetwork
+	PacketSwapUserNetworks
 	PacketSetNetworkUser
 	PacketNetworksInfo
 
@@ -194,6 +195,8 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &DeleteMessage{}
 	case PacketDeleteNetwork:
 		payload = &DeleteNetwork{}
+	case PacketSwapUserNetworks:
+		payload = &SwapUserNetworks{}
 	case PacketEditMessage:
 		payload = &EditMessage{}
 	case PacketMessagesInfo:

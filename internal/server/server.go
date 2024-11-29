@@ -311,16 +311,27 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	// TODO: add a way to measure the time each request/response took and log it
 	// Potentially even separate time for code vs DB operations
+	var response packet.Payload
 	switch request := request.(type) {
 	case *packet.CreateNetwork:
-		return timeout(20*time.Millisecond, api.CreateNetwork, ctx, sess, request)
+		response = timeout(20*time.Millisecond, api.CreateNetwork, ctx, sess, request)
+	case *packet.SwapUserNetworks:
+		response = timeout(5*time.Millisecond, api.SwapUserNetworks, ctx, sess, request)
+
 	case *packet.SendMessage:
-		return timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
+		response = timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
 	case *packet.RequestMessages:
-		return timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
+		response = timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
+
 	default:
-		return &packet.Error{Error: "use of disallowed packet type for request"}
+		response = &packet.Error{Error: "use of disallowed packet type for request"}
 	}
+
+	if response, ok := response.(*packet.Error); ok {
+		response.PktType = request.Type()
+	}
+
+	return response
 }
 
 func timeout[T packet.Payload](

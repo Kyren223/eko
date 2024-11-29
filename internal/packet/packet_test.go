@@ -14,7 +14,7 @@ import (
 )
 
 func TestPacketEncodingDecoding(t *testing.T) {
-	testPacketEncodingDecoding(t, &Error{"Hello, World!"})
+	testPacketEncodingDecoding(t, &Error{PktType: 0, Error: ""})
 
 	node := snowflake.NewNode(1)
 	id := node.Generate()
@@ -59,7 +59,7 @@ func TestPacketFramer(t *testing.T) {
 	defer cancel()
 	framer := NewFramer()
 
-	pkt := NewPacket(NewJsonEncoder(&Error{"Hello, World!"}))
+	pkt := NewPacket(NewJsonEncoder(&Error{PktType: 0, Error: ""}))
 	length := len(pkt.data)
 	count := 5
 	data := make([]byte, length*count)

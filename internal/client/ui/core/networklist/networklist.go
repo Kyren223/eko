@@ -5,9 +5,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
+	"github.com/kyren223/eko/internal/packet"
 )
 
 var (
@@ -28,8 +30,9 @@ func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
 }
 
 type Model struct {
-	focus bool
-	index int
+	history []func(m *Model)
+	index   int
+	focus   bool
 }
 
 func New() Model {
@@ -50,7 +53,7 @@ func (m Model) View() string {
 	// top := strings.Repeat(border.Top, 6)
 	// builder.WriteString(fmt.Sprintf("%s%s%s\n", border.TopLeft, top, border.TopRight))
 	builder.WriteString("\n")
-	if m.index == 0 {
+	if m.index == -1 {
 		builder.WriteString(trustedUsersButtonSelected)
 	} else {
 		builder.WriteString(trustedUsersButton)
@@ -58,7 +61,7 @@ func (m Model) View() string {
 	builder.WriteString("\n")
 	for i, network := range state.State.Networks {
 		icon := IconStyle(network.Icon, lipgloss.Color(network.FgHexColor), lipgloss.Color(network.BgHexColor))
-		if m.index == i+1 {
+		if m.index == i {
 			builder.WriteString(lipgloss.JoinHorizontal(ui.Center, selectedIndicator, icon.Margin(0, 1, 1, 0).String()))
 		} else {
 			builder.WriteString(icon.Margin(0, 1, 1).String())
@@ -81,13 +84,33 @@ func (m Model) View() string {
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case *packet.SwapUserNetworks:
+		// Pop first by shifting to the left
+		copy(m.history, m.history[1:])
+		m.history = m.history[:len(m.history)-1]
+	case *packet.Error:
+		if msg.PktType == packet.PacketSwapUserNetworks {
+			// Server failed, revert!
+			undo := m.history[len(m.history)-1]
+			m.history = m.history[:len(m.history)-1]
+			undo(&m)
+		}
+
 	case tea.KeyMsg:
 		key := msg.String()
 		switch key {
+		case "K":
+			if 0 < m.index {
+				return m.Swap(-1)
+			}
+		case "J":
+			if 0 < m.index && m.index < len(state.State.Networks)-1 {
+				return m.Swap(1)
+			}
 		case "k":
-			m.index = max(0, m.index-1)
+			m.index = max(-1, m.index-1)
 		case "j":
-			m.index = min(len(state.State.Networks), m.index+1)
+			m.index = min(len(state.State.Networks)-1, m.index+1)
 		}
 	}
 	return m, nil
@@ -99,4 +122,22 @@ func (m *Model) Focus() {
 
 func (m *Model) Blur() {
 	m.focus = false
+}
+
+func (m Model) Swap(dir int) (Model, tea.Cmd) {
+	cmd := gateway.Send(&packet.SwapUserNetworks{
+		Pos1: m.index,
+		Pos2: m.index + dir,
+	})
+	tmp := state.State.Networks[m.index]
+	state.State.Networks[m.index] = state.State.Networks[m.index+dir]
+	state.State.Networks[m.index+dir] = tmp
+	m.index += dir
+	m.history = append(m.history, func(m *Model) {
+		m.index -= dir
+		tmp := state.State.Networks[m.index]
+		state.State.Networks[m.index] = state.State.Networks[m.index+dir]
+		state.State.Networks[m.index+dir] = tmp
+	})
+	return m, cmd
 }

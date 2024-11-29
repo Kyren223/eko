@@ -220,3 +220,20 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 
 	return networksInfo, nil
 }
+
+// FIXME: Deletion of a network is not handled! it needs to be shifted like how it works with frequencies!
+func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packet.SwapUserNetworks) packet.Payload {
+	queries := data.New(db)
+	pos1, pos2 := int64(request.Pos1), int64(request.Pos2)
+	err := queries.SwapUserNetworks(ctx, data.SwapUserNetworksParams{
+		Pos1:   &pos1,
+		Pos2:   &pos2,
+		UserID: sess.ID(),
+	})
+	if err != nil {
+		log.Println("database error:", err)
+		return &internalError
+	}
+
+	return request
+}

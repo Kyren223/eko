@@ -6,7 +6,8 @@ import (
 )
 
 type Error struct {
-	Error string
+	Error   string
+	PktType PacketType
 }
 
 func (m *Error) Type() PacketType {
@@ -51,6 +52,15 @@ func (m *DeleteNetwork) Type() PacketType {
 	return PacketDeleteNetwork
 }
 
+type SwapUserNetworks struct {
+	Pos1 int
+	Pos2 int
+}
+
+func (m *SwapUserNetworks) Type() PacketType {
+	return PacketSwapUserNetworks
+}
+
 type SetNetworkUser struct {
 	Member    *bool
 	Admin     *bool
@@ -69,7 +79,7 @@ type FullNetwork struct {
 	data.Network
 	Frequencies []data.Frequency
 	Members     []data.GetNetworkMembersRow
-	Position int
+	Position    int
 }
 
 type NetworksInfo struct {
