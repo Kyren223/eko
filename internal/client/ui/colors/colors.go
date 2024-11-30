@@ -13,6 +13,7 @@ var (
 	DarkCyan         = lipgloss.Color("#007E8A")
 	DarkerCyan       = lipgloss.Color("#005d66")
 	DarkMidnightBlue = lipgloss.Color("#1E1E2E")
+	MidnightBlue     = lipgloss.Color("#3c3c5d")
 	Turquoise        = lipgloss.Color("#54D7A9")
 	Red              = lipgloss.Color("#F16265")
 	White            = lipgloss.Color("#FFFFFF")
@@ -21,9 +22,10 @@ var (
 	Purple           = lipgloss.Color("#BB91F0")
 	DarkPurple       = lipgloss.Color("#87123d")
 
-	Background = DarkMidnightBlue
-	Error      = Red
-	Focus      = LightBlue
+	Background          = DarkMidnightBlue
+	BackgroundHighlight = MidnightBlue
+	Error               = Red
+	Focus               = LightBlue
 )
 
 func ToHex(color lipgloss.Color) string {

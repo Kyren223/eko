@@ -82,6 +82,7 @@ func (q *Queries) GetFrequencyById(ctx context.Context, id snowflake.ID) (Freque
 const getNetworkFrequencies = `-- name: GetNetworkFrequencies :many
 SELECT id, network_id, name, hex_color, perms, position FROM frequencies
 WHERE network_id = ?
+ORDER BY position
 `
 
 func (q *Queries) GetNetworkFrequencies(ctx context.Context, networkID snowflake.ID) ([]Frequency, error) {

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/core/network"
 	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
@@ -32,9 +33,7 @@ var (
 
 const (
 	FocusNetworkList = iota
-	FocusFrequencies
-	FocusChat
-	FocusUsers
+	FocusNetwork
 	FocusMax
 )
 
@@ -50,6 +49,7 @@ type Model struct {
 
 	networkCreationPopup *networkcreation.Model
 	networkList          networklist.Model
+	network              network.Model
 	focus                int
 }
 
@@ -78,7 +78,9 @@ func (m Model) View() string {
 		return m.loading.View()
 	}
 
-	result := m.networkList.View()
+	networkList := m.networkList.View()
+	network := m.network.View()
+	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, network)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
@@ -201,6 +203,13 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.networkCreationPopup = &popup
 				return cmd
 			}
+
+			if msg.String() == "L" && m.focus == FocusNetworkList {
+				m.move(1)
+			} else if msg.String() == "H" && m.focus == FocusNetwork {
+				m.move(-1)
+			}
+
 		}
 	}
 
@@ -208,6 +217,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	switch m.focus {
 	case FocusNetworkList:
 		m.networkList, cmd = m.networkList.Update(msg)
+		m.network.Set(m.networkList.Index())
+	case FocusNetwork:
+		m.network, cmd = m.network.Update(msg)
 	}
 
 	return cmd
@@ -227,9 +239,12 @@ func (m *Model) move(direction int) {
 	m.focus = max(0, min(FocusMax-1, focus))
 
 	m.networkList.Blur()
+	m.network.Blur()
 	switch m.focus {
 	case FocusNetworkList:
 		m.networkList.Focus()
+	case FocusNetwork:
+		m.network.Focus()
 	default:
 		assert.Never("missing switch statement field in move", "focus", m.focus)
 	}

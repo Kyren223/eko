@@ -13,16 +13,21 @@ import (
 )
 
 var (
-	style            = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), true, false)
+	sepStyle = lipgloss.NewStyle().Width(0).
+			Border(lipgloss.ThickBorder(), false, true, false, false)
 	partialIconStyle = lipgloss.NewStyle().
 				Width(6).Height(3).
 				Align(lipgloss.Center).
 				Border(lipgloss.ThickBorder(), false, false)
 
 	selectedIndicator          = "🭀\n▌\n🭛"
-	trustedUsersIcon           = IconStyle(" ", lipgloss.Color(colors.Turquoise), lipgloss.Color(colors.DarkerCyan))
+	trustedUsersIcon           = IconStyle(" ", colors.Turquoise, colors.DarkerCyan)
 	trustedUsersButton         = trustedUsersIcon.Margin(0, 1, 1).String()
-	trustedUsersButtonSelected = lipgloss.JoinHorizontal(ui.Center, selectedIndicator, trustedUsersIcon.Margin(0, 1, 1, 0).String())
+	trustedUsersButtonSelected = lipgloss.JoinHorizontal(
+		ui.Center,
+		selectedIndicator,
+		trustedUsersIcon.Margin(0, 1, 1, 0).String(),
+	)
 )
 
 func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
@@ -38,7 +43,7 @@ type Model struct {
 func New() Model {
 	return Model{
 		focus: false,
-		index: 0,
+		index: -1,
 	}
 }
 
@@ -47,11 +52,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	// border := lipgloss.ThickBorder()
 	var builder strings.Builder
-
-	// top := strings.Repeat(border.Top, 6)
-	// builder.WriteString(fmt.Sprintf("%s%s%s\n", border.TopLeft, top, border.TopRight))
 	builder.WriteString("\n")
 	if m.index == -1 {
 		builder.WriteString(trustedUsersButtonSelected)
@@ -60,24 +61,29 @@ func (m Model) View() string {
 	}
 	builder.WriteString("\n")
 	for i, network := range state.State.Networks {
-		icon := IconStyle(network.Icon, lipgloss.Color(network.FgHexColor), lipgloss.Color(network.BgHexColor))
+		icon := IconStyle(network.Icon,
+			lipgloss.Color(network.FgHexColor),
+			lipgloss.Color(network.BgHexColor),
+		)
 		if m.index == i {
-			builder.WriteString(lipgloss.JoinHorizontal(ui.Center, selectedIndicator, icon.Margin(0, 1, 1, 0).String()))
+			builder.WriteString(lipgloss.JoinHorizontal(
+				ui.Center,
+				selectedIndicator,
+				icon.Margin(0, 1, 1, 0).String(),
+			))
 		} else {
 			builder.WriteString(icon.Margin(0, 1, 1).String())
 		}
 		builder.WriteString("\n")
 	}
-	// bottom := strings.Repeat(border.Bottom, 6)
-	// builder.WriteString(fmt.Sprintf("\n%s%s%s", border.BottomLeft, bottom, border.BottomRight))
 
 	result := builder.String()
 
-	sep := lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, true, false, false).Height(ui.Height).Width(0)
+	sep := sepStyle.Height(ui.Height)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
-	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.Render(""))
+	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
 
 	return result
 }
@@ -140,4 +146,8 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 		state.State.Networks[m.index+dir] = tmp
 	})
 	return m, cmd
+}
+
+func (m Model) Index() int {
+	return m.index
 }

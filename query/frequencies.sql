@@ -1,6 +1,7 @@
 -- name: GetNetworkFrequencies :many
 SELECT * FROM frequencies
-WHERE network_id = ?;
+WHERE network_id = ?
+ORDER BY position;
 
 -- name: GetFrequencyById :one
 SELECT * FROM frequencies
