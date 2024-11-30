@@ -13,6 +13,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var (
@@ -76,9 +77,10 @@ type Model struct {
 	perms            int
 	nameWidth        int
 	selected         int
+	network          snowflake.ID
 }
 
-func New() Model {
+func New(network snowflake.ID) Model {
 	name := field.New(width)
 	name.Header = "Frequency Name"
 	name.HeaderStyle = headerStyle
@@ -277,7 +279,7 @@ func (m *Model) Select() tea.Cmd {
 	}
 
 	request := packet.CreateFrequency{
-		Network:  0, // TODO:
+		Network:  m.network,
 		Name:     m.name.Input.Value(),
 		HexColor: "#" + m.color.Value(),
 		Perms:    m.perms,

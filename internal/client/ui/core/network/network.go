@@ -27,17 +27,16 @@ var (
 )
 
 type Model struct {
-	network *packet.FullNetwork
-	history []func(m *Model)
-	index   int
-	focus   bool
+	history      []func(m *Model)
+	networkIndex int
+	index        int
+	focus        bool
 }
 
 func New() Model {
 	return Model{
-		focus:   false,
-		index:   0,
-		network: nil,
+		focus: false,
+		index: 0,
 	}
 }
 
@@ -46,22 +45,22 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	if m.network == nil {
+	if m.Network() == nil {
 		return ""
 	}
 
 	var builder strings.Builder
 
-	bg := lipgloss.Color(m.network.BgHexColor)
-	fg := lipgloss.Color(m.network.FgHexColor)
+	bg := lipgloss.Color(m.Network().BgHexColor)
+	fg := lipgloss.Color(m.Network().FgHexColor)
 	nameStyle := nameStyle.Background(bg).Foreground(fg)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
-	builder.WriteString(nameStyle.Render(m.network.Name))
+	builder.WriteString(nameStyle.Render(m.Network().Name))
 
 	builder.WriteString("\n")
-	for i, frequency := range m.network.Frequencies {
+	for i, frequency := range m.Network().Frequencies {
 		color := colors.White
 		if frequency.HexColor != nil {
 			color = lipgloss.Color(*frequency.HexColor)
@@ -129,31 +128,34 @@ func (m *Model) Blur() {
 
 func (m Model) Swap(dir int) (Model, tea.Cmd) {
 	cmd := gateway.Send(&packet.SwapFrequencies{
-		Network: m.network.ID,
+		Network: m.Network().ID,
 		Pos1:    m.index,
 		Pos2:    m.index + dir,
 	})
-	tmp := m.network.Frequencies[m.index]
-	m.network.Frequencies[m.index] = m.network.Frequencies[m.index+dir]
-	m.network.Frequencies[m.index+dir] = tmp
+	tmp := m.Network().Frequencies[m.index]
+	m.Network().Frequencies[m.index] = m.Network().Frequencies[m.index+dir]
+	m.Network().Frequencies[m.index+dir] = tmp
 	m.index += dir
 	m.history = append(m.history, func(m *Model) {
 		m.index -= dir
-		tmp := m.network.Frequencies[m.index]
-		m.network.Frequencies[m.index] = m.network.Frequencies[m.index+dir]
-		m.network.Frequencies[m.index+dir] = tmp
+		tmp := m.Network().Frequencies[m.index]
+		m.Network().Frequencies[m.index] = m.Network().Frequencies[m.index+dir]
+		m.Network().Frequencies[m.index+dir] = tmp
 	})
 	return m, cmd
 }
 
 func (m *Model) Set(index int) {
-	if index != -1 {
-		m.network = &state.State.Networks[index]
-	} else {
-		m.network = nil
-	}
+	m.networkIndex = index
 }
 
 func (m Model) FrequenciesLength() int {
-	return len(m.network.Frequencies)
+	return len(m.Network().Frequencies)
+}
+
+func (m Model) Network() *packet.FullNetwork {
+	if m.networkIndex < 0 {
+		return nil
+	}
+	return &state.State.Networks[m.networkIndex]
 }

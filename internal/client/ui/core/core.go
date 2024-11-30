@@ -193,7 +193,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 			case FocusNetwork:
 				if m.frequencyCreationPopup == nil {
-					popup := frequencycreation.New()
+					index := m.networkList.Index()
+					network := state.State.Networks[index]
+					popup := frequencycreation.New(network.ID)
 					m.frequencyCreationPopup = &popup
 				}
 			}
