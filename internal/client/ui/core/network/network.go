@@ -149,6 +149,8 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 func (m *Model) Set(index int) {
 	if index != -1 {
 		m.network = &state.State.Networks[index]
+	} else {
+		m.network = nil
 	}
 }
 

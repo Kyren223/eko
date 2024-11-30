@@ -1,7 +1,7 @@
-package api
+package packet
 
 const (
-	MaxIconSize          = 16
+	MaxIconBytes          = 16
 	DefaultFrequencyName = "main"
 )
 
@@ -11,5 +11,3 @@ const (
 	PermReadWrite
 	PermMax
 )
-
-

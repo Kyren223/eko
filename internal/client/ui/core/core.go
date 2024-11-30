@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/core/frequencycreation"
 	"github.com/kyren223/eko/internal/client/ui/core/network"
 	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
@@ -47,10 +48,11 @@ type Model struct {
 	timeout   time.Duration
 	connected bool
 
-	networkCreationPopup *networkcreation.Model
-	networkList          networklist.Model
-	network              network.Model
-	focus                int
+	networkCreationPopup   *networkcreation.Model
+	frequencyCreationPopup *frequencycreation.Model
+	networkList            networklist.Model
+	network                network.Model
+	focus                  int
 }
 
 func New(privKey ed25519.PrivateKey, name string) Model {
@@ -88,8 +90,13 @@ func (m Model) View() string {
 		result,
 	)
 
+	var popup string
 	if m.networkCreationPopup != nil {
-		popup := m.networkCreationPopup.View()
+		popup = m.networkCreationPopup.View()
+	} else if m.frequencyCreationPopup != nil {
+		popup = m.frequencyCreationPopup.View()
+	}
+	if popup != "" {
 		x := (ui.Width - lipgloss.Width(popup)) / 2
 		y := (ui.Height - lipgloss.Height(popup)) / 2
 		result = ui.PlaceOverlay(x, y, popup, result)
@@ -178,14 +185,24 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		key := msg.Type
 		switch key {
 		case tea.KeyCtrlN:
-			if m.networkCreationPopup == nil {
-				popup := networkcreation.New()
-				m.networkCreationPopup = &popup
+			switch m.focus {
+			case FocusNetworkList:
+				if m.networkCreationPopup == nil {
+					popup := networkcreation.New()
+					m.networkCreationPopup = &popup
+				}
+			case FocusNetwork:
+				if m.frequencyCreationPopup == nil {
+					popup := frequencycreation.New()
+					m.frequencyCreationPopup = &popup
+				}
 			}
 
 		case tea.KeyEscape:
 			if m.networkCreationPopup != nil {
 				m.networkCreationPopup = nil
+			} else if m.frequencyCreationPopup != nil {
+				m.frequencyCreationPopup = nil
 			}
 
 		case tea.KeyEnter:
@@ -195,12 +212,22 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					m.networkCreationPopup = nil
 				}
 				return cmd
+			} else if m.frequencyCreationPopup != nil {
+				cmd := m.frequencyCreationPopup.Select()
+				if cmd != nil {
+					m.frequencyCreationPopup = nil
+				}
+				return cmd
 			}
 
 		default:
 			if m.networkCreationPopup != nil {
 				popup, cmd := m.networkCreationPopup.Update(msg)
 				m.networkCreationPopup = &popup
+				return cmd
+			} else if m.frequencyCreationPopup != nil {
+				popup, cmd := m.frequencyCreationPopup.Update(msg)
+				m.frequencyCreationPopup = &popup
 				return cmd
 			}
 
@@ -213,6 +240,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		}
 	}
 
+	inPopup := m.networkCreationPopup != nil || m.frequencyCreationPopup != nil
+	if inPopup {
+		return nil
+	}
+
 	var cmd tea.Cmd
 	switch m.focus {
 	case FocusNetworkList:
@@ -221,7 +253,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	case FocusNetwork:
 		m.network, cmd = m.network.Update(msg)
 	}
-
 	return cmd
 }
 

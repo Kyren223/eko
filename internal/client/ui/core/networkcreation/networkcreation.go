@@ -205,7 +205,6 @@ func (m Model) View() string {
 	private = privateStyle.Render(private)
 
 	create := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.create)
-	// create := m.create
 
 	content := flex.NewVertical(iconPreview, name, icon, private, create).WithGap(1).View()
 	return style.Render(content)
