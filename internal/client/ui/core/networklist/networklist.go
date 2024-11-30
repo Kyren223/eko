@@ -19,7 +19,7 @@ var (
 				Align(lipgloss.Center).
 				Border(lipgloss.ThickBorder(), false, false)
 
-	selectedIndicator          = "|\n|\n|\n"
+	selectedIndicator          = "🭀\n▌\n🭛"
 	trustedUsersIcon           = IconStyle(" ", lipgloss.Color(colors.Turquoise), lipgloss.Color(colors.DarkerCyan))
 	trustedUsersButton         = trustedUsersIcon.Margin(0, 1, 1).String()
 	trustedUsersButtonSelected = lipgloss.JoinHorizontal(ui.Center, selectedIndicator, trustedUsersIcon.Margin(0, 1, 1, 0).String())
@@ -104,7 +104,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m.Swap(-1)
 			}
 		case "J":
-			if 0 < m.index && m.index < len(state.State.Networks)-1 {
+			if 0 <= m.index && m.index < len(state.State.Networks)-1 {
 				return m.Swap(1)
 			}
 		case "k":
