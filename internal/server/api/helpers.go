@@ -1,7 +1,11 @@
 package api
 
 import (
+	"context"
 	"strings"
+
+	"github.com/kyren223/eko/internal/data"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 const hex = "0123456789abcdefABCDEF"
@@ -22,4 +26,17 @@ func isValidHexColor(color string) (bool, string) {
 	}
 
 	return true, ""
+}
+
+func IsNetworkAdmin(ctx context.Context, queries *data.Queries, userId, networkId snowflake.ID) (bool, error) {
+	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
+		UserID:    userId,
+		NetworkID: networkId,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	isAdmin := userNetwork.IsAdmin && userNetwork.IsMember && !userNetwork.IsBanned
+	return isAdmin, nil
 }

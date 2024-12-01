@@ -251,11 +251,7 @@ func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packe
 func CreateFrequency(ctx context.Context, sess *session.Session, request *packet.CreateFrequency) packet.Payload {
 	queries := data.New(db)
 
-	// Check if authorized
-	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
-		UserID:    sess.ID(),
-		NetworkID: request.Network,
-	})
+	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
 	if err == sql.ErrNoRows {
 		return &packet.Error{Error: "either user or network don't exist"}
 	}
@@ -263,7 +259,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		log.Println("database error 1:", err)
 		return &ErrInternalError
 	}
-	if !userNetwork.IsAdmin || !userNetwork.IsMember || userNetwork.IsBanned {
+	if !isAdmin {
 		return &ErrPermissionDenied
 	}
 
@@ -307,11 +303,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet.SwapFrequencies) packet.Payload {
 	queries := data.New(db)
 
-	// Check if authorized
-	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
-		UserID:    sess.ID(),
-		NetworkID: request.Network,
-	})
+	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
 	if err == sql.ErrNoRows {
 		return &packet.Error{Error: "either user or network don't exist"}
 	}
@@ -319,7 +311,7 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 		log.Println("database error 1:", err)
 		return &ErrInternalError
 	}
-	if !userNetwork.IsAdmin || !userNetwork.IsMember || userNetwork.IsBanned {
+	if !isAdmin {
 		return &ErrPermissionDenied
 	}
 
