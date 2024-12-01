@@ -1,6 +1,8 @@
 package api
 
-import "strings"
+import (
+	"strings"
+)
 
 const hex = "0123456789abcdefABCDEF"
 

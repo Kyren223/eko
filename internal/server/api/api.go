@@ -232,8 +232,6 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	}, nil
 }
 
-// FIXME: Deletion of a network is not handled!
-// it needs to be shifted like how it works with frequencies!
 func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packet.SwapUserNetworks) packet.Payload {
 	queries := data.New(db)
 	pos1, pos2 := int64(request.Pos1), int64(request.Pos2)
@@ -259,8 +257,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		NetworkID: request.Network,
 	})
 	if err == sql.ErrNoRows {
-		log.Println("Err", err)
-		return &packet.Error{Error: "user entry in network doesn't exist"}
+		return &packet.Error{Error: "either user or network don't exist"}
 	}
 	if err != nil {
 		log.Println("database error 1:", err)
@@ -305,4 +302,36 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		Network:           request.Network,
 		Set:               false,
 	}
+}
+
+func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet.SwapFrequencies) packet.Payload {
+	queries := data.New(db)
+
+	// Check if authorized
+	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
+		UserID:    sess.ID(),
+		NetworkID: request.Network,
+	})
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "either user or network don't exist"}
+	}
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+	if !userNetwork.IsAdmin || !userNetwork.IsMember || userNetwork.IsBanned {
+		return &ErrPermissionDenied
+	}
+
+	err = queries.SwapFrequencies(ctx, data.SwapFrequenciesParams{
+		Pos1:      int64(request.Pos1),
+		Pos2:      int64(request.Pos2),
+		NetworkID: request.Network,
+	})
+	if err != nil {
+		log.Println("database error 2:", err)
+		return &ErrInternalError
+	}
+
+	return request
 }

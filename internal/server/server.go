@@ -320,6 +320,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	case *packet.CreateFrequency:
 		response = timeout(5*time.Millisecond, api.CreateFrequency, ctx, sess, request)
+	case *packet.SwapFrequencies:
+		response = timeout(5*time.Millisecond, api.SwapFrequencies, ctx, sess, request)
 
 	case *packet.SendMessage:
 		response = timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
