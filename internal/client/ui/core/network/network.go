@@ -109,6 +109,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.index = max(0, m.index-1)
 		case "j":
 			m.index = min(m.FrequenciesLength()-1, m.index+1)
+
+		case "ctrl+d":
+			frequencyId := m.Network().Frequencies[m.index].ID
+			return m, gateway.Send(&packet.DeleteFrequency{
+				Frequency: frequencyId,
+			})
+
 		}
 	}
 	return m, nil

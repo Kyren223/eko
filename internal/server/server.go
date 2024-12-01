@@ -314,12 +314,16 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	var response packet.Payload
 	switch request := request.(type) {
 	case *packet.CreateNetwork:
-		response = timeout(20*time.Millisecond, api.CreateNetwork, ctx, sess, request)
+		response = timeout(10*time.Millisecond, api.CreateNetwork, ctx, sess, request)
+	case *packet.DeleteNetwork:
+		response = timeout(500*time.Millisecond, api.DeleteNetwork, ctx, sess, request)
 	case *packet.SwapUserNetworks:
 		response = timeout(5*time.Millisecond, api.SwapUserNetworks, ctx, sess, request)
 
 	case *packet.CreateFrequency:
 		response = timeout(5*time.Millisecond, api.CreateFrequency, ctx, sess, request)
+	case *packet.DeleteFrequency:
+		response = timeout(200*time.Millisecond, api.DeleteFrequency, ctx, sess, request)
 	case *packet.SwapFrequencies:
 		response = timeout(5*time.Millisecond, api.SwapFrequencies, ctx, sess, request)
 

@@ -327,3 +327,71 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 
 	return request
 }
+
+func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet.DeleteFrequency) packet.Payload {
+	queries := data.New(db)
+
+	frequency, err := queries.GetFrequencyById(ctx, request.Frequency)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "frequency doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
+	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "either user or network don't exist"}
+	}
+	if err != nil {
+		log.Println("database error 2:", err)
+		return &ErrInternalError
+	}
+	if !isAdmin {
+		return &ErrPermissionDenied
+	}
+
+	err = queries.DeleteFrequency(ctx, frequency.ID)
+	if err != nil {
+		log.Println("database error 3:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.FrequenciesInfo{
+		RemoveFrequencies: []snowflake.ID{frequency.ID},
+		Frequencies:       nil,
+		Network:           frequency.NetworkID,
+		Set:               false,
+	}
+}
+
+func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.DeleteNetwork) packet.Payload {
+	queries := data.New(db)
+
+	network, err := queries.GetNetworkById(ctx, request.Network)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "network doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
+	// NOTE: important check, make sure they are the owner (authorized)
+	if network.OwnerID != sess.ID() {
+		return &ErrPermissionDenied
+	}
+
+	err = queries.DeleteNetwork(ctx, request.Network)
+	if err != nil {
+		log.Println("database error 2:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.NetworksInfo{
+		Networks:       nil,
+		RemoveNetworks: []snowflake.ID{request.Network},
+		Set:            false,
+	}
+}
