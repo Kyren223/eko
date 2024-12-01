@@ -86,8 +86,11 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		return &packet.Error{Error: "server name must not be blank"}
 	}
 
-	if len(request.Icon) > MaxIconSize {
-		return &packet.Error{Error: fmt.Sprintf("icon is too large, must be smaller than %v bytes", MaxIconSize)}
+	if len(request.Icon) > packet.MaxIconBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"icon is too large, must be smaller than %v bytes",
+			packet.MaxIconBytes,
+		)}
 	}
 
 	if ok, err := isValidHexColor(request.BgHexColor); !ok {
@@ -124,9 +127,9 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	frequency, err := qtx.CreateFrequency(ctx, data.CreateFrequencyParams{
 		ID:        sess.Manager().Node().Generate(),
 		NetworkID: network.ID,
-		Name:      DefaultFrequencyName,
+		Name:      packet.DefaultFrequencyName,
 		HexColor:  nil,
-		Perms:     PermReadWrite,
+		Perms:     packet.PermReadWrite,
 	})
 	if err != nil {
 		log.Println("database error 2:", err)
