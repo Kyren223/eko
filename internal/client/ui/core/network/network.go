@@ -154,7 +154,7 @@ func (m Model) FrequenciesLength() int {
 }
 
 func (m Model) Network() *packet.FullNetwork {
-	if m.networkIndex < 0 {
+	if m.networkIndex < 0 || m.networkIndex > len(state.State.Networks)-1 {
 		return nil
 	}
 	return &state.State.Networks[m.networkIndex]
