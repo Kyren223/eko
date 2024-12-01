@@ -37,7 +37,7 @@ CREATE TABLE frequencies (
   id INTEGER PRIMARY KEY,
   network_id INT NOT NULL REFERENCES networks (id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  hex_color TEXT,
+  hex_color TEXT NOT NULL,
   perms INT NOT NULL CHECK (perms IN (0, 1, 2)),
   -- 0 no access | 1 read | 2 read & write
   position INT NOT NULL
@@ -45,7 +45,7 @@ CREATE TABLE frequencies (
 
 CREATE TABLE users_networks (
   user_id INT NOT NULL REFERENCES users (id),
-  network_id INT NOT NULL REFERENCES networks (id) ON DELETE CASCADE,
+  network_id INT NOT NULL REFERENCES networks (id),
   joined_at TEXT NOT NULL DEFAULT current_timestamp,
   is_member BOOLEAN NOT NULL CHECK (is_member IN (false, true)) DEFAULT true,
   is_admin BOOLEAN NOT NULL CHECK (is_admin IN (false, true)) DEFAULT false,
@@ -96,6 +96,20 @@ BEGIN
   UPDATE frequencies SET
     position = position - 1
   WHERE network_id = OLD.network_id AND position > OLD.position;
+END
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE TRIGGER on_network_delete
+AFTER DELETE ON networks
+BEGIN
+  UPDATE users_networks SET
+    position = position - 1
+  WHERE user_id IN (
+    SELECT user_id FROM users_networks WHERE network_id = OLD.network_id
+  ) AND position > OLD.position;
+  
+  DELETE FROM users_networks WHERE network_id = OLD.network_id;
 END
 -- +goose StatementEnd
 

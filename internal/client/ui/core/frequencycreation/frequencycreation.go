@@ -60,10 +60,10 @@ const (
 
 const (
 	NameField = iota
-	ColorField
 	ReadWriteField
 	ReadOnlyField
 	NoAccessField
+	ColorField
 	CreateField
 	FieldCount
 )
@@ -108,7 +108,7 @@ func New(network snowflake.ID) Model {
 		}
 		return nil
 	}
-	color.SetValue(string(colors.White)[1:])
+	color.SetValue(string(packet.DefaultFrequencyColor)[1:])
 
 	return Model{
 		name:      name,
@@ -116,6 +116,7 @@ func New(network snowflake.ID) Model {
 		lastColor: lipgloss.Color("#" + color.Value()),
 		perms:     packet.PermReadWrite,
 		create:    blurredCreate,
+		network: network,
 
 		nameWidth:        nameWidth,
 		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3),

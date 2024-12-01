@@ -61,11 +61,7 @@ func (m Model) View() string {
 
 	builder.WriteString("\n")
 	for i, frequency := range m.Network().Frequencies {
-		color := colors.White
-		if frequency.HexColor != nil {
-			color = lipgloss.Color(*frequency.HexColor)
-		}
-		frequencyStyle := frequencyStyle.Foreground(color)
+		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
 		if m.index == i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
 		}

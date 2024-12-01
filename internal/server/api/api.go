@@ -130,7 +130,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		ID:        sess.Manager().Node().Generate(),
 		NetworkID: network.ID,
 		Name:      packet.DefaultFrequencyName,
-		HexColor:  nil,
+		HexColor:  packet.DefaultFrequencyColor,
 		Perms:     packet.PermReadWrite,
 	})
 	if err != nil {
@@ -259,6 +259,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		NetworkID: request.Network,
 	})
 	if err == sql.ErrNoRows {
+		log.Println("Err", err)
 		return &packet.Error{Error: "user entry in network doesn't exist"}
 	}
 	if err != nil {
@@ -290,7 +291,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		ID:        sess.Manager().Node().Generate(),
 		NetworkID: request.Network,
 		Name:      request.Name,
-		HexColor:  &request.HexColor,
+		HexColor:  request.HexColor,
 		Perms:     int64(request.Perms),
 	})
 	if err != nil {

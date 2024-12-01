@@ -27,7 +27,7 @@ type CreateFrequencyParams struct {
 	ID        snowflake.ID
 	NetworkID snowflake.ID
 	Name      string
-	HexColor  *string
+	HexColor  string
 	Perms     int64
 }
 
@@ -123,7 +123,7 @@ RETURNING id, network_id, name, hex_color, perms, position
 `
 
 type SetFrequencyColorParams struct {
-	HexColor *string
+	HexColor string
 	ID       snowflake.ID
 }
 

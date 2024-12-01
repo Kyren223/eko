@@ -13,7 +13,7 @@ type Frequency struct {
 	ID        snowflake.ID
 	NetworkID snowflake.ID
 	Name      string
-	HexColor  *string
+	HexColor  string
 	Perms     int64
 	Position  int64
 }
