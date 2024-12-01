@@ -107,6 +107,33 @@ func (q *Queries) GetNetworkMembers(ctx context.Context, networkID snowflake.ID)
 	return items, nil
 }
 
+const getUserNetwork = `-- name: GetUserNetwork :one
+SELECT user_id, network_id, joined_at, is_member, is_admin, is_muted, is_banned, ban_reason, position FROM users_networks
+WHERE user_id = ? AND network_id = ?
+`
+
+type GetUserNetworkParams struct {
+	UserID    snowflake.ID
+	NetworkID snowflake.ID
+}
+
+func (q *Queries) GetUserNetwork(ctx context.Context, arg GetUserNetworkParams) (UserNetwork, error) {
+	row := q.db.QueryRowContext(ctx, getUserNetwork, arg.UserID, arg.NetworkID)
+	var i UserNetwork
+	err := row.Scan(
+		&i.UserID,
+		&i.NetworkID,
+		&i.JoinedAt,
+		&i.IsMember,
+		&i.IsAdmin,
+		&i.IsMuted,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.Position,
+	)
+	return i, err
+}
+
 const getUserNetworks = `-- name: GetUserNetworks :many
 SELECT networks.id, networks.owner_id, networks.name, networks.icon, networks.bg_hex_color, networks.fg_hex_color, networks.is_public, users_networks.position FROM networks
 JOIN users_networks ON networks.id = users_networks.network_id
@@ -183,7 +210,7 @@ type SetNetworkUserParams struct {
 	BanReason *string
 }
 
-func (q *Queries) SetNetworkUser(ctx context.Context, arg SetNetworkUserParams) (UsersNetwork, error) {
+func (q *Queries) SetNetworkUser(ctx context.Context, arg SetNetworkUserParams) (UserNetwork, error) {
 	row := q.db.QueryRowContext(ctx, setNetworkUser,
 		arg.UserID,
 		arg.NetworkID,
@@ -193,7 +220,7 @@ func (q *Queries) SetNetworkUser(ctx context.Context, arg SetNetworkUserParams) 
 		arg.IsBanned,
 		arg.BanReason,
 	)
-	var i UsersNetwork
+	var i UserNetwork
 	err := row.Scan(
 		&i.UserID,
 		&i.NetworkID,

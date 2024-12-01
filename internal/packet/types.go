@@ -132,6 +132,17 @@ func (m *SwapFrequencies) Type() PacketType {
 	return PacketSwapFrequencies
 }
 
+type FrequenciesInfo struct {
+	RemoveFrequencies []snowflake.ID
+	Frequencies       []data.Frequency
+	Network           snowflake.ID
+	Set               bool
+}
+
+func (m *FrequenciesInfo) Type() PacketType {
+	return PacketFrequenciesInfo
+}
+
 type SendMessage struct {
 	ReceiverID  *snowflake.ID
 	FrequencyID *snowflake.ID

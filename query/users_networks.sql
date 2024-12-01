@@ -22,6 +22,10 @@ JOIN users_networks ON networks.id = users_networks.network_id
 WHERE users_networks.user_id = ?
 ORDER BY users_networks.position;
 
+-- name: GetUserNetwork :one
+SELECT * FROM users_networks
+WHERE user_id = ? AND network_id = ?;
+
 -- name: SetNetworkUser :one
 INSERT INTO users_networks (
   user_id, network_id,

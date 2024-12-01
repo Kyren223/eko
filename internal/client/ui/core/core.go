@@ -19,6 +19,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -165,7 +166,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		if msg.Set {
 			state.State.Networks = msg.Networks
 		} else {
-			// state.State.Networks = append(state.State.Networks, msg.Networks...)
 			networks := state.State.Networks
 			networks = append(networks, msg.Networks...)
 			networks = slices.DeleteFunc(networks, func(network packet.FullNetwork) bool {
@@ -176,6 +176,29 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			})
 			log.Println(networks)
 			state.State.Networks = networks
+		}
+
+	case *packet.FrequenciesInfo:
+		var network *packet.FullNetwork
+		for i, fullNetwork := range state.State.Networks {
+			if fullNetwork.ID == msg.Network {
+				network = &state.State.Networks[i]
+			}
+		}
+
+		if msg.Set {
+			network.Frequencies = msg.Frequencies
+		} else {
+			frequencies := network.Frequencies
+			frequencies = append(frequencies, msg.Frequencies...)
+			frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
+				return slices.Contains(msg.RemoveFrequencies, frequency.ID)
+			})
+			slices.SortFunc(frequencies, func(a, b data.Frequency) int {
+				return int(a.Position - b.Position)
+			})
+			log.Println(frequencies)
+			network.Frequencies = frequencies
 		}
 
 	case ui.QuitMsg:

@@ -51,13 +51,7 @@ type UserBlockedUser struct {
 	BlockedUserID snowflake.ID
 }
 
-type UserTrustedUser struct {
-	TrusterUserID    snowflake.ID
-	TrustedUserID    snowflake.ID
-	TrustedPublicKey []byte
-}
-
-type UsersNetwork struct {
+type UserNetwork struct {
 	UserID    snowflake.ID
 	NetworkID snowflake.ID
 	JoinedAt  string
@@ -67,4 +61,10 @@ type UsersNetwork struct {
 	IsBanned  bool
 	BanReason *string
 	Position  *int64
+}
+
+type UserTrustedUser struct {
+	TrusterUserID    snowflake.ID
+	TrustedUserID    snowflake.ID
+	TrustedPublicKey []byte
 }

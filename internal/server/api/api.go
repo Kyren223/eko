@@ -15,7 +15,10 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-var internalError = packet.Error{Error: "internal server error"}
+var (
+	ErrInternalError    = packet.Error{Error: "internal server error"}
+	ErrPermissionDenied = packet.Error{Error: "permission denied"}
+)
 
 func SendMessage(ctx context.Context, sess *session.Session, request *packet.SendMessage) packet.Payload {
 	if (request.ReceiverID != nil) == (request.FrequencyID != nil) {
@@ -37,7 +40,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 	})
 	if err != nil {
 		log.Println(sess.Addr(), "database error:", err, "in SendMessage")
-		return &internalError
+		return &ErrInternalError
 	}
 
 	return &packet.MessagesInfo{Messages: []data.Message{message}}
@@ -88,8 +91,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 
 	if len(request.Icon) > packet.MaxIconBytes {
 		return &packet.Error{Error: fmt.Sprintf(
-			"icon is too large, must be smaller than %v bytes",
-			packet.MaxIconBytes,
+			"exceeded allowed icon size in bytes: %v", packet.MaxIconBytes,
 		)}
 	}
 
@@ -103,7 +105,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Println("database error:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 	defer tx.Rollback() //nolint
 
@@ -121,7 +123,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	})
 	if err != nil {
 		log.Println("database error 1:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	frequency, err := qtx.CreateFrequency(ctx, data.CreateFrequencyParams{
@@ -133,7 +135,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	})
 	if err != nil {
 		log.Println("database error 2:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	networkUser, err := qtx.SetNetworkUser(ctx, data.SetNetworkUserParams{
@@ -147,19 +149,19 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	})
 	if err != nil {
 		log.Println("database error 3:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	user, err := qtx.GetUserById(ctx, network.OwnerID)
 	if err != nil {
 		log.Println("database error 4:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Println("database error 5:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	fullNetwork := packet.FullNetwork{
@@ -174,12 +176,14 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		Position: int(*networkUser.Position),
 	}
 	return &packet.NetworksInfo{
-		Networks: []packet.FullNetwork{fullNetwork},
+		Networks:       []packet.FullNetwork{fullNetwork},
+		Set:            false,
+		RemoveNetworks: nil,
 	}
 }
 
 func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload, error) {
-	networksInfo := &packet.NetworksInfo{}
+	var fullNetworks []packet.FullNetwork
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -208,7 +212,7 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 			return nil, err
 		}
 
-		networksInfo.Networks = append(networksInfo.Networks, packet.FullNetwork{
+		fullNetworks = append(fullNetworks, packet.FullNetwork{
 			Network:     network,
 			Frequencies: frequencies,
 			Members:     members,
@@ -221,10 +225,15 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 		return nil, err
 	}
 
-	return networksInfo, nil
+	return &packet.NetworksInfo{
+		Networks:       fullNetworks,
+		RemoveNetworks: nil,
+		Set:            true,
+	}, nil
 }
 
-// FIXME: Deletion of a network is not handled! it needs to be shifted like how it works with frequencies!
+// FIXME: Deletion of a network is not handled!
+// it needs to be shifted like how it works with frequencies!
 func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packet.SwapUserNetworks) packet.Payload {
 	queries := data.New(db)
 	pos1, pos2 := int64(request.Pos1), int64(request.Pos2)
@@ -235,8 +244,64 @@ func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packe
 	})
 	if err != nil {
 		log.Println("database error:", err)
-		return &internalError
+		return &ErrInternalError
 	}
 
 	return request
+}
+
+func CreateFrequency(ctx context.Context, sess *session.Session, request *packet.CreateFrequency) packet.Payload {
+	queries := data.New(db)
+
+	// Check if authorized
+	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
+		UserID:    sess.ID(),
+		NetworkID: request.Network,
+	})
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "user entry in network doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+	if !userNetwork.IsAdmin || !userNetwork.IsMember || userNetwork.IsBanned {
+		return &ErrPermissionDenied
+	}
+
+	if len(request.Name) > packet.MaxFrequencyName {
+		return &packet.Error{Error: fmt.Sprintf(
+			"exceeded allowed frequency name length in bytes: %v",
+			packet.MaxFrequencyName,
+		)}
+	}
+
+	if ok, err := isValidHexColor(request.HexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+
+	if request.Perms < 0 || request.Perms > packet.PermMax {
+		return &packet.Error{Error: fmt.Sprintf(
+			"exceeded allowed perms value: 0 <= perms < %v", packet.PermMax,
+		)}
+	}
+
+	frequency, err := queries.CreateFrequency(ctx, data.CreateFrequencyParams{
+		ID:        sess.Manager().Node().Generate(),
+		NetworkID: request.Network,
+		Name:      request.Name,
+		HexColor:  &request.HexColor,
+		Perms:     int64(request.Perms),
+	})
+	if err != nil {
+		log.Println("database error 2:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.FrequenciesInfo{
+		RemoveFrequencies: nil,
+		Frequencies:       []data.Frequency{frequency},
+		Network:           request.Network,
+		Set:               false,
+	}
 }

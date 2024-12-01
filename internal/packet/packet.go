@@ -64,6 +64,7 @@ const (
 	PacketUpdateFrequency
 	PacketDeleteFrequency
 	PacketSwapFrequencies
+	PacketFrequenciesInfo
 
 	PacketSendMessage
 	PacketEditMessage
@@ -185,38 +186,44 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	switch p.Type() {
 	case PacketError:
 		payload = &Error{}
-	case PacketCreateFrequency:
-		payload = &CreateFrequency{}
+
 	case PacketCreateNetwork:
 		payload = &CreateNetwork{}
-	case PacketDeleteFrequency:
-		payload = &DeleteFrequency{}
-	case PacketDeleteMessage:
-		payload = &DeleteMessage{}
+	case PacketUpdateNetwork:
+		payload = &UpdateNetwork{}
+	case PacketTransferNetwork:
+		payload = &TransferNetwork{}
 	case PacketDeleteNetwork:
 		payload = &DeleteNetwork{}
 	case PacketSwapUserNetworks:
 		payload = &SwapUserNetworks{}
-	case PacketEditMessage:
-		payload = &EditMessage{}
-	case PacketMessagesInfo:
-		payload = &MessagesInfo{}
-	case PacketNetworksInfo:
-		payload = &NetworksInfo{}
-	case PacketRequestMessages:
-		payload = &RequestMessages{}
-	case PacketSendMessage:
-		payload = &SendMessage{}
 	case PacketSetNetworkUser:
 		payload = &SetNetworkUser{}
-	case PacketSwapFrequencies:
-		payload = &SwapFrequencies{}
-	case PacketTransferNetwork:
-		payload = &TransferNetwork{}
+	case PacketNetworksInfo:
+		payload = &NetworksInfo{}
+
+	case PacketCreateFrequency:
+		payload = &CreateFrequency{}
 	case PacketUpdateFrequency:
 		payload = &UpdateFrequency{}
-	case PacketUpdateNetwork:
-		payload = &UpdateNetwork{}
+	case PacketDeleteFrequency:
+		payload = &DeleteFrequency{}
+	case PacketSwapFrequencies:
+		payload = &SwapFrequencies{}
+	case PacketFrequenciesInfo:
+		payload = &FrequenciesInfo{}
+
+	case PacketSendMessage:
+		payload = &SendMessage{}
+	case PacketEditMessage:
+		payload = &EditMessage{}
+	case PacketDeleteMessage:
+		payload = &DeleteMessage{}
+	case PacketRequestMessages:
+		payload = &RequestMessages{}
+	case PacketMessagesInfo:
+		payload = &MessagesInfo{}
+
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())
 	}
