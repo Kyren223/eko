@@ -8,6 +8,7 @@ import (
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/chat"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/packet"
 )
@@ -31,12 +32,16 @@ type Model struct {
 	networkIndex int
 	index        int
 	focus        bool
+	chat         chat.Model
 }
 
 func New() Model {
+	chat := chat.New()
+
 	return Model{
 		focus: false,
 		index: 0,
+		chat:  chat,
 	}
 }
 
@@ -69,13 +74,14 @@ func (m Model) View() string {
 		builder.WriteString("\n")
 	}
 
-	result := builder.String()
-
+	sidebar := builder.String()
 	sep := sepStyle.Height(ui.Height)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
-	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
+	sidebar = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
+
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, m.chat.View())
 
 	return result
 }

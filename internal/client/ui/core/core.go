@@ -58,14 +58,18 @@ type Model struct {
 
 func New(privKey ed25519.PrivateKey, name string) Model {
 	m := Model{
-		name:        name,
-		privKey:     privKey,
-		networkList: networklist.New(),
-		loading:     loadscreen.New(connectingToServer),
-		timer:       newTimer(initialTimeout),
-		timeout:     initialTimeout,
-		connected:   false,
-		focus:       FocusNetworkList,
+		name:                   name,
+		privKey:                privKey,
+		id:                     0,
+		loading:                loadscreen.New(connectingToServer),
+		timer:                  newTimer(initialTimeout),
+		timeout:                initialTimeout,
+		connected:              false,
+		networkCreationPopup:   nil,
+		frequencyCreationPopup: nil,
+		networkList:            networklist.New(),
+		network:                network.New(),
+		focus:                  FocusNetworkList,
 	}
 	m.move(0) // Update focus
 
