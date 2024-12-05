@@ -3,6 +3,7 @@ package viminput
 import (
 	"slices"
 	"strings"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -145,20 +146,20 @@ func (m *Model) Line(lnum int) []rune {
 }
 
 func (m *Model) SetCursorColumn(col int) {
-	m.cursorColumn = col
+	m.cursorColumn = max(col, 0)
 	m.goalColumn = -1
 }
 
 func (m *Model) SetCursorLine(line int) {
+	m.cursorLine = min(max(line, 0), len(m.lines)-1)
 	fromLength := m.CursorColumn()
-	toLength := len(m.lines[line])
+	toLength := len(m.lines[m.cursorLine])
 	if fromLength > toLength && m.goalColumn == -1 {
 		m.goalColumn = fromLength
 	}
 	if m.goalColumn != -1 {
-		m.cursorColumn = min(toLength-1, m.goalColumn)
+		m.cursorColumn = max(min(toLength-1, m.goalColumn), 0)
 	}
-	m.cursorLine = line
 }
 
 func (m *Model) CursorColumn() int {
@@ -183,28 +184,70 @@ func (m *Model) handleKeys(key tea.KeyMsg) tea.Cmd {
 func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 	switch key.String() {
 	case "h":
-		m.SetCursorColumn(max(m.CursorColumn()-1, 0))
+		m.SetCursorColumn(m.CursorColumn() - 1)
 	case "j":
-		m.SetCursorLine(min(m.CursorLine()+1, len(m.lines)-1))
+		m.SetCursorLine(m.CursorLine() + 1)
 	case "k":
-		m.SetCursorLine(max(m.CursorLine()-1, 0))
+		m.SetCursorLine(m.CursorLine() - 1)
 	case "l":
 		m.SetCursorColumn(min(m.CursorColumn()+1, len(m.lines[m.CursorLine()])-1))
 	case "i":
 		m.mode = InsertMode
 	case "a":
 		m.mode = InsertMode
-		m.SetCursorColumn(m.CursorColumn() + 1)
+		if len(m.lines[m.CursorLine()]) != 0 {
+			m.SetCursorColumn(m.CursorColumn() + 1)
+		}
+	case "I":
+		m.SetCursorColumn(0)
+		m.mode = InsertMode
+	case "A":
+		m.mode = InsertMode
+		m.SetCursorColumn(len(m.lines[m.CursorLine()]))
 	case "0":
 		m.SetCursorColumn(0)
+	case "$":
+		m.SetCursorColumn(len(m.lines[m.CursorLine()]) - 1)
+	case "_":
+		for i, r := range m.lines[m.CursorLine()] {
+			if !unicode.IsSpace(r) {
+				m.SetCursorColumn(i)
+				break
+			}
+		}
+	case "-":
+		m.SetCursorLine(m.CursorLine() - 1)
+		for i, r := range m.lines[m.CursorLine()] {
+			if !unicode.IsSpace(r) {
+				m.SetCursorColumn(i)
+				break
+			}
+		}
+	case "+":
+		m.SetCursorLine(m.CursorLine() + 1)
+		for i, r := range m.lines[m.CursorLine()] {
+			if !unicode.IsSpace(r) {
+				m.SetCursorColumn(i)
+				break
+			}
+		}
+	case "x":
+		line := m.lines[m.CursorLine()]
+		end := len(line) - 1
+		if end+1 != 0 {
+			copy(line[m.CursorColumn():], line[m.CursorColumn()+1:])
+			m.lines[m.CursorLine()] = line[:end]
+			if m.CursorColumn() == end {
+				m.SetCursorColumn(m.CursorColumn() - 1)
+			}
+		}
 	}
-
 	return nil
 }
 
 func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 	if key.Type == tea.KeyEscape {
-		m.SetCursorColumn(max(m.CursorColumn()-1, 0))
+		m.SetCursorColumn(m.CursorColumn() - 1)
 		m.mode = NormalMode
 		return nil
 	}
