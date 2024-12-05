@@ -23,7 +23,7 @@ func New() Model {
 		return lineNumber + " ┃ "
 	}
 
-	vi.SetLines(viminput.Line("test"), viminput.Line("best"))
+	vi.SetLines([]rune("test"), []rune("best"))
 	// ta.Cursor.SetChar()
 
 	// vi.CharLimit = 280
@@ -54,8 +54,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m *Model) Focus() {
 	m.focus = true
+	m.vi.Focus()
 }
 
 func (m *Model) Blur() {
 	m.focus = false
+	m.vi.Blur()
 }
