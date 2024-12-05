@@ -7,11 +7,11 @@ import (
 )
 
 func LineNumberDecoration(style lipgloss.Style) LineDecoration {
-	return func(lnum int, line string, cursorLnum int) string {
+	return func(lnum int, m Model) string {
 		return style.Render(strconv.FormatInt(int64(lnum), 10))
 	}
 }
 
-func EmptyLineDecoration(lnum int, line string, cursorLnum int) string {
+func EmptyLineDecoration(lnum int, m Model) string {
 	return ""
 }

@@ -1,9 +1,6 @@
 package chat
 
 import (
-	"log"
-
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -12,31 +9,34 @@ import (
 )
 
 type Model struct {
-	vi  viminput.Model
+	vi    viminput.Model
+	focus bool
 }
 
 func New() Model {
 	vi := viminput.New(30, 3)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
-	vi.LineDecoration = func(lnum int, line string, cursorLnum int) string {
-		return "┃ "
+	vi.LineDecoration = func(lnum int, m viminput.Model) string {
+		lineNumberDecor := viminput.LineNumberDecoration(lipgloss.NewStyle())
+		lineNumber := lineNumberDecor(lnum, m)
+		return lineNumber + " ┃ "
 	}
-	// vi.ShowLineNumbers = false
+
+	vi.SetLines(viminput.Line("test"), viminput.Line("best"))
+	// ta.Cursor.SetChar()
 
 	// vi.CharLimit = 280
 
 	// vi.Focus()
 
-	log.Println("Placeholder:", vi.Placeholder)
-
 	return Model{
-		vi:  vi,
+		vi: vi,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, nil)
+	return nil
 }
 
 func (m Model) View() string {
@@ -44,5 +44,18 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	return m, nil
+	if !m.focus {
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.vi, cmd = m.vi.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) Focus() {
+	m.focus = true
+}
+
+func (m *Model) Blur() {
+	m.focus = false
 }

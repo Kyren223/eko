@@ -1,13 +1,15 @@
 package viminput
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type (
 	Keymap         struct{}
-	LineDecoration = func(lnum int, line string, cursorLnum int) string
+	LineDecoration = func(lnum int, m Model) string
 )
 
 type Line []byte
@@ -21,7 +23,9 @@ type Model struct {
 	Placeholder    string
 	LineDecoration LineDecoration
 
-	lines []Line
+	lines      []Line
+	CursorLine int
+	CursorColumn int
 
 	width  int
 	height int
@@ -46,11 +50,23 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	placeholder := m.PlaceholderStyle.Render(m.Placeholder)
-	lineDecoration := m.LineDecoration(1, "", 1)
+	var lines []Line
+	if len(m.lines) == 0 {
+		placeholder := m.PlaceholderStyle.Render(m.Placeholder)
+		lines = append(lines, Line(placeholder))
+	} else {
+		lines = m.lines
+	}
 
-	result := lipgloss.JoinHorizontal(lipgloss.Top, lineDecoration, placeholder)
+	var builder strings.Builder
+	for i, line := range lines {
+		lineDecoration := m.LineDecoration(i, m)
+		builder.WriteString(lineDecoration)
+		builder.Write(line)
+		builder.WriteByte('\n')
+	}
 
+	result := builder.String()
 	result = lipgloss.NewStyle().Width(m.width).Height(m.height).Render(result)
 
 	return result
@@ -86,4 +102,16 @@ func (m *Model) Focus() {
 
 func (m *Model) Blur() {
 	m.focus = false
+}
+
+func (m *Model) SetLines(lines ...Line) {
+	m.lines = lines
+}
+
+func (m *Model) SetLine(lnum int, line Line) {
+	m.lines[lnum] = line
+}
+
+func (m *Model) Line(lnum int) Line {
+	return m.lines[lnum]
 }

@@ -13,8 +13,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/core/chat"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencycreation"
-	"github.com/kyren223/eko/internal/client/ui/core/network"
+	"github.com/kyren223/eko/internal/client/ui/core/frequencylist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
@@ -35,7 +36,8 @@ var (
 
 const (
 	FocusNetworkList = iota
-	FocusNetwork
+	FocusFrequencyList
+	FocusChat
 	FocusMax
 )
 
@@ -52,7 +54,8 @@ type Model struct {
 	networkCreationPopup   *networkcreation.Model
 	frequencyCreationPopup *frequencycreation.Model
 	networkList            networklist.Model
-	network                network.Model
+	frequencyList          frequencylist.Model
+	chat                   chat.Model
 	focus                  int
 }
 
@@ -68,7 +71,8 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		networkCreationPopup:   nil,
 		frequencyCreationPopup: nil,
 		networkList:            networklist.New(),
-		network:                network.New(),
+		frequencyList:          frequencylist.New(),
+		chat:                   chat.New(),
 		focus:                  FocusNetworkList,
 	}
 	m.move(0) // Update focus
@@ -86,8 +90,9 @@ func (m Model) View() string {
 	}
 
 	networkList := m.networkList.View()
-	network := m.network.View()
-	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, network)
+	frequencyList := m.frequencyList.View()
+	chat := m.chat.View()
+	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
@@ -161,6 +166,9 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 
 func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case ui.QuitMsg:
+		gateway.Disconnect()
+
 	case gateway.ConnectionLost:
 		m.connected = false
 		m.timeout = initialTimeout
@@ -205,9 +213,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			network.Frequencies = frequencies
 		}
 
-	case ui.QuitMsg:
-		gateway.Disconnect()
-
 	case tea.KeyMsg:
 		key := msg.Type
 		switch key {
@@ -218,7 +223,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					popup := networkcreation.New()
 					m.networkCreationPopup = &popup
 				}
-			case FocusNetwork:
+			case FocusFrequencyList:
 				if m.frequencyCreationPopup == nil {
 					index := m.networkList.Index()
 					network := state.State.Networks[index]
@@ -260,12 +265,15 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				return cmd
 			}
 
-			if msg.String() == "L" && m.focus == FocusNetworkList {
-				m.move(1)
-			} else if msg.String() == "H" && m.focus == FocusNetwork {
-				m.move(-1)
+			left := msg.String() == "H"
+			right := msg.String() == "L"
+			direction := 0
+			if left {
+				direction = -1
+			} else if right {
+				direction = 1
 			}
-
+			m.move(direction)
 		}
 	}
 
@@ -278,9 +286,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	switch m.focus {
 	case FocusNetworkList:
 		m.networkList, cmd = m.networkList.Update(msg)
-		m.network.Set(m.networkList.Index())
-	case FocusNetwork:
-		m.network, cmd = m.network.Update(msg)
+		m.frequencyList.Set(m.networkList.Index())
+	case FocusFrequencyList:
+		m.frequencyList, cmd = m.frequencyList.Update(msg)
+	case FocusChat:
+		m.chat, cmd = m.chat.Update(msg)
 	}
 	return cmd
 }
@@ -299,12 +309,15 @@ func (m *Model) move(direction int) {
 	m.focus = max(0, min(FocusMax-1, focus))
 
 	m.networkList.Blur()
-	m.network.Blur()
+	m.frequencyList.Blur()
+	m.chat.Blur()
 	switch m.focus {
 	case FocusNetworkList:
 		m.networkList.Focus()
-	case FocusNetwork:
-		m.network.Focus()
+	case FocusFrequencyList:
+		m.frequencyList.Focus()
+	case FocusChat:
+		m.chat.Focus()
 	default:
 		assert.Never("missing switch statement field in move", "focus", m.focus)
 	}
