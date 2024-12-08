@@ -254,6 +254,39 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
+	if key.Type == tea.KeyBackspace {
+		line := m.lines[m.cursorLine]
+		if m.cursorColumn == 0 && m.cursorLine != 0 {
+			lineBefore := m.lines[m.cursorLine-1]
+			cursorColumn := len(lineBefore)
+
+			m.lines = slices.Delete(m.lines, m.cursorLine, m.cursorLine+1)
+			m.lines[m.cursorLine-1] = append(lineBefore, line...)
+
+			m.SetCursorLine(m.cursorLine - 1)
+			m.SetCursorColumn(cursorColumn)
+		} else if len(line) != 0 {
+			m.lines[m.cursorLine] = slices.Delete(line, m.cursorColumn-1, m.cursorColumn)
+			m.SetCursorColumn(m.cursorColumn - 1)
+		}
+		return nil
+	}
+
+	if key.Type == tea.KeyEnter {
+		line := m.lines[m.cursorLine]
+		after := line[m.cursorColumn:]
+		m.lines[m.cursorLine] = line[:m.cursorColumn]
+
+		var newline []rune
+		newline = append(newline, after...)
+		m.lines = slices.Insert(m.lines, m.cursorLine+1, newline)
+
+		m.SetCursorLine(m.cursorLine + 1)
+		m.SetCursorColumn(0)
+
+		return nil
+	}
+
 	keyStr := key.String()
 	length := len(keyStr)
 	if length == 1 && 32 <= keyStr[0] && keyStr[0] <= 126 {

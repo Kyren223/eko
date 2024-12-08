@@ -14,13 +14,14 @@ type Model struct {
 }
 
 func New() Model {
-	vi := viminput.New(30, 3)
+	vi := viminput.New(90, 3)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 	vi.LineDecoration = func(lnum int, m viminput.Model) string {
-		lineNumberDecor := viminput.LineNumberDecoration(lipgloss.NewStyle())
-		lineNumber := lineNumberDecor(lnum, m)
-		return lineNumber + " ┃ "
+		// lineNumberDecor := viminput.LineNumberDecoration(lipgloss.NewStyle())
+		// lineNumber := lineNumberDecor(lnum, m)
+		// return lineNumber + " ┃ "
+		return "┃ "
 	}
 
 	vi.SetLines([]rune("test"), []rune("best"))
