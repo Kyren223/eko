@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 var DefaultCursorStyle = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
@@ -212,7 +213,9 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 		m.mode = InsertMode
 		m.SetCursorColumn(m.cursorColumn + 1)
 	case "I":
-		m.SetCursorColumn(0)
+		_, col := m.Motion("_")
+		assert.Assert(col != -1, "Motion should exist", "motion", "_")
+		m.SetCursorColumn(col)
 		m.mode = InsertMode
 	case "A":
 		m.mode = InsertMode
