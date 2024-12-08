@@ -16,6 +16,8 @@ type (
 	LineDecoration = func(lnum int, m Model) string
 )
 
+const Unchanged = -1
+
 const (
 	NormalMode = iota
 	InsertMode
@@ -185,6 +187,14 @@ func (m *Model) handleKeys(key tea.KeyMsg) tea.Cmd {
 }
 
 func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
+	line, col := m.Motion(key.String())
+	if line != -1 {
+		m.SetCursorLine(line)
+	}
+	if col != -1 {
+		m.SetCursorColumn(col)
+	}
+
 	switch key.String() {
 	case "d":
 		fallthrough
@@ -195,15 +205,6 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 	case "v":
 		m.mode = OpendingMode
 		m.pending = key.String()[0]
-
-	case "h":
-		m.SetCursorColumn(m.cursorColumn - 1)
-	case "j":
-		m.SetCursorLine(m.cursorLine + 1)
-	case "k":
-		m.SetCursorLine(m.cursorLine - 1)
-	case "l":
-		m.SetCursorColumn(min(m.cursorColumn+1, len(m.lines[m.cursorLine])-1))
 
 	case "i":
 		m.mode = InsertMode
@@ -216,33 +217,7 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 	case "A":
 		m.mode = InsertMode
 		m.SetCursorColumn(len(m.lines[m.cursorLine]))
-	case "0":
-		m.SetCursorColumn(0)
-	case "$":
-		m.SetCursorColumn(len(m.lines[m.cursorLine]) - 1)
-	case "_":
-		for i, r := range m.lines[m.cursorLine] {
-			if !unicode.IsSpace(r) {
-				m.SetCursorColumn(i)
-				break
-			}
-		}
-	case "-":
-		m.SetCursorLine(m.cursorLine - 1)
-		for i, r := range m.lines[m.cursorLine] {
-			if !unicode.IsSpace(r) {
-				m.SetCursorColumn(i)
-				break
-			}
-		}
-	case "+":
-		m.SetCursorLine(m.cursorLine + 1)
-		for i, r := range m.lines[m.cursorLine] {
-			if !unicode.IsSpace(r) {
-				m.SetCursorColumn(i)
-				break
-			}
-		}
+
 	case "x":
 		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
@@ -268,30 +243,6 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 		m.lines = slices.Insert(m.lines, m.cursorLine, []rune(""))
 		m.SetCursorColumn(0)
 		m.mode = InsertMode
-	case "E":
-		// for {
-		// 	line := m.lines[m.cursorLine]
-		// 	m.SetCursorColumn(m.cursorColumn + 1)
-		// 	for m.cursorColumn == len(line) {
-		// 		cursorLine := m.cursorLine + 1
-		// 		m.SetCursorLine(cursorLine)
-		// 		m.SetCursorColumn(0)
-		// 		if cursorLine == len(m.lines) {
-		// 			return nil
-		// 		}
-		// 	}
-		// 	if !unicode.IsSpace(m.RuneAtCursor()) {
-		// 		break
-		// 	}
-		// }
-		// for !unicode.IsSpace(m.RuneAtCursor()) {
-		// 	line := m.lines[m.cursorLine]
-		// 	m.SetCursorColumn(m.cursorColumn + 1)
-		// 	if m.cursorColumn == len(line) {
-		// 		break
-		// 	}
-		// }
-		// m.SetCursorColumn(m.cursorColumn - 1)
 	}
 	return nil
 }
@@ -318,10 +269,75 @@ func (m *Model) RuneAtCursor() rune {
 	return m.lines[m.cursorLine][m.cursorColumn]
 }
 
-func (m Model) ColumnsAt(line int) int {
-	return len(m.lines)
-}
+func (m Model) Motion(motion string) (line, col int) {
+	switch motion {
+	case "h":
+		return Unchanged, m.cursorColumn - 1
+	case "j":
+		return m.cursorLine + 1, Unchanged
+	case "k":
+		return m.cursorLine - 1, Unchanged
+	case "l":
+		return Unchanged, min(m.cursorColumn+1, len(m.lines[m.cursorLine])-1)
 
-func (m Model) ColumnsAtCursor() int {
-	return m.ColumnsAt(m.cursorLine)
+	case "0":
+		return Unchanged, 0
+	case "$":
+		return Unchanged, len(m.lines[m.cursorLine]) - 1
+	case "_":
+		for i, r := range m.lines[m.cursorLine] {
+			if !unicode.IsSpace(r) {
+				return Unchanged, i
+			}
+		}
+		return Unchanged, len(m.lines[m.cursorLine]) - 1
+	case "-":
+		if m.cursorLine-1 < 0 {
+			return Unchanged, Unchanged
+		}
+		line := m.lines[m.cursorLine-1]
+		for i, r := range line {
+			if !unicode.IsSpace(r) {
+				return m.cursorLine - 1, i
+			}
+		}
+		return m.cursorLine - 1, len(line) - 1
+	case "+":
+		if m.cursorLine+1 >= len(m.lines) {
+			return Unchanged, Unchanged
+		}
+		line := m.lines[m.cursorLine+1]
+		for i, r := range line {
+			if !unicode.IsSpace(r) {
+				return m.cursorLine + 1, i
+			}
+		}
+		return m.cursorLine + 1, len(line) - 1
+	// case "E":
+	// for {
+	// 	line := m.lines[m.cursorLine]
+	// 	m.SetCursorColumn(m.cursorColumn + 1)
+	// 	for m.cursorColumn == len(line) {
+	// 		cursorLine := m.cursorLine + 1
+	// 		m.SetCursorLine(cursorLine)
+	// 		m.SetCursorColumn(0)
+	// 		if cursorLine == len(m.lines) {
+	// 			return nil
+	// 		}
+	// 	}
+	// 	if !unicode.IsSpace(m.RuneAtCursor()) {
+	// 		break
+	// 	}
+	// }
+	// for !unicode.IsSpace(m.RuneAtCursor()) {
+	// 	line := m.lines[m.cursorLine]
+	// 	m.SetCursorColumn(m.cursorColumn + 1)
+	// 	if m.cursorColumn == len(line) {
+	// 		break
+	// 	}
+	// }
+	// m.SetCursorColumn(m.cursorColumn - 1)
+	default:
+		return Unchanged, Unchanged
+	}
 }
