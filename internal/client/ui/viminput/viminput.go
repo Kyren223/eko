@@ -232,6 +232,9 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 				m.SetCursorColumn(m.cursorColumn - 1)
 			}
 		}
+	case "C":
+		m.mode = InsertMode
+		fallthrough
 	case "D":
 		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
@@ -258,7 +261,14 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		line := m.lines[m.cursorLine]
 		if len(lines) == 1 {
 			pastedLine := []rune(lines[0])
-			m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn+1, pastedLine...)
+			if m.cursorColumn+1 >= len(line) {
+				m.lines[m.cursorLine] = append(line, pastedLine...)
+			} else {
+				m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn+1, pastedLine...)
+			}
+			if len(line) == 0 {
+				m.SetCursorColumn(m.cursorColumn - 1)
+			}
 			m.SetCursorColumn(m.cursorColumn + len(pastedLine))
 		}
 	case "P":
