@@ -20,6 +20,8 @@ const (
 	NormalMode = iota
 	InsertMode
 	VisualMode
+	VisualLineMode
+	OpendingMode
 )
 
 type Model struct {
@@ -34,6 +36,7 @@ type Model struct {
 	cursorColumn int
 	goalColumn   int
 	mode         int
+	pending      byte
 
 	width  int
 	height int
@@ -75,15 +78,15 @@ func (m Model) View() string {
 		lineDecoration := m.LineDecoration(i, m)
 		builder.WriteString(lineDecoration)
 
-		if m.CursorLine() != i {
+		if m.cursorLine != i {
 			builder.WriteString(string(line))
-		} else if m.CursorColumn() == len(m.lines[m.CursorLine()]) {
+		} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
 			builder.WriteString(string(line))
 			builder.WriteString(DefaultCursorStyle.Render(" "))
 		} else {
-			builder.WriteString(string(line[:m.CursorColumn()]))
-			builder.WriteString(DefaultCursorStyle.Render(string(line[m.CursorColumn()])))
-			builder.WriteString(string(line[m.CursorColumn()+1:]))
+			builder.WriteString(string(line[:m.cursorColumn]))
+			builder.WriteString(DefaultCursorStyle.Render(string(line[m.cursorColumn])))
+			builder.WriteString(string(line[m.cursorColumn+1:]))
 		}
 
 		builder.WriteByte('\n')
@@ -137,16 +140,12 @@ func (m *Model) SetLines(lines ...[]rune) {
 	m.lines = lines
 }
 
-func (m *Model) SetLine(lnum int, line []rune) {
-	m.lines[lnum] = line
-}
-
-func (m *Model) Line(lnum int) []rune {
-	return m.lines[lnum]
+func (m *Model) Lines() [][]rune {
+	return m.lines
 }
 
 func (m *Model) SetCursorColumn(col int) {
-	if len(m.lines[m.CursorLine()]) == 0 {
+	if len(m.lines[m.cursorLine]) == 0 {
 		m.cursorColumn = 0
 	} else {
 		m.cursorColumn = max(col, 0)
@@ -156,7 +155,7 @@ func (m *Model) SetCursorColumn(col int) {
 
 func (m *Model) SetCursorLine(line int) {
 	m.cursorLine = min(max(line, 0), len(m.lines)-1)
-	fromLength := m.CursorColumn()
+	fromLength := m.cursorColumn
 	toLength := len(m.lines[m.cursorLine])
 	if fromLength > toLength && m.goalColumn == -1 {
 		m.goalColumn = fromLength
@@ -166,13 +165,13 @@ func (m *Model) SetCursorLine(line int) {
 	}
 }
 
-func (m *Model) CursorColumn() int {
-	return m.cursorColumn
-}
-
-func (m *Model) CursorLine() int {
-	return m.cursorLine
-}
+// func (m *Model) cursorColumn int {
+// 	return m.cursorColumn
+// }
+//
+// func (m *Model) cursorLine int {
+// 	return m.cursorLine
+// }
 
 func (m *Model) handleKeys(key tea.KeyMsg) tea.Cmd {
 	switch m.mode {
@@ -187,83 +186,94 @@ func (m *Model) handleKeys(key tea.KeyMsg) tea.Cmd {
 
 func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 	switch key.String() {
+	case "d":
+		fallthrough
+	case "y":
+		fallthrough
+	case "c":
+		fallthrough
+	case "v":
+		m.mode = OpendingMode
+		m.pending = key.String()[0]
+
 	case "h":
-		m.SetCursorColumn(m.CursorColumn() - 1)
+		m.SetCursorColumn(m.cursorColumn - 1)
 	case "j":
-		m.SetCursorLine(m.CursorLine() + 1)
+		m.SetCursorLine(m.cursorLine + 1)
 	case "k":
-		m.SetCursorLine(m.CursorLine() - 1)
+		m.SetCursorLine(m.cursorLine - 1)
 	case "l":
-		m.SetCursorColumn(min(m.CursorColumn()+1, len(m.lines[m.CursorLine()])-1))
+		m.SetCursorColumn(min(m.cursorColumn+1, len(m.lines[m.cursorLine])-1))
+
 	case "i":
 		m.mode = InsertMode
 	case "a":
 		m.mode = InsertMode
-		m.SetCursorColumn(m.CursorColumn() + 1)
+		m.SetCursorColumn(m.cursorColumn + 1)
 	case "I":
 		m.SetCursorColumn(0)
 		m.mode = InsertMode
 	case "A":
 		m.mode = InsertMode
-		m.SetCursorColumn(len(m.lines[m.CursorLine()]))
+		m.SetCursorColumn(len(m.lines[m.cursorLine]))
 	case "0":
 		m.SetCursorColumn(0)
 	case "$":
-		m.SetCursorColumn(len(m.lines[m.CursorLine()]) - 1)
+		m.SetCursorColumn(len(m.lines[m.cursorLine]) - 1)
 	case "_":
-		for i, r := range m.lines[m.CursorLine()] {
+		for i, r := range m.lines[m.cursorLine] {
 			if !unicode.IsSpace(r) {
 				m.SetCursorColumn(i)
 				break
 			}
 		}
 	case "-":
-		m.SetCursorLine(m.CursorLine() - 1)
-		for i, r := range m.lines[m.CursorLine()] {
+		m.SetCursorLine(m.cursorLine - 1)
+		for i, r := range m.lines[m.cursorLine] {
 			if !unicode.IsSpace(r) {
 				m.SetCursorColumn(i)
 				break
 			}
 		}
 	case "+":
-		m.SetCursorLine(m.CursorLine() + 1)
-		for i, r := range m.lines[m.CursorLine()] {
+		m.SetCursorLine(m.cursorLine + 1)
+		for i, r := range m.lines[m.cursorLine] {
 			if !unicode.IsSpace(r) {
 				m.SetCursorColumn(i)
 				break
 			}
 		}
 	case "x":
-		line := m.lines[m.CursorLine()]
+		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
 			end := len(line) - 1
-			copy(line[m.CursorColumn():], line[m.CursorColumn()+1:])
-			m.lines[m.CursorLine()] = line[:end]
-			if m.CursorColumn() == end {
-				m.SetCursorColumn(m.CursorColumn() - 1)
+			copy(line[m.cursorColumn:], line[m.cursorColumn+1:])
+			m.lines[m.cursorLine] = line[:end]
+			if m.cursorColumn == end {
+				m.SetCursorColumn(m.cursorColumn - 1)
 			}
 		}
 	case "D":
-		line := m.lines[m.CursorLine()]
+		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
-			m.lines[m.CursorLine()] = line[:m.CursorColumn()]
-			m.SetCursorColumn(m.CursorColumn() - 1)
+			m.lines[m.cursorLine] = line[:m.cursorColumn]
+			m.SetCursorColumn(m.cursorColumn - 1)
 		}
 	case "o":
-		m.lines = slices.Insert(m.lines, m.CursorLine()+1, []rune(""))
-		m.SetCursorLine(m.CursorLine() + 1)
+		m.lines = slices.Insert(m.lines, m.cursorLine+1, []rune(""))
+		m.SetCursorLine(m.cursorLine + 1)
 		m.SetCursorColumn(0)
 		m.mode = InsertMode
 	case "O":
-		m.lines = slices.Insert(m.lines, m.CursorLine(), []rune(""))
+		m.lines = slices.Insert(m.lines, m.cursorLine, []rune(""))
 		m.SetCursorColumn(0)
 		m.mode = InsertMode
 	case "E":
 		// for {
-		// 	line := m.lines[m.CursorLine()]
-		// 	m.SetCursorColumn(m.CursorColumn() + 1)
-		// 	for m.CursorColumn() == len(line) {
-		// 		cursorLine := m.CursorLine() + 1
+		// 	line := m.lines[m.cursorLine]
+		// 	m.SetCursorColumn(m.cursorColumn + 1)
+		// 	for m.cursorColumn == len(line) {
+		// 		cursorLine := m.cursorLine + 1
 		// 		m.SetCursorLine(cursorLine)
 		// 		m.SetCursorColumn(0)
 		// 		if cursorLine == len(m.lines) {
@@ -275,20 +285,20 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 		// 	}
 		// }
 		// for !unicode.IsSpace(m.RuneAtCursor()) {
-		// 	line := m.lines[m.CursorLine()]
-		// 	m.SetCursorColumn(m.CursorColumn() + 1)
-		// 	if m.CursorColumn() == len(line) {
+		// 	line := m.lines[m.cursorLine]
+		// 	m.SetCursorColumn(m.cursorColumn + 1)
+		// 	if m.cursorColumn == len(line) {
 		// 		break
 		// 	}
 		// }
-		// m.SetCursorColumn(m.CursorColumn() - 1)
+		// m.SetCursorColumn(m.cursorColumn - 1)
 	}
 	return nil
 }
 
 func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 	if key.Type == tea.KeyEscape {
-		m.SetCursorColumn(m.CursorColumn() - 1)
+		m.SetCursorColumn(m.cursorColumn - 1)
 		m.mode = NormalMode
 		return nil
 	}
@@ -296,14 +306,22 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 	keyStr := key.String()
 	length := len(keyStr)
 	if length == 1 && 32 <= keyStr[0] && keyStr[0] <= 126 {
-		line := m.lines[m.CursorLine()]
-		m.lines[m.CursorLine()] = slices.Insert(line, m.CursorColumn(), rune(keyStr[0]))
-		m.SetCursorColumn(m.CursorColumn() + 1)
+		line := m.lines[m.cursorLine]
+		m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn, rune(keyStr[0]))
+		m.SetCursorColumn(m.cursorColumn + 1)
 	}
 
 	return nil
 }
 
 func (m *Model) RuneAtCursor() rune {
-	return m.lines[m.CursorLine()][m.CursorColumn()]
+	return m.lines[m.cursorLine][m.cursorColumn]
+}
+
+func (m Model) ColumnsAt(line int) int {
+	return len(m.lines)
+}
+
+func (m Model) ColumnsAtCursor() int {
+	return m.ColumnsAt(m.cursorLine)
 }
