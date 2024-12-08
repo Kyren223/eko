@@ -1,0 +1,20 @@
+package viminput
+
+import "unicode"
+
+func IsKeyword(r rune) bool {
+	alphaLower := 'a' <= r && r <= 'z'
+	alphaUpper := 'A' <= r && r <= 'Z'
+	numeric := '0' <= r && r <= '9'
+	return alphaLower || alphaUpper || numeric || r == '_'
+}
+
+func IsGrouped(r1, r2 rune) bool {
+	if IsKeyword(r1) {
+		return IsKeyword(r2)
+	}
+	if unicode.IsSpace(r1) {
+		return unicode.IsSpace(r2)
+	}
+	return !IsKeyword(r2) && !unicode.IsSpace(r2)
+}
