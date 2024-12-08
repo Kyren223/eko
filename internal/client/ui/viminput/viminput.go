@@ -34,6 +34,7 @@ type Model struct {
 	Placeholder    string
 	LineDecoration LineDecoration
 
+	register     string
 	lines        [][]rune
 	cursorLine   int
 	cursorColumn int
@@ -41,9 +42,9 @@ type Model struct {
 	mode         int
 	pending      byte
 
+	focus  bool
 	width  int
 	height int
-	focus  bool
 }
 
 func New(width, height int) Model {
@@ -108,8 +109,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		cmd := m.handleKeys(msg)
-		return m, cmd
+		m.handleKeys(msg)
+		return m, nil
 	}
 
 	return m, nil
@@ -176,18 +177,18 @@ func (m *Model) SetCursorLine(line int) {
 // 	return m.cursorLine
 // }
 
-func (m *Model) handleKeys(key tea.KeyMsg) tea.Cmd {
+func (m *Model) handleKeys(key tea.KeyMsg) {
 	switch m.mode {
 	case NormalMode:
-		return m.handleNormalModeKeys(key)
+		m.handleNormalModeKeys(key)
 	case InsertMode:
-		return m.handleInsertModeKeys(key)
+		m.handleInsertModeKeys(key)
+	case OpendingMode:
+		m.handleOpendingModeKeys(key)
 	}
-
-	return nil
 }
 
-func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
+func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	line, col := m.Motion(key.String())
 	if line != -1 {
 		m.SetCursorLine(line)
@@ -224,19 +225,24 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 	case "x":
 		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
-			end := len(line) - 1
+			m.Yank(string(line[m.cursorColumn : m.cursorColumn+1]))
 			copy(line[m.cursorColumn:], line[m.cursorColumn+1:])
-			m.lines[m.cursorLine] = line[:end]
-			if m.cursorColumn == end {
+			m.lines[m.cursorLine] = line[:len(line)-1]
+			if m.cursorColumn == len(line)-1 {
 				m.SetCursorColumn(m.cursorColumn - 1)
 			}
 		}
 	case "D":
 		line := m.lines[m.cursorLine]
 		if len(line) != 0 {
+			m.Yank(string(line[m.cursorColumn:]))
 			m.lines[m.cursorLine] = line[:m.cursorColumn]
 			m.SetCursorColumn(m.cursorColumn - 1)
 		}
+	case "Y":
+		line := m.lines[m.cursorLine]
+		m.Yank(string(line[m.cursorColumn:]))
+
 	case "o":
 		m.lines = slices.Insert(m.lines, m.cursorLine+1, []rune(""))
 		m.SetCursorLine(m.cursorLine + 1)
@@ -246,15 +252,31 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) tea.Cmd {
 		m.lines = slices.Insert(m.lines, m.cursorLine, []rune(""))
 		m.SetCursorColumn(0)
 		m.mode = InsertMode
+
+	case "p":
+		lines := strings.Split(m.Paste(), "\n")
+		line := m.lines[m.cursorLine]
+		if len(lines) == 1 {
+			pastedLine := []rune(lines[0])
+			m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn+1, pastedLine...)
+			m.SetCursorColumn(m.cursorColumn + len(pastedLine))
+		}
+	case "P":
+		lines := strings.Split(m.Paste(), "\n")
+		line := m.lines[m.cursorLine]
+		if len(lines) == 1 {
+			pastedLine := []rune(lines[0])
+			m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn, pastedLine...)
+			m.SetCursorColumn(m.cursorColumn + len(pastedLine) - 1)
+		}
 	}
-	return nil
 }
 
-func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
+func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 	if key.Type == tea.KeyEscape {
 		m.SetCursorColumn(m.cursorColumn - 1)
 		m.mode = NormalMode
-		return nil
+		return
 	}
 
 	if key.Type == tea.KeyBackspace {
@@ -272,7 +294,7 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 			m.lines[m.cursorLine] = slices.Delete(line, m.cursorColumn-1, m.cursorColumn)
 			m.SetCursorColumn(m.cursorColumn - 1)
 		}
-		return nil
+		return
 	}
 
 	if key.Type == tea.KeyEnter {
@@ -287,7 +309,7 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 		m.SetCursorLine(m.cursorLine + 1)
 		m.SetCursorColumn(0)
 
-		return nil
+		return
 	}
 
 	keyStr := key.String()
@@ -297,8 +319,6 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) tea.Cmd {
 		m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn, rune(keyStr[0]))
 		m.SetCursorColumn(m.cursorColumn + 1)
 	}
-
-	return nil
 }
 
 func (m *Model) RuneAtCursor() rune {
@@ -376,4 +396,23 @@ func (m Model) Motion(motion string) (line, col int) {
 	default:
 		return Unchanged, Unchanged
 	}
+}
+
+func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
+	switch key.String() {
+	default:
+		m.ResetOpending()
+	}
+}
+
+func (m *Model) ResetOpending() {
+	m.mode = NormalMode
+}
+
+func (m *Model) Yank(s string) {
+	m.register = s
+}
+
+func (m Model) Paste() string {
+	return m.register
 }
