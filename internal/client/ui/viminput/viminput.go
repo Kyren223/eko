@@ -411,6 +411,11 @@ func (m Model) Motion(motion string) (line, col int) {
 }
 
 func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
+	if key.Type == tea.KeyEscape {
+		m.ResetOpending()
+		return
+	}
+
 	lnum, col := m.Motion(key.String())
 	if lnum != Unchanged || col != Unchanged {
 		if lnum == Unchanged {
@@ -436,6 +441,33 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			// TODO: multiline
 		}
 
+		m.ResetOpending()
+		if m.pending == 'c' {
+			m.mode = InsertMode
+		}
+		return
+	}
+
+	switch key.String() {
+	case "c":
+		m.lines[m.cursorLine] = []rune("")
+		m.SetCursorColumn(0)
+
+	case "d":
+		m.Yank("\n" + string(m.lines[m.cursorLine]))
+		if len(m.lines) == 1 {
+			m.lines[0] = []rune("")
+			m.SetCursorColumn(0)
+		} else {
+			m.lines = slices.Delete(m.lines, m.cursorLine, m.cursorLine+1)
+			m.SetCursorLine(m.cursorLine)
+			m.SetCursorColumn(m.cursorColumn)
+		}
+
+	case "y":
+		// TODO: Needs to make sure this works fine with multiline-pasting
+		// MULTILINE PASTING IS NOT IMPLEMENTED YET!!!!!!
+		m.Yank("\n" + string(m.lines[m.cursorLine]))
 	}
 
 	m.ResetOpending()
