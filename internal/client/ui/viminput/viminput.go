@@ -190,11 +190,15 @@ func (m *Model) handleKeys(key tea.KeyMsg) {
 
 func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	line, col := m.Motion(key.String())
-	if line != -1 {
-		m.SetCursorLine(line)
-	}
-	if col != -1 {
-		m.SetCursorColumn(col)
+	if line != Unchanged || col != Unchanged {
+		if line != Unchanged {
+			m.SetCursorLine(line)
+		}
+		if col != Unchanged {
+			length := len(m.lines[m.cursorLine]) - 1
+			m.SetCursorColumn(min(col, length))
+		}
+		return
 	}
 
 	switch key.String() {
@@ -203,8 +207,6 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	case "y":
 		fallthrough
 	case "c":
-		fallthrough
-	case "v":
 		m.mode = OpendingMode
 		m.pending = key.String()[0]
 
@@ -344,12 +346,12 @@ func (m Model) Motion(motion string) (line, col int) {
 	case "k":
 		return m.cursorLine - 1, Unchanged
 	case "l":
-		return Unchanged, min(m.cursorColumn+1, len(m.lines[m.cursorLine])-1)
+		return Unchanged, m.cursorColumn + 1
 
 	case "0":
 		return Unchanged, 0
 	case "$":
-		return Unchanged, len(m.lines[m.cursorLine]) - 1
+		return Unchanged, len(m.lines[m.cursorLine])
 	case "_":
 		for i, r := range m.lines[m.cursorLine] {
 			if !unicode.IsSpace(r) {
@@ -409,9 +411,36 @@ func (m Model) Motion(motion string) (line, col int) {
 }
 
 func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
-	switch key.String() {
-	default:
-		m.ResetOpending()
+	lnum, col := m.Motion(key.String())
+	if lnum != Unchanged || col != Unchanged {
+		if lnum == Unchanged {
+			lnum = m.cursorLine
+		}
+		if col == Unchanged {
+			col = m.cursorColumn
+		}
+
+		line := m.lines[m.cursorLine]
+		if lnum == m.cursorLine {
+			length := len(line)
+			lower := min(col, m.cursorColumn, length)
+			upper := min(max(col, m.cursorColumn), length)
+			value := line[lower:upper]
+			m.Yank(string(value))
+			if m.pending == 'd' || m.pending == 'c' {
+				line = slices.Delete(line, lower, upper)
+				m.lines[m.cursorLine] = line
+				m.SetCursorColumn(min(lower, len(line)-1))
+			}
+		} else {
+			// TODO: multiline
+		}
+
+	}
+
+	m.ResetOpending()
+	if m.pending == 'c' {
+		m.mode = InsertMode
 	}
 }
 
