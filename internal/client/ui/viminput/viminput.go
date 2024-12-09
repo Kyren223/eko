@@ -53,7 +53,7 @@ func New(width, height int) Model {
 		PromptStyle:      lipgloss.NewStyle(),
 		Placeholder:      "",
 		LineDecoration:   EmptyLineDecoration,
-		register:         "",
+		register:         "\nHMM\nYO",
 		lines:            [][]rune{[]rune("")},
 		cursorLine:       0,
 		cursorColumn:     0,
@@ -286,12 +286,28 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 			for _, line := range lines {
 				runeLines = append(runeLines, []rune(line))
 			}
+
 			m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines...)
+
 			m.SetCursorLine(m.cursorLine + 1)
 			_, col := m.Motion("_")
 			m.SetCursorColumn(col)
 		} else {
-			// TODO:
+			var runeLines [][]rune
+			for _, line := range lines {
+				runeLines = append(runeLines, []rune(line))
+			}
+
+			splittingCol := min(m.cursorColumn+1, len(line))
+			line := m.lines[m.cursorLine]
+			after := line[splittingCol:]
+			lastLine := len(runeLines) - 1
+			runeLines[lastLine] = append(runeLines[lastLine], after...)
+
+			m.lines[m.cursorLine] = append(line[:splittingCol], runeLines[0]...)
+			m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines[1:]...)
+
+			m.SetCursorColumn(min(splittingCol, len(m.lines[m.cursorLine])-1))
 		}
 	case "P":
 		paste := m.Paste()
