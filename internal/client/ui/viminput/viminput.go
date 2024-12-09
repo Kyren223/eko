@@ -53,14 +53,16 @@ func New(width, height int) Model {
 		PromptStyle:      lipgloss.NewStyle(),
 		Placeholder:      "",
 		LineDecoration:   EmptyLineDecoration,
-		lines:            [][]rune{},
+		register:         "",
+		lines:            [][]rune{[]rune("")},
 		cursorLine:       0,
 		cursorColumn:     0,
 		goalColumn:       -1,
 		mode:             NormalMode,
+		pending:          0, // Invalid value (valid values are 'd', 'c', 'y')
+		focus:            false,
 		width:            width,
 		height:           height,
-		focus:            false,
 	}
 }
 
@@ -259,9 +261,16 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		m.mode = InsertMode
 
 	case "p":
-		lines := strings.Split(m.Paste(), "\n")
+		paste := m.Paste()
+		newline := paste[len(paste)-1] == '\n'
+		if newline {
+			paste = paste[:len(paste)-1]
+		}
+		lines := strings.Split(paste, "\n")
+
 		line := m.lines[m.cursorLine]
-		if len(lines) == 1 {
+
+		if len(lines) == 1 && !newline {
 			pastedLine := []rune(lines[0])
 			if m.cursorColumn+1 >= len(line) {
 				m.lines[m.cursorLine] = append(line, pastedLine...)
@@ -272,14 +281,42 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 				m.SetCursorColumn(m.cursorColumn - 1)
 			}
 			m.SetCursorColumn(m.cursorColumn + len(pastedLine))
+		} else if newline {
+			var runeLines [][]rune
+			for _, line := range lines {
+				runeLines = append(runeLines, []rune(line))
+			}
+			m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines...)
+			m.SetCursorLine(m.cursorLine + 1)
+			_, col := m.Motion("_")
+			m.SetCursorColumn(col)
+		} else {
+			// TODO:
 		}
 	case "P":
-		lines := strings.Split(m.Paste(), "\n")
+		paste := m.Paste()
+		newline := paste[len(paste)-1] == '\n'
+		if newline {
+			paste = paste[:len(paste)-1]
+		}
+
+		lines := strings.Split(paste, "\n")
 		line := m.lines[m.cursorLine]
-		if len(lines) == 1 {
+		if len(lines) == 1 && !newline {
 			pastedLine := []rune(lines[0])
 			m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn, pastedLine...)
 			m.SetCursorColumn(m.cursorColumn + len(pastedLine) - 1)
+		} else if newline {
+			var runeLines [][]rune
+			for _, line := range lines {
+				runeLines = append(runeLines, []rune(line))
+			}
+			m.lines = slices.Insert(m.lines, m.cursorLine, runeLines...)
+			m.SetCursorLine(m.cursorLine)
+			_, col := m.Motion("_")
+			m.SetCursorColumn(col)
+		} else {
+			// TODO:
 		}
 	}
 }
@@ -450,11 +487,12 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 
 	switch key.String() {
 	case "c":
+		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 		m.lines[m.cursorLine] = []rune("")
 		m.SetCursorColumn(0)
 
 	case "d":
-		m.Yank("\n" + string(m.lines[m.cursorLine]))
+		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 		if len(m.lines) == 1 {
 			m.lines[0] = []rune("")
 			m.SetCursorColumn(0)
@@ -467,7 +505,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 	case "y":
 		// TODO: Needs to make sure this works fine with multiline-pasting
 		// MULTILINE PASTING IS NOT IMPLEMENTED YET!!!!!!
-		m.Yank("\n" + string(m.lines[m.cursorLine]))
+		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 	}
 
 	m.ResetOpending()
