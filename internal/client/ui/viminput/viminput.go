@@ -41,6 +41,7 @@ type Model struct {
 	goalColumn   int
 	mode         int
 	pending      byte
+	gmod         bool
 
 	focus  bool
 	width  int
@@ -59,7 +60,8 @@ func New(width, height int) Model {
 		cursorColumn:     0,
 		goalColumn:       -1,
 		mode:             NormalMode,
-		pending:          0, // Invalid value (valid values are 'd', 'c', 'y')
+		pending:          0,
+		gmod:             false,
 		focus:            false,
 		width:            width,
 		height:           height,
@@ -386,7 +388,14 @@ func (m *Model) RuneAtCursor() rune {
 	return m.lines[m.cursorLine][m.cursorColumn]
 }
 
-func (m Model) Motion(motion string) (line, col int) {
+func (m *Model) Motion(motion string) (line, col int) {
+	if motion == "g" && !m.gmod {
+		m.gmod = true
+		return Unchanged, Unchanged
+	} else {
+		m.gmod = false
+	}
+
 	switch motion {
 	case "h":
 		return Unchanged, m.cursorColumn - 1
@@ -430,6 +439,12 @@ func (m Model) Motion(motion string) (line, col int) {
 			}
 		}
 		return m.cursorLine + 1, len(line) - 1
+
+	case "g":
+		return 0, Unchanged
+	case "G":
+		return len(m.lines) - 1, Unchanged
+
 	// case "E":
 	// for {
 	// 	line := m.lines[m.cursorLine]
@@ -466,6 +481,9 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 	}
 
 	lnum, col := m.Motion(key.String())
+	if m.gmod {
+		return
+	}
 	if lnum != Unchanged || col != Unchanged {
 		if lnum == Unchanged {
 			lnum = m.cursorLine
@@ -565,8 +583,6 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 		}
 
 	case "y":
-		// TODO: Needs to make sure this works fine with multiline-pasting
-		// MULTILINE PASTING IS NOT IMPLEMENTED YET!!!!!!
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 
 		m.ResetOpending()
