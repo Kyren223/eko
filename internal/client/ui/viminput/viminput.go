@@ -162,12 +162,16 @@ func (m *Model) SetCursorColumn(col int) {
 func (m *Model) SetCursorLine(line int) {
 	m.cursorLine = min(max(line, 0), len(m.lines)-1)
 	fromLength := m.cursorColumn
-	toLength := len(m.lines[m.cursorLine])
+	toLength := len(m.lines[m.cursorLine]) 
+	// In visual it's fine to be after the char
+	if m.mode == NormalMode {
+		toLength-- // In normal it's not (unless length == 0)
+	}
 	if fromLength > toLength && m.goalColumn == -1 {
 		m.goalColumn = fromLength
 	}
 	if m.goalColumn != -1 {
-		m.cursorColumn = max(min(toLength-1, m.goalColumn), 0)
+		m.cursorColumn = max(min(toLength, m.goalColumn), 0)
 	}
 }
 
