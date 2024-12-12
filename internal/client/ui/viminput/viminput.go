@@ -162,7 +162,7 @@ func (m *Model) SetCursorColumn(col int) {
 func (m *Model) SetCursorLine(line int) {
 	m.cursorLine = min(max(line, 0), len(m.lines)-1)
 	fromLength := m.cursorColumn
-	toLength := len(m.lines[m.cursorLine]) 
+	toLength := len(m.lines[m.cursorLine])
 	// In visual it's fine to be after the char
 	if m.mode == NormalMode {
 		toLength-- // In normal it's not (unless length == 0)
@@ -174,14 +174,6 @@ func (m *Model) SetCursorLine(line int) {
 		m.cursorColumn = max(min(toLength, m.goalColumn), 0)
 	}
 }
-
-// func (m *Model) cursorColumn int {
-// 	return m.cursorColumn
-// }
-//
-// func (m *Model) cursorLine int {
-// 	return m.cursorLine
-// }
 
 func (m *Model) handleKeys(key tea.KeyMsg) {
 	switch m.mode {
@@ -482,20 +474,60 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			col = m.cursorColumn
 		}
 
-		line := m.lines[m.cursorLine]
 		if lnum == m.cursorLine {
+			line := m.lines[m.cursorLine]
 			length := len(line)
 			lower := min(col, m.cursorColumn, length)
 			upper := min(max(col, m.cursorColumn), length)
 			value := line[lower:upper]
+
 			m.Yank(string(value))
+
 			if m.pending == 'd' || m.pending == 'c' {
 				line = slices.Delete(line, lower, upper)
 				m.lines[m.cursorLine] = line
-				m.SetCursorColumn(min(lower, len(line)-1))
 			}
+
+			m.SetCursorColumn(min(lower, len(line)-1))
+
 		} else {
-			// TODO: multiline
+			lower := min(lnum, m.cursorLine)
+			upper := max(lnum, m.cursorLine) + 1
+			if upper > len(m.lines) || lower < 0 {
+				m.ResetOpending()
+				return
+			}
+
+			var builder strings.Builder
+			for i := lower; i < upper; i++ {
+				builder.WriteString(string(m.lines[i]))
+				builder.WriteRune('\n')
+			}
+
+			m.Yank(builder.String())
+			m.SetCursorLine(lower)
+
+			switch m.pending {
+			case 'd':
+				m.lines = slices.Delete(m.lines, lower, upper)
+				if len(m.lines) == 0 {
+					m.lines = append(m.lines, []rune(""))
+				}
+				m.SetCursorLine(min(m.cursorLine, len(m.lines)-1))
+
+				end := len(m.lines[m.cursorLine]) - 1
+				m.SetCursorColumn(min(m.cursorColumn, end))
+
+			case 'y':
+				end := len(m.lines[m.cursorLine]) - 1
+				m.SetCursorColumn(min(m.cursorColumn, end))
+
+			case 'c':
+				m.lines = slices.Delete(m.lines, lower+1, upper)
+				m.lines[lower] = []rune("")
+				m.SetCursorColumn(0)
+			}
+
 		}
 
 		m.ResetOpending()
@@ -511,6 +543,11 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 		m.lines[m.cursorLine] = []rune("")
 		m.SetCursorColumn(0)
 
+		m.ResetOpending()
+		if m.pending == 'c' {
+			m.mode = InsertMode
+		}
+
 	case "d":
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 		if len(m.lines) == 1 {
@@ -522,15 +559,23 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			m.SetCursorColumn(m.cursorColumn)
 		}
 
+		m.ResetOpending()
+		if m.pending == 'c' {
+			m.mode = InsertMode
+		}
+
 	case "y":
 		// TODO: Needs to make sure this works fine with multiline-pasting
 		// MULTILINE PASTING IS NOT IMPLEMENTED YET!!!!!!
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
-	}
 
-	m.ResetOpending()
-	if m.pending == 'c' {
-		m.mode = InsertMode
+		m.ResetOpending()
+		if m.pending == 'c' {
+			m.mode = InsertMode
+		}
+
+	default:
+		m.ResetOpending()
 	}
 }
 
