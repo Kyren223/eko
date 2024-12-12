@@ -18,3 +18,16 @@ func IsGrouped(r1, r2 rune) bool {
 	}
 	return !IsKeyword(r2) && !unicode.IsSpace(r2)
 }
+
+func SearchChar(line []rune, i, dir int, c rune) (index int, ok bool) {
+	found := false
+	for i > 0 && i < len(line) {
+		if line[i] == c {
+			found = true
+			break
+		}
+		i += dir
+	}
+
+	return i, found
+}

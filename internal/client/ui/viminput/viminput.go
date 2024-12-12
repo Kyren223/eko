@@ -17,7 +17,11 @@ type (
 	LineDecoration = func(lnum int, m Model) string
 )
 
-const Unchanged = -1
+const (
+	Unchanged   = -1
+	InvalidGoal = -1
+	NullChar    = 0
+)
 
 const (
 	NormalMode = iota
@@ -42,6 +46,9 @@ type Model struct {
 	mode         int
 	pending      byte
 	gmod         bool
+	fchar        byte
+	fmod         byte
+	tlast        bool
 
 	focus  bool
 	width  int
@@ -58,10 +65,13 @@ func New(width, height int) Model {
 		lines:            [][]rune{[]rune("")},
 		cursorLine:       0,
 		cursorColumn:     0,
-		goalColumn:       -1,
+		goalColumn:       InvalidGoal,
 		mode:             NormalMode,
-		pending:          0,
+		pending:          NullChar,
 		gmod:             false,
+		fchar:            NullChar,
+		fmod:             NullChar,
+		tlast:            false,
 		focus:            false,
 		width:            width,
 		height:           height,
@@ -158,7 +168,7 @@ func (m *Model) SetCursorColumn(col int) {
 	} else {
 		m.cursorColumn = max(col, 0)
 	}
-	m.goalColumn = -1
+	m.goalColumn = InvalidGoal
 }
 
 func (m *Model) SetCursorLine(line int) {
@@ -169,10 +179,10 @@ func (m *Model) SetCursorLine(line int) {
 	if m.mode == NormalMode {
 		toLength-- // In normal it's not (unless length == 0)
 	}
-	if fromLength > toLength && m.goalColumn == -1 {
+	if fromLength > toLength && m.goalColumn == InvalidGoal {
 		m.goalColumn = fromLength
 	}
-	if m.goalColumn != -1 {
+	if m.goalColumn != InvalidGoal {
 		m.cursorColumn = max(min(toLength, m.goalColumn), 0)
 	}
 }
@@ -396,6 +406,40 @@ func (m *Model) Motion(motion string) (line, col int) {
 		m.gmod = false
 	}
 
+	isF := motion == "f" || motion == "t" || motion == "F" || motion == "T"
+	if isF && m.fmod == NullChar {
+		m.fmod = motion[0]
+		return Unchanged, Unchanged
+	}
+	if m.fmod != NullChar {
+		defer func(m *Model) { m.fmod = NullChar }(m)
+
+		if len(motion) != 1 {
+			return Unchanged, Unchanged
+		}
+		m.fchar = motion[0]
+
+		dir := 1
+		if m.fmod == 'F' || m.fmod == 'T' {
+			dir = -1
+		}
+		line := m.lines[m.cursorLine]
+		i := m.cursorColumn + dir
+
+		index, ok := SearchChar(line, i, dir, rune(m.fchar))
+		if !ok {
+			return Unchanged, Unchanged
+		}
+
+		if m.fmod == 't' || m.fmod == 'T' {
+			index -= dir
+			m.tlast = true
+		} else {
+			m.tlast = false
+		}
+		return Unchanged, index
+	}
+
 	switch motion {
 	case "h":
 		return Unchanged, m.cursorColumn - 1
@@ -445,6 +489,37 @@ func (m *Model) Motion(motion string) (line, col int) {
 	case "G":
 		return len(m.lines) - 1, Unchanged
 
+	case ",":
+		dir := -1
+		line := m.lines[m.cursorLine]
+		i := m.cursorColumn + dir
+		if m.tlast {
+			i += dir
+		}
+		index, ok := SearchChar(line, i, dir, rune(m.fchar))
+		if !ok {
+			return Unchanged, Unchanged
+		}
+		if m.tlast {
+			index -= dir
+		}
+		return Unchanged, index
+	case ";":
+		dir := 1
+		line := m.lines[m.cursorLine]
+		i := m.cursorColumn + dir
+		if m.tlast {
+			i += dir
+		}
+		index, ok := SearchChar(line, i, dir, rune(m.fchar))
+		if !ok {
+			return Unchanged, Unchanged
+		}
+		if m.tlast {
+			index -= dir
+		}
+		return Unchanged, index
+
 	// case "E":
 	// for {
 	// 	line := m.lines[m.cursorLine]
@@ -480,8 +555,9 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 		return
 	}
 
+	ftmod := m.fmod == 'f' || m.fmod == 't'
 	lnum, col := m.Motion(key.String())
-	if m.gmod {
+	if m.gmod || m.fmod != NullChar {
 		return
 	}
 	if lnum != Unchanged || col != Unchanged {
@@ -490,6 +566,10 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 		}
 		if col == Unchanged {
 			col = m.cursorColumn
+		}
+		if ftmod {
+			col++ // Adjust due to upper bound being exclusive
+			// For F/T (backwards), being exclusive is the correct
 		}
 
 		if lnum == m.cursorLine {
@@ -507,6 +587,10 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			}
 
 			m.SetCursorColumn(min(lower, len(line)-1))
+			if ftmod && m.pending == 'c' {
+				m.SetCursorColumn(lower) // Ignore bound
+				// Only ok because of insert mode (same as NVIM)
+			}
 
 		} else {
 			lower := min(lnum, m.cursorLine)
