@@ -552,7 +552,7 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 
 			// Search start of next word
-			i, ok = SearchCharFunc(line, col+1, 1, func(c rune) bool {
+			i, ok = SearchCharFunc(line, i, 1, func(c rune) bool {
 				return !unicode.IsSpace(c)
 			})
 			if !ok {
@@ -619,7 +619,7 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 
 			// Search start of next word
-			i, ok = SearchCharFunc(line, col+1, 1, func(c rune) bool {
+			i, ok = SearchCharFunc(line, i, 1, func(c rune) bool {
 				return !unicode.IsSpace(c)
 			})
 			if !ok {
@@ -680,7 +680,7 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 
 			// Search end of previous word
-			i, ok = SearchCharFunc(line, col-1, -1, func(c rune) bool {
+			i, ok = SearchCharFunc(line, i, -1, func(c rune) bool {
 				return !unicode.IsSpace(c)
 			})
 			if !ok {
@@ -744,7 +744,7 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 
 			// Search end of previous word
-			i, ok = SearchCharFunc(line, col-1, -1, func(c rune) bool {
+			i, ok = SearchCharFunc(line, i, -1, func(c rune) bool {
 				return !unicode.IsSpace(c)
 			})
 			if !ok {
@@ -772,6 +772,56 @@ func (m *Model) Motion(motion string) (line, col int) {
 				continue
 			}
 			return lnum, i + 1
+		}
+	case "W":
+		lnum := m.cursorLine
+		col := m.cursorColumn
+		remember := false
+		for {
+			line := m.lines[lnum]
+			isLastLine := lnum == len(m.lines)-1
+
+			// Skip if empty
+			if len(line) == 0 && !isLastLine {
+				// What happens if this is the current line
+				if lnum == m.cursorLine {
+					lnum++
+					col = 0
+					remember = true
+					continue
+				}
+				return lnum, 0
+			}
+
+			// Search next whitespace
+			i, ok := SearchCharFunc(line, col, 1, unicode.IsSpace)
+			if !ok {
+				if remember {
+					return lnum, 0
+				}
+				if isLastLine {
+					return lnum, len(line) - 1
+				}
+				lnum++
+				col = 0
+				remember = true
+				continue
+			}
+
+			// Search start of next word
+			i, ok = SearchCharFunc(line, i, 1, func(c rune) bool {
+				return !unicode.IsSpace(c)
+			})
+			if !ok {
+				if isLastLine {
+					return lnum, len(line) - 1
+				}
+				lnum++
+				col = 0
+				remember = true
+				continue
+			}
+			return lnum, i
 		}
 
 	default:
