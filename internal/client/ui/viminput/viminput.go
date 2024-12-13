@@ -520,30 +520,63 @@ func (m *Model) Motion(motion string) (line, col int) {
 		}
 		return Unchanged, index
 
-	// case "E":
-	// for {
-	// 	line := m.lines[m.cursorLine]
-	// 	m.SetCursorColumn(m.cursorColumn + 1)
-	// 	for m.cursorColumn == len(line) {
-	// 		cursorLine := m.cursorLine + 1
-	// 		m.SetCursorLine(cursorLine)
-	// 		m.SetCursorColumn(0)
-	// 		if cursorLine == len(m.lines) {
-	// 			return nil
-	// 		}
-	// 	}
-	// 	if !unicode.IsSpace(m.RuneAtCursor()) {
-	// 		break
-	// 	}
-	// }
-	// for !unicode.IsSpace(m.RuneAtCursor()) {
-	// 	line := m.lines[m.cursorLine]
-	// 	m.SetCursorColumn(m.cursorColumn + 1)
-	// 	if m.cursorColumn == len(line) {
-	// 		break
-	// 	}
-	// }
-	// m.SetCursorColumn(m.cursorColumn - 1)
+	case "E":
+		lnum := m.cursorLine
+		col := m.cursorColumn
+		for {
+			line := m.lines[lnum]
+			isLastLine := lnum == len(m.lines)-1
+			isColAtEnd := col == len(line)-1
+
+			// Skip if empty
+			if len(line) == 0 && !isLastLine {
+				lnum++
+				col = 0
+				continue
+			}
+
+			// Search next whitespace
+			i, ok := SearchCharFunc(line, col+1, 1, unicode.IsSpace)
+			if !ok {
+				if isLastLine || !isColAtEnd {
+					return lnum, len(line) - 1
+				}
+				lnum++
+				col = 0
+				continue
+			}
+
+			// Found next word - Simple case
+			if i-1 != col {
+				return lnum, i - 1
+			}
+
+			// Search start of next word
+			i, ok = SearchCharFunc(line, col+1, 1, func(c rune) bool {
+				return !unicode.IsSpace(c)
+			})
+			if !ok {
+				if isLastLine {
+					return lnum, len(line) - 1
+				}
+				lnum++
+				col = 0
+				continue
+			}
+
+			// Next word exists, find it's end
+			i, ok = SearchCharFunc(line, i, 1, unicode.IsSpace)
+			if !ok {
+				if isLastLine || !isColAtEnd {
+					return lnum, len(line) - 1
+				}
+				// If at the end, continue to next line (if it exists)
+				lnum++
+				col = 0
+				continue
+			}
+			return lnum, i - 1
+		}
 	default:
 		return Unchanged, Unchanged
 	}
