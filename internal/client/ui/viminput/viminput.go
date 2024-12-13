@@ -577,6 +577,64 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 			return lnum, i - 1
 		}
+	case "B":
+		lnum := m.cursorLine
+		col := m.cursorColumn
+		for {
+			line := m.lines[lnum]
+			isFirstLine := lnum == 0
+			isColAtStart := col == 0
+
+			// Skip if empty
+			if len(line) == 0 && !isFirstLine {
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				continue
+			}
+
+			// Search previous whitespace
+			i, ok := SearchCharFunc(line, col-1, -1, unicode.IsSpace)
+			if !ok {
+				if isFirstLine || !isColAtStart {
+					return lnum, 0
+				}
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				continue
+			}
+
+			// Found next word - Simple case
+			if i+1 != col {
+				return lnum, i + 1
+			}
+
+			// Search end of previous word
+			i, ok = SearchCharFunc(line, col-1, -1, func(c rune) bool {
+				return !unicode.IsSpace(c)
+			})
+			if !ok {
+				if isFirstLine {
+					return lnum, 0
+				}
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				continue
+			}
+
+			// Previous word exists, find it's start
+			i, ok = SearchCharFunc(line, i, -1, unicode.IsSpace)
+			if !ok {
+				if isFirstLine || !isColAtStart {
+					return lnum, 0
+				}
+				// If at the start, continue to previous line (if it exists)
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				continue
+			}
+			return lnum, i + 1
+		}
+
 	default:
 		return Unchanged, Unchanged
 	}
