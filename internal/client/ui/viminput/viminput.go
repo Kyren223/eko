@@ -402,6 +402,9 @@ func (m *Model) Motion(motion string) (line, col int) {
 	if motion == "g" && !m.gmod {
 		m.gmod = true
 		return Unchanged, Unchanged
+	} else if m.gmod {
+		m.gmod = false
+		motion = "g" + motion
 	} else {
 		m.gmod = false
 	}
@@ -484,7 +487,7 @@ func (m *Model) Motion(motion string) (line, col int) {
 		}
 		return m.cursorLine + 1, len(line) - 1
 
-	case "g":
+	case "gg":
 		return 0, Unchanged
 	case "G":
 		return len(m.lines) - 1, Unchanged
@@ -793,12 +796,24 @@ func (m *Model) Motion(motion string) (line, col int) {
 				return lnum, 0
 			}
 
-			// Search next whitespace
-			i, ok := SearchCharFunc(line, col + 1, 1, unicode.IsSpace)
-			if !ok {
-				if remember {
-					return lnum, 0
+			if remember {
+				i, ok := SearchCharFunc(line, col, 1, func(c rune) bool {
+					return !unicode.IsSpace(c)
+				})
+				if !ok {
+					if isLastLine {
+						return lnum, len(line) - 1
+					}
+					lnum++
+					col = 0
+					continue
 				}
+				return lnum, i
+			}
+
+			// Search next whitespace
+			i, ok := SearchCharFunc(line, col, 1, unicode.IsSpace)
+			if !ok {
 				if isLastLine {
 					return lnum, len(line) - 1
 				}
@@ -843,13 +858,29 @@ func (m *Model) Motion(motion string) (line, col int) {
 				return lnum, 0
 			}
 
+			if remember {
+				i, ok := SearchCharFunc(line, col, 1, func(c rune) bool {
+					return !unicode.IsSpace(c)
+				})
+				if !ok {
+					if isLastLine {
+						return lnum, len(line) - 1
+					}
+					lnum++
+					col = 0
+					continue
+				}
+				return lnum, i
+			}
+
+
 			// Search previous non-matching char
 			if col < 0 || len(line) == 0 {
 				return lnum, 0
 			}
 			isKeyword := IsKeyword(line[col])
 			isWhitespace := unicode.IsSpace(line[col])
-			i, ok := SearchCharFunc(line, col + 1, 1, func(c rune) bool {
+			i, ok := SearchCharFunc(line, col, 1, func(c rune) bool {
 				return unicode.IsSpace(c) || isWhitespace || isKeyword != IsKeyword(c)
 			})
 			if !ok {
@@ -880,6 +911,70 @@ func (m *Model) Motion(motion string) (line, col int) {
 			}
 			return lnum, i
 		}
+	case "gE":
+		lnum := m.cursorLine
+		col := m.cursorColumn
+		remember := false
+		for {
+			line := m.lines[lnum]
+			isFirstLine := lnum == 0
+
+			// Skip if empty
+			if len(line) == 0 && !isFirstLine {
+				// What happens if this is the current line
+				if lnum == m.cursorLine {
+					lnum--
+					col = len(m.lines[lnum]) - 1
+					remember = true
+					continue
+				}
+				return lnum, 0
+			}
+
+			if remember {
+				i, ok := SearchCharFunc(line, col, -1, func(c rune) bool {
+					return !unicode.IsSpace(c)
+				})
+				if !ok {
+					if isFirstLine {
+						return lnum, 0
+					}
+					lnum--
+					col = len(m.lines[lnum]) - 1
+					continue
+				}
+				return lnum, i
+			}
+
+			// Search next whitespace
+			i, ok := SearchCharFunc(line, col, -1, unicode.IsSpace)
+			if !ok {
+				if isFirstLine {
+					return lnum, 0
+				}
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				remember = true
+				continue
+			}
+
+			// Search start of next word
+			i, ok = SearchCharFunc(line, i, -1, func(c rune) bool {
+				return !unicode.IsSpace(c)
+			})
+			if !ok {
+				if isFirstLine {
+					return lnum, 0
+				}
+				lnum--
+				col = len(m.lines[lnum]) - 1
+				remember = true
+				continue
+			}
+			return lnum, i
+		}
+	case "ge":
+		return Unchanged, m.cursorColumn - 1
 
 	default:
 		return Unchanged, Unchanged

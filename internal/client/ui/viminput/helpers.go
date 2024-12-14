@@ -34,7 +34,7 @@ func SearchChar(line []rune, i, dir int, c rune) (index int, ok bool) {
 
 func SearchCharFunc(line []rune, i, dir int, f func(c rune) bool) (index int, ok bool) {
 	found := false
-	for i > 0 && i < len(line) {
+	for i >= 0 && i < len(line) {
 		if f(line[i]) {
 			found = true
 			break
