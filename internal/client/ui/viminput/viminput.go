@@ -1058,6 +1058,11 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 	if m.gmod || m.fmod != NullChar {
 		return
 	}
+
+	// For now hardcoding is fine
+	// Should include all the "vertical" movement (j k - + gg G)
+	isVerticalMotion := col == Unchanged || key.String()[0] == '-' || key.String()[0] == '+'
+
 	if lnum != Unchanged || col != Unchanged {
 		if lnum == Unchanged {
 			lnum = m.cursorLine
@@ -1069,12 +1074,14 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			col++ // Adjust due to upper bound being exclusive
 			// For F/T (backwards), being exclusive is the correct
 		}
+		if key.String() == "e" || key.String() == "E" {
+			col++ // Adjust due to upper bound being exclusive
+		}
 
 		if lnum == m.cursorLine {
 			line := m.lines[m.cursorLine]
-			length := len(line)
-			lower := min(col, m.cursorColumn, length)
-			upper := min(max(col, m.cursorColumn), length)
+			lower := min(col, m.cursorColumn, len(line))
+			upper := min(max(col, m.cursorColumn), len(line))
 			value := line[lower:upper]
 
 			m.Yank(string(value))
@@ -1090,7 +1097,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 				// Only ok because of insert mode (same as NVIM)
 			}
 
-		} else {
+		} else if isVerticalMotion {
 			lower := min(lnum, m.cursorLine)
 			upper := max(lnum, m.cursorLine) + 1
 			if upper > len(m.lines) || lower < 0 {
@@ -1128,6 +1135,48 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 				m.SetCursorColumn(0)
 			}
 
+		} else {
+			// Multiline but not horizontal movement (such as "word" motions)
+
+			// Known issues (won't be fixed most likely, PRs are welcome):
+			// "dw" doesn't delete last char if it's the only word in the last line
+			// "dge" doesn't delete current char, in NVIM it does
+			// "dge" doesn't combine lines in certain scenarios where NVIM does
+
+			line := m.lines[m.cursorLine]
+
+			isLastLine := len(m.lines)-1 == m.cursorLine
+			if len(line) == 0 && len(m.lines) > 1 && !isLastLine {
+				m.lines = slices.Delete(m.lines, m.cursorLine, m.cursorLine+1)
+				m.ResetOpending()
+				if m.pending == 'c' {
+					m.mode = InsertMode
+				}
+				return
+			}
+
+			if lnum > m.cursorLine {
+				col = len(line) // end
+			} else {
+				col = 0 // start
+			}
+
+			lower := min(col, m.cursorColumn, len(line))
+			upper := min(max(col, m.cursorColumn), len(line))
+			value := line[lower:upper]
+
+			m.Yank(string(value))
+
+			if m.pending == 'd' || m.pending == 'c' {
+				line = slices.Delete(line, lower, upper)
+				m.lines[m.cursorLine] = line
+			}
+
+			m.SetCursorColumn(min(lower, len(line)-1))
+			if ftmod && m.pending == 'c' {
+				m.SetCursorColumn(lower) // Ignore bound
+				// Only ok because of insert mode (same as NVIM)
+			}
 		}
 
 		m.ResetOpending()
