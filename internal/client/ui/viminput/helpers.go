@@ -21,7 +21,7 @@ func IsGrouped(r1, r2 rune) bool {
 
 func SearchChar(line []rune, i, dir int, c rune) (index int, ok bool) {
 	found := false
-	for i > 0 && i < len(line) {
+	for i > 0 && i < len(line) { // TODO: fix this, make sure it's i>=0
 		if line[i] == c {
 			found = true
 			break

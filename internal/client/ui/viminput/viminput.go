@@ -49,6 +49,8 @@ type Model struct {
 	fchar        byte
 	fmod         byte
 	tlast        bool
+	imod         bool // only in O-pending
+	amod         bool // only in O-pending
 
 	focus  bool
 	width  int
@@ -72,6 +74,8 @@ func New(width, height int) Model {
 		fchar:            NullChar,
 		fmod:             NullChar,
 		tlast:            false,
+		imod:             false,
+		amod:             false,
 		focus:            false,
 		width:            width,
 		height:           height,
@@ -1049,19 +1053,41 @@ func (m *Model) Motion(motion string) (line, col int) {
 
 func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 	if key.Type == tea.KeyEscape {
-		m.ResetOpending()
+		m.ResetOpending(false)
 		return
 	}
 
+	motion := key.String()
+
+	// Text objects
+	if motion == "i" && !m.imod {
+		m.imod = true
+		return
+	} else if m.imod {
+		m.imod = false
+		motion = "i" + motion
+	} else {
+		m.imod = false
+	}
+	if motion == "a" && !m.amod {
+		m.amod = true
+		return
+	} else if m.amod {
+		m.amod = false
+		motion = "a" + motion
+	} else {
+		m.amod = false
+	}
+
 	ftmod := m.fmod == 'f' || m.fmod == 't'
-	lnum, col := m.Motion(key.String())
+	lnum, col := m.Motion(motion)
 	if m.gmod || m.fmod != NullChar {
 		return
 	}
 
 	// For now hardcoding is fine
 	// Should include all the "vertical" movement (j k - + gg G)
-	isVerticalMotion := col == Unchanged || key.String()[0] == '-' || key.String()[0] == '+'
+	isVerticalMotion := col == Unchanged || motion[0] == '-' || motion[0] == '+'
 
 	if lnum != Unchanged || col != Unchanged {
 		if lnum == Unchanged {
@@ -1074,7 +1100,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			col++ // Adjust due to upper bound being exclusive
 			// For F/T (backwards), being exclusive is the correct
 		}
-		if key.String() == "e" || key.String() == "E" {
+		if motion == "e" || motion == "E" {
 			col++ // Adjust due to upper bound being exclusive
 		}
 
@@ -1101,7 +1127,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			lower := min(lnum, m.cursorLine)
 			upper := max(lnum, m.cursorLine) + 1
 			if upper > len(m.lines) || lower < 0 {
-				m.ResetOpending()
+				m.ResetOpending(false)
 				return
 			}
 
@@ -1148,10 +1174,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			isLastLine := len(m.lines)-1 == m.cursorLine
 			if len(line) == 0 && len(m.lines) > 1 && !isLastLine {
 				m.lines = slices.Delete(m.lines, m.cursorLine, m.cursorLine+1)
-				m.ResetOpending()
-				if m.pending == 'c' {
-					m.mode = InsertMode
-				}
+				m.ResetOpending(true)
 				return
 			}
 
@@ -1179,23 +1202,16 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			}
 		}
 
-		m.ResetOpending()
-		if m.pending == 'c' {
-			m.mode = InsertMode
-		}
+		m.ResetOpending(true)
 		return
 	}
 
-	switch key.String() {
+	switch motion {
 	case "c":
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
 		m.lines[m.cursorLine] = []rune("")
 		m.SetCursorColumn(0)
-
-		m.ResetOpending()
-		if m.pending == 'c' {
-			m.mode = InsertMode
-		}
+		m.ResetOpending(true)
 
 	case "d":
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
@@ -1207,27 +1223,108 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			m.SetCursorLine(m.cursorLine)
 			m.SetCursorColumn(m.cursorColumn)
 		}
-
-		m.ResetOpending()
-		if m.pending == 'c' {
-			m.mode = InsertMode
-		}
+		m.ResetOpending(true)
 
 	case "y":
 		m.Yank(string(m.lines[m.cursorLine]) + "\n")
+		m.ResetOpending(true)
 
-		m.ResetOpending()
-		if m.pending == 'c' {
-			m.mode = InsertMode
+	case "aW":
+		fallthrough
+	case "iW":
+		line := m.lines[m.cursorLine]
+		if len(line) == 0 {
+			m.ResetOpending(true)
+			return
 		}
 
+		isWhitespace := unicode.IsSpace(line[m.cursorColumn])
+		lower := m.cursorColumn
+		upper := m.cursorColumn + 1
+		searchFunc := func(c rune) bool {
+			return isWhitespace != unicode.IsSpace(c)
+		}
+
+		i, ok := SearchCharFunc(line, lower, -1, searchFunc)
+		if ok {
+			lower = i + 1
+		} else {
+			lower = 0
+		}
+
+		i, ok = SearchCharFunc(line, upper, 1, searchFunc)
+		if ok {
+			upper = i
+		} else {
+			upper = len(line)
+		}
+
+		value := line[lower:upper]
+		m.Yank(string(value))
+
+		if m.pending == 'd' || m.pending == 'c' {
+			line = slices.Delete(line, lower, upper)
+			m.lines[m.cursorLine] = line
+			m.SetCursorColumn(min(lower, len(line)-1))
+		}
+
+		m.ResetOpending(true)
+
+	case "aw":
+		fallthrough
+	case "iw":
+		line := m.lines[m.cursorLine]
+		if len(line) == 0 {
+			m.ResetOpending(true)
+			return
+		}
+
+		isKeyword := IsKeyword(line[m.cursorColumn])
+		isWhitespace := unicode.IsSpace(line[m.cursorColumn])
+		lower := m.cursorColumn
+		upper := m.cursorColumn + 1
+		searchFunc := func(c rune) bool {
+			return isKeyword != IsKeyword(c) || isWhitespace != unicode.IsSpace(c)
+		}
+		
+		i, ok := SearchCharFunc(line, lower, -1, searchFunc)
+		if ok {
+			lower = i + 1
+		} else {
+			lower = 0
+		}
+
+		i, ok = SearchCharFunc(line, upper, 1, searchFunc)
+		if ok {
+			upper = i
+		} else {
+			upper = len(line)
+		}
+
+		value := line[lower:upper]
+		m.Yank(string(value))
+
+		if m.pending == 'd' || m.pending == 'c' {
+			line = slices.Delete(line, lower, upper)
+			m.lines[m.cursorLine] = line
+			m.SetCursorColumn(min(lower, len(line)-1))
+		}
+
+		m.ResetOpending(true)
+
 	default:
-		m.ResetOpending()
+		m.ResetOpending(false)
 	}
 }
 
-func (m *Model) ResetOpending() {
-	m.mode = NormalMode
+func (m *Model) ResetOpending(allowInsert bool) {
+	if m.pending == 'c' && allowInsert {
+		m.mode = InsertMode
+	} else {
+		m.mode = NormalMode
+	}
+	m.imod = false
+	m.amod = false
 }
 
 func (m *Model) Yank(s string) {
