@@ -11,7 +11,10 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
-var DefaultCursorStyle = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
+var (
+	CursorStyle = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
+	VisualStyle = lipgloss.NewStyle().Background(colors.DarkGray)
+)
 
 type (
 	LineDecoration = func(lnum int, m Model) string
@@ -44,6 +47,8 @@ type Model struct {
 	cursorColumn int
 	goalColumn   int
 	mode         int
+	vline        int
+	vcol         int
 	pending      byte
 	gmod         bool
 	fchar        byte
@@ -69,6 +74,8 @@ func New(width, height int) Model {
 		cursorColumn:     0,
 		goalColumn:       InvalidGoal,
 		mode:             NormalMode,
+		vline:            0,
+		vcol:             0,
 		pending:          NullChar,
 		gmod:             false,
 		fchar:            NullChar,
@@ -96,22 +103,140 @@ func (m Model) View() string {
 	}
 
 	var builder strings.Builder
-	for i, line := range lines {
-		lineDecoration := m.LineDecoration(i, m)
-		builder.WriteString(lineDecoration)
+	switch m.mode {
+	case NormalMode, InsertMode, OpendingMode:
+		for i, line := range lines {
+			lineDecoration := m.LineDecoration(i, m)
+			builder.WriteString(lineDecoration)
 
-		if m.cursorLine != i {
-			builder.WriteString(string(line))
-		} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
-			builder.WriteString(string(line))
-			builder.WriteString(DefaultCursorStyle.Render(" "))
-		} else {
-			builder.WriteString(string(line[:m.cursorColumn]))
-			builder.WriteString(DefaultCursorStyle.Render(string(line[m.cursorColumn])))
-			builder.WriteString(string(line[m.cursorColumn+1:]))
+			if m.cursorLine != i {
+				builder.WriteString(string(line))
+			} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
+				builder.WriteString(string(line))
+				builder.WriteString(CursorStyle.Render(" "))
+			} else {
+				builder.WriteString(string(line[:m.cursorColumn]))
+				builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+				builder.WriteString(string(line[m.cursorColumn+1:]))
+			}
+
+			builder.WriteByte('\n')
 		}
 
-		builder.WriteByte('\n')
+	case VisualMode:
+		isAnchorBefore := m.cursorLine > m.vline
+		for i, line := range lines {
+			lineDecoration := m.LineDecoration(i, m)
+			builder.WriteString(lineDecoration)
+
+			if isAnchorBefore && m.vline < i && i < m.cursorLine {
+				// Entire line highlighted
+				builder.WriteString(VisualStyle.Render(string(line)))
+			} else if !isAnchorBefore && m.cursorLine < i && i < m.vline {
+				// Entire line highlighted
+				builder.WriteString(VisualStyle.Render(string(line)))
+			} else if m.cursorLine != i && m.vline != i {
+				// Normal line
+				builder.WriteString(string(line))
+			} else if m.cursorLine == i && m.vline == i {
+				// Both anchor and cursor are on the same line
+				if m.cursorColumn == m.vcol {
+					builder.WriteString(string(line[:m.cursorColumn]))
+					builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+					builder.WriteString(string(line[m.cursorColumn+1:]))
+					builder.WriteByte('\n')
+					continue
+				}
+
+				lower := min(m.cursorColumn, m.vcol)
+				upper := max(m.cursorColumn, m.vcol)
+				builder.WriteString(string(line[:lower]))
+				if lower == m.cursorColumn && m.cursorColumn < len(line) {
+					builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+					lower++
+				}
+				safeUpper := min(upper, len(line))
+				builder.WriteString(VisualStyle.Render(string(line[lower:safeUpper])))
+				if m.cursorColumn == safeUpper && m.cursorColumn < len(line) {
+					builder.WriteString(CursorStyle.Render(string(line[safeUpper])))
+				} else if m.vcol == safeUpper && m.vcol < len(line) {
+					builder.WriteString(VisualStyle.Render(string(line[safeUpper])))
+				}
+				safeLower := min(safeUpper+1, len(line))
+				builder.WriteString(string(line[safeLower:]))
+
+				if m.cursorColumn == len(line) {
+					builder.WriteString(CursorStyle.Render(" "))
+				} else if m.vcol == len(line) {
+					builder.WriteString(VisualStyle.Render(" "))
+				}
+
+			} else if m.cursorLine == i && isAnchorBefore {
+				// cursor line, highlight before cursor col
+				if m.cursorColumn == len(line) {
+					builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+					builder.WriteString(CursorStyle.Render(" "))
+				} else {
+					builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+					builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+					builder.WriteString(string(line[m.cursorColumn+1:]))
+				}
+			} else if m.cursorLine == i {
+				// cursor line, highlight after cursor col
+				builder.WriteString(string(line[:m.cursorColumn]))
+				if m.cursorColumn == len(line) {
+					builder.WriteString(CursorStyle.Render(" "))
+				} else {
+					builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+					builder.WriteString(VisualStyle.Render(string(line[m.cursorColumn+1:])))
+				}
+			} else if m.vline == i && isAnchorBefore {
+				// anchor line highlight after col
+				builder.WriteString(string(line[:m.vcol]))
+				builder.WriteString(VisualStyle.Render(string(line[m.vcol:])))
+				if m.vcol == len(line) {
+					builder.WriteString(VisualStyle.Render(" "))
+				}
+			} else if m.vline == i {
+				// anchor line, highlight before col
+				if m.vcol == len(line) {
+					builder.WriteString(VisualStyle.Render(string(line[:m.vcol])))
+					builder.WriteString(VisualStyle.Render(" "))
+				} else {
+					builder.WriteString(VisualStyle.Render(string(line[:m.vcol+1])))
+					builder.WriteString(string(line[m.vcol+1:]))
+				}
+			}
+
+			builder.WriteByte('\n')
+		}
+
+	case VisualLineMode:
+		isAnchorBefore := m.cursorLine > m.vline
+		for i, line := range lines {
+			lineDecoration := m.LineDecoration(i, m)
+			builder.WriteString(lineDecoration)
+
+			if isAnchorBefore && m.vline <= i && i < m.cursorLine {
+				builder.WriteString(VisualStyle.Render(string(line)))
+			} else if !isAnchorBefore && m.cursorLine < i && i <= m.vline {
+				builder.WriteString(VisualStyle.Render(string(line)))
+			} else if m.cursorLine != i {
+				builder.WriteString(string(line))
+			} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
+				builder.WriteString(VisualStyle.Render(string(line)))
+				builder.WriteString(CursorStyle.Render(" "))
+			} else {
+				builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+				builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
+				builder.WriteString(VisualStyle.Render(string(line[m.cursorColumn+1:])))
+			}
+
+			builder.WriteByte('\n')
+		}
+
+	default:
+		assert.Never("cannot display mode", "mode", m.mode)
 	}
 
 	result := builder.String()
@@ -170,7 +295,7 @@ func (m *Model) SetCursorColumn(col int) {
 	if len(m.lines[m.cursorLine]) == 0 {
 		m.cursorColumn = 0
 	} else {
-		m.cursorColumn = max(col, 0)
+		m.cursorColumn = min(max(col, 0), len(m.lines[m.cursorLine]))
 	}
 	m.goalColumn = InvalidGoal
 }
@@ -199,6 +324,10 @@ func (m *Model) handleKeys(key tea.KeyMsg) {
 		m.handleInsertModeKeys(key)
 	case OpendingMode:
 		m.handleOpendingModeKeys(key)
+	case VisualMode:
+		m.handleVisualModeKeys(key)
+	case VisualLineMode:
+		m.handleVisualLineModeKeys(key)
 	}
 }
 
@@ -216,6 +345,13 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	}
 
 	switch key.String() {
+	case "v":
+		m.mode = VisualMode
+		m.vline = m.cursorLine
+		m.vcol = m.cursorColumn
+	case "V":
+		m.mode = VisualLineMode
+
 	case "d":
 		fallthrough
 	case "y":
@@ -1286,7 +1422,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 		searchFunc := func(c rune) bool {
 			return isKeyword != IsKeyword(c) || isWhitespace != unicode.IsSpace(c)
 		}
-		
+
 		i, ok := SearchCharFunc(line, lower, -1, searchFunc)
 		if ok {
 			lower = i + 1
@@ -1333,4 +1469,42 @@ func (m *Model) Yank(s string) {
 
 func (m Model) Paste() string {
 	return m.register
+}
+
+func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
+	if key.Type == tea.KeyEscape {
+		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
+		m.mode = NormalMode
+		return
+	}
+
+	line, col := m.Motion(key.String())
+	if line != Unchanged || col != Unchanged {
+		if line != Unchanged {
+			m.SetCursorLine(line)
+		}
+		if col != Unchanged {
+			m.SetCursorColumn(col)
+		}
+		return
+	}
+}
+
+func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
+	if key.Type == tea.KeyEscape {
+		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
+		m.mode = NormalMode
+		return
+	}
+
+	line, col := m.Motion(key.String())
+	if line != Unchanged || col != Unchanged {
+		if line != Unchanged {
+			m.SetCursorLine(line)
+		}
+		if col != Unchanged {
+			m.SetCursorColumn(col)
+		}
+		return
+	}
 }

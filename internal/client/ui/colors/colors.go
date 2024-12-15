@@ -8,6 +8,7 @@ import (
 
 var (
 	Gray             = lipgloss.Color("#585858")
+	DarkGray         = lipgloss.Color("#313244")
 	LightBlue        = lipgloss.Color("#5874FF")
 	Blue             = lipgloss.Color("#0029f5")
 	DarkCyan         = lipgloss.Color("#007E8A")
