@@ -351,6 +351,8 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		m.vcol = m.cursorColumn
 	case "V":
 		m.mode = VisualLineMode
+		m.vline = m.cursorLine
+		m.vcol = m.cursorColumn
 
 	case "d":
 		fallthrough
@@ -1497,7 +1499,8 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	line, col := m.Motion(key.String())
+	motion := key.String()
+	line, col := m.Motion(motion)
 	if line != Unchanged || col != Unchanged {
 		if line != Unchanged {
 			m.SetCursorLine(line)
@@ -1506,5 +1509,47 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 			m.SetCursorColumn(col)
 		}
 		return
+	}
+
+	if motion != "x" && motion != "d" && motion != "c" && motion != "y" {
+		return
+	}
+
+	lower := min(m.cursorLine, m.vline)
+	upper := max(m.cursorLine, m.vline) + 1
+
+	var builder strings.Builder
+	for i := lower; i < upper; i++ {
+		builder.WriteString(string(m.lines[i]))
+		builder.WriteRune('\n')
+	}
+	m.Yank(builder.String())
+
+	if motion == "y" {
+		m.mode = NormalMode
+		if lower == m.vline {
+			m.SetCursorLine(m.vline)
+			m.SetCursorColumn(0)
+		}
+		return
+	}
+
+	if motion == "c" {
+		m.lines = slices.Delete(m.lines, lower+1, upper)
+		m.lines[lower] = []rune{}
+
+		m.mode = InsertMode
+		m.SetCursorLine(lower)
+		m.SetCursorColumn(0)
+	}
+
+	if motion == "d" || motion == "x" {
+		m.lines = slices.Delete(m.lines, lower, upper)
+		if len(m.lines) == 0 {
+			m.lines = append(m.lines, []rune{})
+		}
+		m.SetCursorLine(min(lower, len(m.lines)-1))
+		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
+		m.mode = NormalMode
 	}
 }
