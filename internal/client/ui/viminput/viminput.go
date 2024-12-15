@@ -1272,7 +1272,7 @@ func (m *Model) handleOpendingModeKeys(key tea.KeyMsg) {
 			var builder strings.Builder
 			for i := lower; i < upper; i++ {
 				builder.WriteString(string(m.lines[i]))
-				builder.WriteRune('\n')
+				builder.WriteByte('\n')
 			}
 
 			m.Yank(builder.String())
@@ -1480,7 +1480,8 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	line, col := m.Motion(key.String())
+	motion := key.String()
+	line, col := m.Motion(motion)
 	if line != Unchanged || col != Unchanged {
 		if line != Unchanged {
 			m.SetCursorLine(line)
@@ -1489,6 +1490,93 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 			m.SetCursorColumn(col)
 		}
 		return
+	}
+
+	if motion != "x" && motion != "d" && motion != "c" && motion != "y" {
+		return
+	}
+
+	lower := min(m.cursorLine, m.vline)
+	upper := max(m.cursorLine, m.vline)
+
+	if m.cursorLine == m.vline {
+		line := m.lines[m.cursorLine]
+		lowerCol := min(m.cursorColumn, m.vcol)
+		upperCol := max(m.cursorColumn, m.vcol)
+		if lowerCol == len(line) {
+			m.Yank("\n")
+		} else if upperCol == len(line) {
+			m.Yank(string(line[lowerCol:upperCol]) + "\n")
+		} else {
+			m.Yank(string(line[lowerCol : upperCol+1]))
+		}
+	} else {
+		lowerCol := m.vcol
+		upperCol := m.cursorColumn
+		if m.vline > m.cursorLine {
+			lowerCol = m.cursorColumn
+			upperCol = m.vcol
+		}
+
+		var builder strings.Builder
+		builder.WriteString(string(m.lines[lower][lowerCol:]))
+		builder.WriteByte('\n')
+		for i := lower - 1; i < upper; i++ {
+			builder.WriteString(string(m.lines[i]))
+			builder.WriteByte('\n')
+		}
+		builder.WriteString(string(m.lines[upper][:upperCol]))
+		if upperCol == len(m.lines[upperCol]) {
+			builder.WriteByte('\n')
+		}
+		m.Yank(builder.String())
+	}
+
+	if motion == "y" {
+		m.mode = NormalMode
+		m.SetCursorLine(lower)
+		col := min(m.vcol, m.cursorColumn)
+		if m.vline > m.cursorLine {
+			col = m.cursorColumn
+		} else if m.vline < m.cursorLine {
+			col = m.vcol
+		}
+		m.SetCursorColumn(col)
+		return
+	}
+
+	if m.cursorLine == m.vline {
+		line := m.lines[m.cursorLine]
+		lowerCol := min(m.cursorColumn, m.vcol)
+		upperCol := max(m.cursorColumn, m.vcol)
+		if lowerCol == len(line) {
+			if m.cursorLine != len(m.lines)-1 {
+				line = append(line, m.lines[m.cursorLine+1]...)
+				m.lines[m.cursorLine] = line
+				m.lines = slices.Delete(m.lines, m.cursorLine+1, m.cursorLine+2)
+			}
+		} else if upperCol == len(line) {
+			line = line[:lowerCol]
+			if m.cursorLine != len(m.lines)-1 {
+				line = append(line, m.lines[m.cursorLine+1]...)
+				m.lines[m.cursorLine] = line
+				m.lines = slices.Delete(m.lines, m.cursorLine+1, m.cursorLine+2)
+			}
+			m.SetCursorColumn(lowerCol)
+		} else {
+			line = slices.Delete(line, lowerCol, upperCol+1)
+			m.lines[m.cursorLine] = line
+			m.SetCursorColumn(lowerCol)
+		}
+	} else {
+		// TODO: multiline support for x/d/c
+	}
+
+	if motion == "c" {
+		m.mode = InsertMode
+	} else {
+		m.mode = NormalMode
+		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 	}
 }
 
@@ -1521,7 +1609,7 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 	var builder strings.Builder
 	for i := lower; i < upper; i++ {
 		builder.WriteString(string(m.lines[i]))
-		builder.WriteRune('\n')
+		builder.WriteByte('\n')
 	}
 	m.Yank(builder.String())
 
