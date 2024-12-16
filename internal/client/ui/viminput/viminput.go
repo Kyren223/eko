@@ -1738,3 +1738,7 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		}
 	}
 }
+
+func (m Model) Mode() int {
+	return m.mode
+}

@@ -265,15 +265,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				return cmd
 			}
 
-			left := msg.String() == "H"
-			right := msg.String() == "L"
-			direction := 0
-			if left {
-				direction = -1
-			} else if right {
-				direction = 1
+			if m.focus != FocusChat || !m.chat.Locked() {
+				left := msg.String() == "H"
+				right := msg.String() == "L"
+				direction := 0
+				if left {
+					direction = -1
+				} else if right {
+					direction = 1
+				}
+				m.move(direction)
 			}
-			m.move(direction)
 		}
 	}
 
