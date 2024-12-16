@@ -437,11 +437,18 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 				runeLines = append(runeLines, []rune(line))
 			}
 
-			m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines...)
+			if len(line) != 0 {
+				m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines...)
+				m.SetCursorLine(m.cursorLine + 1)
+				_, col := m.Motion("_")
+				m.SetCursorColumn(col)
+			} else {
+				m.lines[m.cursorLine] = runeLines[0]
+				m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines[1:]...)
+				_, col := m.Motion("_")
+				m.SetCursorColumn(col)
+			}
 
-			m.SetCursorLine(m.cursorLine + 1)
-			_, col := m.Motion("_")
-			m.SetCursorColumn(col)
 		} else {
 			var runeLines [][]rune
 			for _, line := range lines {
