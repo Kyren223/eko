@@ -1507,8 +1507,14 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	if motion != "x" && motion != "d" && motion != "c" && motion != "y" {
+	if motion != "x" && motion != "d" && motion != "c" && motion != "y" &&
+		motion != "p" && motion != "P" {
 		return
+	}
+
+	paste := ""
+	if motion == "p" || motion == "P" {
+		paste = m.Paste()
 	}
 
 	lower := min(m.cursorLine, m.vline)
@@ -1615,6 +1621,21 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		m.mode = NormalMode
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 	}
+
+	if motion == "p" || motion == "P" {
+		copyPaste := m.Paste()
+		m.Yank(paste)
+		key.Runes[0] = 'P' // In visual it should always use backwards P
+		m.handleNormalModeKeys(key)
+
+		if motion == "p" {
+			m.Yank(copyPaste) // Restore
+		}
+		// Note: we don't restore for "P" because we use it like
+		// <leader>p (we paste over and keep what we had)
+		// Shift+P in visual mode is pretty useless/uncommon
+		// So using that instead of adding <leader>p makes more sense
+	}
 }
 
 func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
@@ -1636,12 +1657,18 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	if motion != "x" && motion != "d" && motion != "c" && motion != "y" {
+	if motion != "x" && motion != "d" && motion != "c" && motion != "y" &&
+		motion != "p" && motion != "P" {
 		return
 	}
 
 	lower := min(m.cursorLine, m.vline)
 	upper := max(m.cursorLine, m.vline) + 1
+
+	paste := ""
+	if motion == "p" || motion == "P" {
+		paste = m.Paste()
+	}
 
 	var builder strings.Builder
 	for i := lower; i < upper; i++ {
@@ -1668,7 +1695,8 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		m.SetCursorColumn(0)
 	}
 
-	if motion == "d" || motion == "x" {
+	if motion == "d" || motion == "x" || motion == "p" || motion == "P" {
+		includesLastLine := upper == len(m.lines)
 		m.lines = slices.Delete(m.lines, lower, upper)
 		if len(m.lines) == 0 {
 			m.lines = append(m.lines, []rune{})
@@ -1676,5 +1704,30 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		m.SetCursorLine(min(lower, len(m.lines)-1))
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = NormalMode
+
+		if motion == "p" || motion == "P" {
+			if includesLastLine {
+				m.lines = append(m.lines, []rune{})
+				m.SetCursorLine(len(m.lines) - 1)
+				m.SetCursorColumn(0)
+			} else {
+				m.lines = slices.Insert(m.lines, m.cursorLine, []rune{})
+				m.SetCursorColumn(0)
+			}
+
+			copyPaste := m.Paste()
+			m.Yank(paste)
+			key.Runes[0] = 'p' // In visual line it should always use forward p
+			// This is bcz we are pasting on a blank line
+			m.handleNormalModeKeys(key)
+
+			if motion == "p" {
+				m.Yank(copyPaste) // Restore
+			}
+			// Note: we don't restore for "P" because we use it like
+			// <leader>p (we paste over and keep what we had)
+			// Shift+P in visual mode is pretty useless/uncommon
+			// So using that instead of adding <leader>p makes more sense
+		}
 	}
 }
