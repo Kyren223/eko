@@ -448,6 +448,7 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 				runeLines = append(runeLines, []rune(line))
 			}
 
+			// Note: caps to line length, needed for len=0 col=0
 			splittingCol := min(m.cursorColumn+1, len(line))
 			line := m.lines[m.cursorLine]
 			after := line[splittingCol:]
@@ -482,7 +483,21 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 			_, col := m.Motion("_")
 			m.SetCursorColumn(col)
 		} else {
-			// TODO:
+			var runeLines [][]rune
+			for _, line := range lines {
+				runeLines = append(runeLines, []rune(line))
+			}
+
+			splittingCol := m.cursorColumn
+			line := m.lines[m.cursorLine]
+			after := line[splittingCol:]
+			lastLine := len(runeLines) - 1
+			runeLines[lastLine] = append(runeLines[lastLine], after...)
+
+			m.lines[m.cursorLine] = append(line[:splittingCol], runeLines[0]...)
+			m.lines = slices.Insert(m.lines, m.cursorLine+1, runeLines[1:]...)
+
+			m.SetCursorColumn(min(splittingCol, len(m.lines[m.cursorLine])-1))
 		}
 	}
 }
