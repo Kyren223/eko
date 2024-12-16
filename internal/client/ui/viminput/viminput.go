@@ -617,6 +617,11 @@ func (m *Model) Motion(motion string) (line, col int) {
 	case "l":
 		return Unchanged, m.cursorColumn + 1
 
+	case "ctrl+d":
+		return m.cursorLine + m.height/2, Unchanged
+	case "ctrl+u":
+		return m.cursorLine - m.height/2, Unchanged
+
 	case "0":
 		return Unchanged, 0
 	case "$":

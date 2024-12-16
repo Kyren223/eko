@@ -4,6 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/viminput"
 )
@@ -15,7 +16,7 @@ type Model struct {
 }
 
 func New() Model {
-	vi := viminput.New(90, 3)
+	vi := viminput.New(90, ui.Height)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 	vi.LineDecoration = func(lnum int, m viminput.Model) string {
