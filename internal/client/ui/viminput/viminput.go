@@ -1521,13 +1521,15 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		var builder strings.Builder
 		builder.WriteString(string(m.lines[lower][lowerCol:]))
 		builder.WriteByte('\n')
-		for i := lower - 1; i < upper; i++ {
+		for i := lower + 1; i < upper; i++ {
 			builder.WriteString(string(m.lines[i]))
 			builder.WriteByte('\n')
 		}
 		builder.WriteString(string(m.lines[upper][:upperCol]))
-		if upperCol == len(m.lines[upperCol]) {
+		if upperCol == len(m.lines[upper]) {
 			builder.WriteByte('\n')
+		} else {
+			builder.WriteRune(m.lines[upper][upperCol])
 		}
 		m.Yank(builder.String())
 	}
@@ -1569,7 +1571,27 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 			m.SetCursorColumn(lowerCol)
 		}
 	} else {
-		// TODO: multiline support for x/d/c
+		lowerCol := m.vcol
+		upperCol := m.cursorColumn
+		if m.vline > m.cursorLine {
+			lowerCol = m.cursorColumn
+			upperCol = m.vcol
+		}
+		lowerLine := m.lines[lower]
+		upperLine := m.lines[upper]
+
+		lowerLine = lowerLine[:lowerCol]
+		if upperCol != len(upperLine) {
+			lowerLine = append(lowerLine, upperLine[upperCol+1:]...)
+		} else if upper != len(m.lines)-1 {
+			lowerLine = append(lowerLine, m.lines[upper+1]...)
+			m.lines = slices.Delete(m.lines, upper+1, upper+2)
+		}
+		m.lines = slices.Delete(m.lines, lower+1, upper+1)
+
+		m.lines[lower] = lowerLine
+		m.SetCursorLine(lower)
+		m.SetCursorColumn(lowerCol)
 	}
 
 	if motion == "c" {
