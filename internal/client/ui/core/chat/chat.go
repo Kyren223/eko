@@ -72,6 +72,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch key {
 		case "i":
 			m.locked = true
+			m.vi.SetMode(viminput.InsertMode)
 		}
 	}
 

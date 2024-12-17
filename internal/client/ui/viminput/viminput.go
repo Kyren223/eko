@@ -1828,6 +1828,10 @@ func (m Model) Mode() int {
 	return m.mode
 }
 
+func (m *Model) SetMode(mode int) {
+	m.mode = mode
+}
+
 func (m *Model) Save() {
 	if len(m.undoStack) != 0 {
 		last := m.undoStack[len(m.undoStack)-1]
