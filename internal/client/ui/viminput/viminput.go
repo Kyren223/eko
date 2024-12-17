@@ -27,6 +27,12 @@ const (
 	NoCount
 )
 
+type State struct {
+	lines        [][]rune
+	cursorLine   int
+	cursorColumn int
+}
+
 const (
 	NormalMode = iota
 	InsertMode
@@ -44,6 +50,8 @@ type Model struct {
 
 	register     string
 	lines        [][]rune
+	undoStack    []State
+	redoStack    []State
 	cursorLine   int
 	cursorColumn int
 	goalColumn   int
@@ -70,8 +78,10 @@ func New(width, height int) Model {
 		PromptStyle:      lipgloss.NewStyle(),
 		Placeholder:      "",
 		LineDecoration:   EmptyLineDecoration,
-		register:         "\nHMM\nYO",
+		register:         "",
 		lines:            [][]rune{[]rune("")},
+		undoStack:        []State{{[][]rune{[]rune("")}, 0, 0}},
+		redoStack:        []State{},
 		cursorLine:       0,
 		cursorColumn:     0,
 		goalColumn:       InvalidGoal,
@@ -322,15 +332,26 @@ func (m *Model) SetCursorLine(line int) {
 func (m *Model) handleKeys(key tea.KeyMsg) {
 	switch m.mode {
 	case NormalMode:
+		m.Save()
 		m.handleNormalModeKeys(key)
+		m.Save()
 	case InsertMode:
+		// Note: we don't want to save on insert mode
+		// That'd mean it'd save on every keystroke which will
+		// be very annoying
 		m.handleInsertModeKeys(key)
 	case OpendingMode:
+		m.Save()
 		m.handleOpendingModeKeys(key)
+		m.Save()
 	case VisualMode:
+		m.Save()
 		m.handleVisualModeKeys(key)
+		m.Save()
 	case VisualLineMode:
+		m.Save()
 		m.handleVisualLineModeKeys(key)
+		m.Save()
 	}
 }
 
@@ -364,6 +385,11 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	}
 
 	switch key.String() {
+	case "u":
+		m.Undo()
+	case "ctrl+r", "U":
+		m.Redo()
+
 	case "v":
 		m.mode = VisualMode
 		m.vline = m.cursorLine
@@ -384,16 +410,16 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	case "i":
 		m.mode = InsertMode
 	case "a":
-		m.mode = InsertMode
 		m.SetCursorColumn(m.cursorColumn + 1)
+		m.mode = InsertMode
 	case "I":
 		_, col := m.Motion("_")
 		assert.Assert(col != -1, "Motion should exist", "motion", "_")
 		m.SetCursorColumn(col)
 		m.mode = InsertMode
 	case "A":
-		m.mode = InsertMode
 		m.SetCursorColumn(len(m.lines[m.cursorLine]))
+		m.mode = InsertMode
 
 	case "x":
 		line := m.lines[m.cursorLine]
@@ -1800,4 +1826,94 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 
 func (m Model) Mode() int {
 	return m.mode
+}
+
+func (m *Model) Save() {
+	if len(m.undoStack) != 0 {
+		last := m.undoStack[len(m.undoStack)-1]
+		equal := slices.EqualFunc(last.lines, m.lines, slices.Equal)
+		if equal {
+			return
+		}
+	}
+
+	copyLines := make([][]rune, len(m.lines))
+	for i, line := range m.lines {
+		copyLine := make([]rune, len(line))
+		copy(copyLine, line)
+		copyLines[i] = copyLine
+	}
+
+	m.undoStack = append(m.undoStack, State{
+		lines:        copyLines,
+		cursorLine:   m.cursorLine,
+		cursorColumn: m.cursorColumn,
+	})
+	m.redoStack = nil
+}
+
+func (m *Model) Undo() {
+	for {
+		if len(m.undoStack) == 0 {
+			return
+		}
+		last := len(m.undoStack) - 1
+		equal := slices.EqualFunc(m.undoStack[last].lines, m.lines, slices.Equal)
+		if equal {
+			if len(m.undoStack) == 1 {
+				return
+			}
+			m.undoStack = m.undoStack[:last]
+		} else {
+			break
+		}
+	}
+
+	last := len(m.undoStack) - 1
+	m.redoStack = append(m.redoStack, State{
+		lines:        m.lines,
+		cursorLine:   m.cursorLine,
+		cursorColumn: m.cursorColumn,
+	})
+
+	lines := m.undoStack[last].lines
+	copyLines := make([][]rune, len(lines))
+	for i, line := range lines {
+		copyLine := make([]rune, len(line))
+		copy(copyLine, line)
+		copyLines[i] = copyLine
+	}
+	m.lines = copyLines
+	m.cursorLine = m.undoStack[last].cursorLine
+	m.cursorColumn = m.undoStack[last].cursorColumn
+}
+
+func (m *Model) Redo() {
+	if len(m.redoStack) == 0 {
+		return
+	}
+
+	m.undoStack = append(m.undoStack, State{
+		lines:        m.lines,
+		cursorLine:   m.cursorLine,
+		cursorColumn: m.cursorColumn,
+	})
+
+	m.lines = m.redoStack[len(m.redoStack)-1].lines
+	m.cursorLine = m.redoStack[len(m.redoStack)-1].cursorLine
+	m.cursorColumn = m.redoStack[len(m.redoStack)-1].cursorColumn
+
+	m.redoStack = m.redoStack[:len(m.redoStack)-1]
+
+	copyLines := make([][]rune, len(m.lines))
+	for i, line := range m.lines {
+		copyLine := make([]rune, len(line))
+		copy(copyLine, line)
+		copyLines[i] = copyLine
+	}
+	m.undoStack = append(m.undoStack, State{
+		lines:        copyLines,
+		cursorLine:   m.cursorLine,
+		cursorColumn: m.cursorColumn,
+	})
 }

@@ -26,7 +26,6 @@ func New() Model {
 		return "┃ "
 	}
 
-	vi.SetLines([]rune("test"), []rune("best"))
 	// ta.Cursor.SetChar()
 
 	// vi.CharLimit = 280
