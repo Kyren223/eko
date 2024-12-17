@@ -24,6 +24,7 @@ const (
 	Unchanged   = -1
 	InvalidGoal = -1
 	NullChar    = 0
+	NoCount
 )
 
 const (
@@ -47,6 +48,7 @@ type Model struct {
 	cursorColumn int
 	goalColumn   int
 	mode         int
+	count        int
 	vline        int
 	vcol         int
 	pending      byte
@@ -74,6 +76,7 @@ func New(width, height int) Model {
 		cursorColumn:     0,
 		goalColumn:       InvalidGoal,
 		mode:             NormalMode,
+		count:            NoCount,
 		vline:            0,
 		vcol:             0,
 		pending:          NullChar,
@@ -332,15 +335,31 @@ func (m *Model) handleKeys(key tea.KeyMsg) {
 }
 
 func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
-	line, col := m.Motion(key.String())
-	if line != Unchanged || col != Unchanged {
+	if key.Type == tea.KeyEscape {
+		m.count = NoCount
+		return
+	}
+
+	count := 1
+	if m.count != NoCount {
+		count = m.count
+		m.count = NoCount
+	}
+
+	shouldReturn := false
+	for i := 0; i < count; i++ {
+		line, col := m.Motion(key.String())
 		if line != Unchanged {
 			m.SetCursorLine(line)
+			shouldReturn = true
 		}
 		if col != Unchanged {
 			length := len(m.lines[m.cursorLine]) - 1
 			m.SetCursorColumn(min(col, length))
+			shouldReturn = true
 		}
+	}
+	if shouldReturn {
 		return
 	}
 
@@ -605,6 +624,17 @@ func (m *Model) Motion(motion string) (line, col int) {
 			m.tlast = false
 		}
 		return Unchanged, index
+	}
+
+	if m.count != NoCount && '0' <= motion[0] && motion[0] <= '9' {
+		m.count *= 10
+		m.count += int(motion[0] - '0')
+		return Unchanged, Unchanged
+	}
+
+	if '1' <= motion[0] && motion[0] <= '9' {
+		m.count = int(motion[0] - '0')
+		return Unchanged, Unchanged
 	}
 
 	switch motion {
@@ -1504,18 +1534,30 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 	if key.Type == tea.KeyEscape {
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = NormalMode
+		m.count = NoCount
 		return
 	}
 
+	count := 1
+	if m.count != NoCount {
+		count = m.count
+		m.count = NoCount
+	}
+
 	motion := key.String()
-	line, col := m.Motion(motion)
-	if line != Unchanged || col != Unchanged {
+	shouldReturn := false
+	for i := 0; i < count; i++ {
+		line, col := m.Motion(motion)
 		if line != Unchanged {
 			m.SetCursorLine(line)
+			shouldReturn = true
 		}
 		if col != Unchanged {
 			m.SetCursorColumn(col)
+			shouldReturn = true
 		}
+	}
+	if shouldReturn {
 		return
 	}
 
@@ -1654,18 +1696,30 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 	if key.Type == tea.KeyEscape {
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = NormalMode
+		m.count = NoCount
 		return
 	}
 
+	count := 1
+	if m.count != NoCount {
+		count = m.count
+		m.count = NoCount
+	}
+
 	motion := key.String()
-	line, col := m.Motion(motion)
-	if line != Unchanged || col != Unchanged {
+	shouldReturn := false
+	for i := 0; i < count; i++ {
+		line, col := m.Motion(motion)
 		if line != Unchanged {
 			m.SetCursorLine(line)
+			shouldReturn = true
 		}
 		if col != Unchanged {
 			m.SetCursorColumn(col)
+			shouldReturn = true
 		}
+	}
+	if shouldReturn {
 		return
 	}
 
