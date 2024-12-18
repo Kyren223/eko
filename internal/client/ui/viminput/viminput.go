@@ -123,13 +123,16 @@ func (m Model) View() string {
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
-			if m.cursorLine != i {
-				builder.WriteString(string(line))
-			} else if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
+			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(CursorStyle.Render(cursorChar))
 				builder.WriteString(rest)
+				continue
+			}
+
+			if m.cursorLine != i {
+				builder.WriteString(string(line))
 			} else if m.cursorColumn == len(line) {
 				builder.WriteString(string(line))
 				builder.WriteString(CursorStyle.Render(" "))
@@ -151,6 +154,14 @@ func (m Model) View() string {
 
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
+
+			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
+				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				builder.WriteString(CursorStyle.Render(cursorChar))
+				builder.WriteString(rest)
+				continue
+			}
 
 			before := isAnchorBefore && m.vline < i && i < m.cursorLine
 			after := !isAnchorBefore && m.cursorLine < i && i < m.vline
@@ -251,6 +262,14 @@ func (m Model) View() string {
 
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
+
+			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
+				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				builder.WriteString(CursorStyle.Render(cursorChar))
+				builder.WriteString(rest)
+				continue
+			}
 
 			before := isAnchorBefore && m.vline <= i && i < m.cursorLine
 			after := !isAnchorBefore && m.cursorLine < i && i <= m.vline
