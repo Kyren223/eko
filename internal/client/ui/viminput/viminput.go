@@ -1986,3 +1986,11 @@ func (m *Model) Redo() {
 		cursorColumn: m.cursorColumn,
 	})
 }
+
+func (m *Model) Count() int {
+	sum := 0
+	for _, line := range m.lines {
+		sum += len(line)
+	}
+	return sum + len(m.lines) - 1
+}

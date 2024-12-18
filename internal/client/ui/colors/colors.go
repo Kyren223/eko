@@ -22,6 +22,7 @@ var (
 	Green            = lipgloss.Color("#46d46c")
 	Purple           = lipgloss.Color("#BB91F0")
 	DarkPurple       = lipgloss.Color("#87123d")
+	Orange           = lipgloss.Color("#F5A670")
 
 	Background          = DarkMidnightBlue
 	BackgroundHighlight = MidnightBlue

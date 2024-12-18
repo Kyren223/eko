@@ -1,6 +1,9 @@
 package chat
 
 import (
+	"strconv"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -9,11 +12,17 @@ import (
 )
 
 var (
+	focusStyle = lipgloss.NewStyle().Foreground(colors.Focus)
+
 	ViBlurredBorder = lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).UnsetBorderBottom()
-	ViFocusedBorder = lipgloss.NewStyle().
-			BorderStyle(lipgloss.ThickBorder()).UnsetBorderBottom()
+			Border(lipgloss.RoundedBorder(), true, true, false).
+			Padding(0, 1)
+	ViFocusedBorder = ViBlurredBorder.BorderForeground(colors.Focus)
+
+	VimModeStyle = lipgloss.NewStyle().Bold(true)
 )
+
+const MaxCharCount = 2000
 
 type Model struct {
 	vi     viminput.Model
@@ -38,17 +47,77 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	input := m.vi.View()
+	var builder strings.Builder
 
+	input := m.vi.View()
 	if m.locked {
 		input = ViFocusedBorder.Render(input)
 	} else {
 		input = ViBlurredBorder.Render(input)
 	}
+	builder.WriteString(input)
+	builder.WriteByte('\n')
 
-	result := input
+	border := lipgloss.RoundedBorder()
+	style := lipgloss.NewStyle()
+	if m.locked {
+		style = focusStyle
+	}
+	width := lipgloss.Width(input)
 
-	return result
+	leftAngle := style.Render("")
+	rightAngle := style.Render("")
+
+	leftCorner := border.BottomLeft + border.Bottom
+	builder.WriteString(style.Render(leftCorner))
+	width -= lipgloss.Width(leftCorner)
+
+	builder.WriteString(leftAngle)
+	width -= lipgloss.Width(leftAngle)
+	mode := VimModeStyle.Foreground(colors.Gray).Render("  NONE ")
+	if m.locked {
+		switch m.vi.Mode() {
+		case viminput.InsertMode:
+			mode = VimModeStyle.Foreground(colors.Green).Render("  INSERT ")
+		case viminput.NormalMode:
+			mode = VimModeStyle.Foreground(colors.Orange).Render("  NORMAL ")
+		case viminput.OpendingMode:
+			mode = VimModeStyle.Foreground(colors.Red).Render("  O-PENDING ")
+		case viminput.VisualMode:
+			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  VISUAL ")
+		case viminput.VisualLineMode:
+			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  V-LINE ")
+		}
+	}
+	builder.WriteString(mode)
+	width -= lipgloss.Width(mode)
+	builder.WriteString(rightAngle)
+	width -= lipgloss.Width(rightAngle)
+
+	width -= lipgloss.Width(leftAngle)
+	count := m.vi.Count()
+	countStr := " " + strconv.Itoa(count)
+	if count > MaxCharCount {
+		countStr = lipgloss.NewStyle().Foreground(colors.Red).Render(countStr)
+	}
+	countStr += " / " + strconv.Itoa(MaxCharCount) + " "
+	width -= lipgloss.Width(countStr)
+	width -= lipgloss.Width(rightAngle)
+
+	rightCorner := border.Bottom + border.BottomRight
+	width -= lipgloss.Width(rightCorner)
+
+	bottomCount := width / lipgloss.Width(border.Bottom)
+	bottom := strings.Repeat(border.Bottom, bottomCount)
+	builder.WriteString(style.Render(bottom))
+
+	builder.WriteString(leftAngle)
+	builder.WriteString(countStr)
+	builder.WriteString(rightAngle)
+	builder.WriteString(style.Render(rightCorner))
+	//  NORMAL   master  󰀦 1   LSP                                                                utf-8     go  51%   67:21
+
+	return builder.String()
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
