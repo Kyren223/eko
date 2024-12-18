@@ -67,12 +67,14 @@ type Model struct {
 	imod         bool // only in O-pending
 	amod         bool // only in O-pending
 
-	focus  bool
-	width  int
-	height int
+	focus     bool
+	width     int
+	height    int
+	maxHeight int
+	offset    int
 }
 
-func New(width, height int) Model {
+func New(width, maxHeight int) Model {
 	return Model{
 		PlaceholderStyle: lipgloss.NewStyle(),
 		PromptStyle:      lipgloss.NewStyle(),
@@ -98,7 +100,8 @@ func New(width, height int) Model {
 		amod:             false,
 		focus:            false,
 		width:            width,
-		height:           height,
+		height:           1,
+		maxHeight:        maxHeight,
 	}
 }
 
@@ -108,9 +111,10 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	var lines [][]rune
-	if len(m.lines) == 0 {
-		placeholder := m.PlaceholderStyle.Render(m.Placeholder)
-		lines = append(lines, []rune(placeholder))
+	if len(m.lines) == 1 && len(m.lines[0]) == 0 {
+		// placeholder := m.PlaceholderStyle.Render(m.Placeholder)
+		// lines = append(lines, []rune(placeholder))
+		lines = m.lines
 	} else {
 		lines = m.lines
 	}
@@ -119,6 +123,10 @@ func (m Model) View() string {
 	switch m.mode {
 	case NormalMode, InsertMode, OpendingMode:
 		for i, line := range lines {
+			if i < m.offset || i >= m.offset+m.height {
+				continue
+			}
+
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
@@ -139,6 +147,10 @@ func (m Model) View() string {
 	case VisualMode:
 		isAnchorBefore := m.cursorLine > m.vline
 		for i, line := range lines {
+			if i < m.offset || i >= m.offset+m.height {
+				continue
+			}
+
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
@@ -227,6 +239,10 @@ func (m Model) View() string {
 	case VisualLineMode:
 		isAnchorBefore := m.cursorLine > m.vline
 		for i, line := range lines {
+			if i < m.offset || i >= m.offset+m.height {
+				continue
+			}
+
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
@@ -266,7 +282,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		m.handleKeys(msg)
-		return m, nil
+	}
+
+	m.height = min(m.maxHeight, len(m.lines))
+	diff := m.cursorLine - m.offset
+	if diff >= m.height {
+		m.offset += 1 + diff - m.height
+	}
+	if diff < 0 {
+		m.offset += diff
+	}
+
+	if m.offset+m.height > len(m.lines) {
+		m.offset -= (m.offset + m.height) - len(m.lines)
 	}
 
 	return m, nil
