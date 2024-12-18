@@ -18,18 +18,6 @@ func New() Model {
 	vi := viminput.New(90, 20)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
-	vi.LineDecoration = func(lnum int, m viminput.Model) string {
-		// lineNumberDecor := viminput.LineNumberDecoration(lipgloss.NewStyle())
-		// lineNumber := lineNumberDecor(lnum, m)
-		// return lineNumber + " ┃ "
-		return "┃ "
-	}
-
-	// ta.Cursor.SetChar()
-
-	// vi.CharLimit = 280
-
-	// vi.Focus()
 
 	return Model{
 		vi:     vi,

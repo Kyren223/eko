@@ -16,10 +16,6 @@ var (
 	VisualStyle = lipgloss.NewStyle().Background(colors.DarkGray)
 )
 
-type (
-	LineDecoration = func(lnum int, m Model) string
-)
-
 const (
 	Unchanged   = -1
 	InvalidGoal = -1
@@ -46,8 +42,6 @@ type Model struct {
 	PromptStyle      lipgloss.Style
 
 	Placeholder    string
-	LineDecoration LineDecoration
-
 	register     string
 	lines        [][]rune
 	undoStack    []State
@@ -79,7 +73,6 @@ func New(width, maxHeight int) Model {
 		PlaceholderStyle: lipgloss.NewStyle(),
 		PromptStyle:      lipgloss.NewStyle(),
 		Placeholder:      "",
-		LineDecoration:   EmptyLineDecoration,
 		register:         "",
 		lines:            [][]rune{[]rune("")},
 		undoStack:        []State{{[][]rune{[]rune("")}, 0, 0}},
@@ -120,9 +113,6 @@ func (m Model) View() string {
 				continue
 			}
 
-			lineDecoration := m.LineDecoration(i, m)
-			builder.WriteString(lineDecoration)
-
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
@@ -151,9 +141,6 @@ func (m Model) View() string {
 			if i < m.offset || i >= m.offset+m.height {
 				continue
 			}
-
-			lineDecoration := m.LineDecoration(i, m)
-			builder.WriteString(lineDecoration)
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
@@ -259,9 +246,6 @@ func (m Model) View() string {
 			if i < m.offset || i >= m.offset+m.height {
 				continue
 			}
-
-			lineDecoration := m.LineDecoration(i, m)
-			builder.WriteString(lineDecoration)
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
