@@ -418,15 +418,17 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		return
 	}
 
+	motion := key.String()
+
 	count := 1
-	if m.count != NoCount {
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
 		count = m.count
 		m.count = NoCount
 	}
 
 	shouldReturn := false
 	for i := 0; i < count; i++ {
-		line, col := m.Motion(key.String())
+		line, col := m.Motion(motion)
 		if line != Unchanged {
 			m.SetCursorLine(line)
 			shouldReturn = true
@@ -1621,7 +1623,8 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	if key.String() == "o" {
+	motion := key.String()
+	if motion == "o" {
 		line, col := m.vline, m.vcol
 		m.vline = m.cursorLine
 		m.vcol = m.cursorColumn
@@ -1631,12 +1634,11 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 	}
 
 	count := 1
-	if m.count != NoCount {
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
 		count = m.count
 		m.count = NoCount
 	}
 
-	motion := key.String()
 	shouldReturn := false
 	for i := 0; i < count; i++ {
 		line, col := m.Motion(motion)
@@ -1792,7 +1794,8 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	if key.String() == "o" {
+	motion := key.String()
+	if motion == "o" {
 		line, col := m.vline, m.vcol
 		m.vline = m.cursorLine
 		m.vcol = m.cursorColumn
@@ -1802,12 +1805,11 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 	}
 
 	count := 1
-	if m.count != NoCount {
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
 		count = m.count
 		m.count = NoCount
 	}
 
-	motion := key.String()
 	shouldReturn := false
 	for i := 0; i < count; i++ {
 		line, col := m.Motion(motion)

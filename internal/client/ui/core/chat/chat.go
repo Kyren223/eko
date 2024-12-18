@@ -15,7 +15,7 @@ type Model struct {
 }
 
 func New() Model {
-	vi := viminput.New(90, 5)
+	vi := viminput.New(90, 20)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 	vi.LineDecoration = func(lnum int, m viminput.Model) string {
