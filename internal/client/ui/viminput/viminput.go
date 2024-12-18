@@ -1621,6 +1621,15 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		return
 	}
 
+	if key.String() == "o" {
+		line, col := m.vline, m.vcol
+		m.vline = m.cursorLine
+		m.vcol = m.cursorColumn
+		m.SetCursorLine(line)
+		m.SetCursorColumn(col)
+		return
+	}
+
 	count := 1
 	if m.count != NoCount {
 		count = m.count
@@ -1780,6 +1789,15 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = NormalMode
 		m.count = NoCount
+		return
+	}
+
+	if key.String() == "o" {
+		line, col := m.vline, m.vcol
+		m.vline = m.cursorLine
+		m.vcol = m.cursorColumn
+		m.SetCursorLine(line)
+		m.SetCursorColumn(col)
 		return
 	}
 
