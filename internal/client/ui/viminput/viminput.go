@@ -110,14 +110,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	var lines [][]rune
-	if len(m.lines) == 1 && len(m.lines[0]) == 0 {
-		// placeholder := m.PlaceholderStyle.Render(m.Placeholder)
-		// lines = append(lines, []rune(placeholder))
-		lines = m.lines
-	} else {
-		lines = m.lines
-	}
+	lines := m.lines
 
 	var builder strings.Builder
 	switch m.mode {
@@ -132,7 +125,12 @@ func (m Model) View() string {
 
 			if m.cursorLine != i {
 				builder.WriteString(string(line))
-			} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
+			} else if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
+				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				builder.WriteString(CursorStyle.Render(cursorChar))
+				builder.WriteString(rest)
+			} else if m.cursorColumn == len(line) {
 				builder.WriteString(string(line))
 				builder.WriteString(CursorStyle.Render(" "))
 			} else {
@@ -154,12 +152,15 @@ func (m Model) View() string {
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
-			if isAnchorBefore && m.vline < i && i < m.cursorLine {
+			before := isAnchorBefore && m.vline < i && i < m.cursorLine
+			after := !isAnchorBefore && m.cursorLine < i && i < m.vline
+			isInBetween := before || after
+			if isInBetween {
 				// Entire line highlighted
 				builder.WriteString(VisualStyle.Render(string(line)))
-			} else if !isAnchorBefore && m.cursorLine < i && i < m.vline {
-				// Entire line highlighted
-				builder.WriteString(VisualStyle.Render(string(line)))
+				if len(line) == 0 {
+					builder.WriteString(VisualStyle.Render(" "))
+				}
 			} else if m.cursorLine != i && m.vline != i {
 				// Normal line
 				builder.WriteString(string(line))
@@ -167,8 +168,13 @@ func (m Model) View() string {
 				// Both anchor and cursor are on the same line
 				if m.cursorColumn == m.vcol {
 					builder.WriteString(string(line[:m.cursorColumn]))
-					builder.WriteString(CursorStyle.Render(string(line[m.cursorColumn])))
-					builder.WriteString(string(line[m.cursorColumn+1:]))
+					if len(line) != 0 {
+						cursorChar := string(line[m.cursorColumn])
+						builder.WriteString(CursorStyle.Render(cursorChar))
+						builder.WriteString(string(line[m.cursorColumn+1:]))
+					} else {
+						builder.WriteString(CursorStyle.Render(" "))
+					}
 					builder.WriteByte('\n')
 					continue
 				}
@@ -246,10 +252,14 @@ func (m Model) View() string {
 			lineDecoration := m.LineDecoration(i, m)
 			builder.WriteString(lineDecoration)
 
-			if isAnchorBefore && m.vline <= i && i < m.cursorLine {
+			before := isAnchorBefore && m.vline <= i && i < m.cursorLine
+			after := !isAnchorBefore && m.cursorLine < i && i <= m.vline
+			isInBetween := before || after
+			if isInBetween {
 				builder.WriteString(VisualStyle.Render(string(line)))
-			} else if !isAnchorBefore && m.cursorLine < i && i <= m.vline {
-				builder.WriteString(VisualStyle.Render(string(line)))
+				if len(line) == 0 {
+					builder.WriteString(VisualStyle.Render(" "))
+				}
 			} else if m.cursorLine != i {
 				builder.WriteString(string(line))
 			} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
