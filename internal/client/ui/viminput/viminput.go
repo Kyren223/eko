@@ -41,7 +41,7 @@ type Model struct {
 	PlaceholderStyle lipgloss.Style
 	PromptStyle      lipgloss.Style
 
-	Placeholder    string
+	Placeholder  string
 	register     string
 	lines        [][]rune
 	undoStack    []State
@@ -118,6 +118,7 @@ func (m Model) View() string {
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(CursorStyle.Render(cursorChar))
 				builder.WriteString(rest)
+				builder.WriteByte('\n')
 				continue
 			}
 
@@ -147,6 +148,7 @@ func (m Model) View() string {
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(CursorStyle.Render(cursorChar))
 				builder.WriteString(rest)
+				builder.WriteByte('\n')
 				continue
 			}
 
@@ -252,6 +254,7 @@ func (m Model) View() string {
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(CursorStyle.Render(cursorChar))
 				builder.WriteString(rest)
+				builder.WriteByte('\n')
 				continue
 			}
 
@@ -282,6 +285,7 @@ func (m Model) View() string {
 	}
 
 	result := builder.String()
+	result = result[:len(result)-1] // Remove last \n
 	result = lipgloss.NewStyle().Width(m.width).Height(m.height).Render(result)
 
 	return result
@@ -405,7 +409,7 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 	motion := key.String()
 
 	count := 1
-	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9') {
 		count = m.count
 		m.count = NoCount
 	}
@@ -1618,7 +1622,7 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 	}
 
 	count := 1
-	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9') {
 		count = m.count
 		m.count = NoCount
 	}
@@ -1789,7 +1793,7 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 	}
 
 	count := 1
-	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9'){
+	if m.count != NoCount && (motion[0] < '0' || motion[0] > '9') {
 		count = m.count
 		m.count = NoCount
 	}

@@ -8,6 +8,13 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/viminput"
 )
 
+var (
+	ViBlurredBorder = lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).UnsetBorderBottom()
+	ViFocusedBorder = lipgloss.NewStyle().
+			BorderStyle(lipgloss.ThickBorder()).UnsetBorderBottom()
+)
+
 type Model struct {
 	vi     viminput.Model
 	focus  bool
@@ -31,7 +38,17 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	return m.vi.View()
+	input := m.vi.View()
+
+	if m.locked {
+		input = ViFocusedBorder.Render(input)
+	} else {
+		input = ViBlurredBorder.Render(input)
+	}
+
+	result := input
+
+	return result
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
