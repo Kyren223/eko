@@ -6,12 +6,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/btree"
 
 	"github.com/kyren223/eko/internal/client/gateway"
+	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/viminput"
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -125,7 +129,62 @@ func (m Model) View() string {
 	builder.WriteString(style.Render(rightCorner))
 	//  NORMAL   master  󰀦 1   LSP                                                                utf-8     go  51%   67:21
 
-	return builder.String()
+	messagebox := builder.String()
+	messagesHeight := ui.Height - lipgloss.Height(messagebox) + 1
+	remains := messagesHeight
+
+	builder.Reset()
+	var btree *btree.BTreeG[data.Message]
+	if m.frequencyIndex != nil {
+		network := state.State.Networks[m.networkIndex]
+		frequencyId := network.Frequencies[*m.frequencyIndex].ID
+		btree = state.State.Messages[frequencyId]
+	} else {
+		// TODO: implement support for receiver id
+	}
+
+	if btree != nil {
+		const timeGap = 7 * 60 * 1000 // 7 minutes in millis
+		initialTime := int64(0)
+		previousSender := snowflake.ID(0)
+
+		btree.Ascend(func(message data.Message) bool {
+			outsideTimeRange := message.ID.Time()-timeGap > initialTime
+			header := outsideTimeRange || previousSender != message.SenderID
+
+			if header {
+				initialTime = message.ID.Time()
+				previousSender = message.SenderID
+			}
+
+			remains -= m.renderMessage(message, &builder, header)
+			return true
+		})
+	}
+
+	messages := builder.String()
+	actualMessagesHeight := lipgloss.Height(messages)
+	if actualMessagesHeight < messagesHeight {
+		diff := messagesHeight - actualMessagesHeight
+		messages = strings.Repeat("\n", diff) + messages
+	} else if actualMessagesHeight > messagesHeight {
+		diff := actualMessagesHeight - messagesHeight
+		newlines := 0
+		index := -1
+		for i, c := range messages {
+			if newlines == diff {
+				index = i
+				break
+			}
+			if c == '\n' {
+				newlines++
+			}
+		}
+		assert.Assert(index != -1, "must always have enough newlines if it's greater")
+		messages = messages[index:]
+	}
+
+	return messages + messagebox
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -215,4 +274,19 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 func (m *Model) Set(receiverIndex, frequencyIndex *int) {
 	m.receiverIndex = receiverIndex
 	m.frequencyIndex = frequencyIndex
+}
+
+func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {
+	lines := 0
+	if header {
+		builder.WriteString(message.SenderID.String())
+		builder.WriteByte('\n')
+		lines += 1
+	}
+
+	builder.WriteString(message.Content)
+	builder.WriteByte('\n')
+	lines += 1
+
+	return lines
 }
