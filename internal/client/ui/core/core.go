@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/btree"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/core/chat"
@@ -211,6 +212,29 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			})
 			log.Println(frequencies)
 			network.Frequencies = frequencies
+		}
+
+	case *packet.MessagesInfo:
+		for _, id := range msg.RemoveMessages {
+			for _, btree := range state.State.Messages {
+				btree.Delete(data.Message{ID: id})
+			}
+		}
+
+		for _, message := range msg.Messages {
+			msgSource := message.FrequencyID
+			if msgSource == nil {
+				msgSource = message.ReceiverID
+			}
+			bt := state.State.Messages[*msgSource]
+			if bt == nil {
+				bt = btree.NewG(2, func(a, b data.Message) bool {
+					return a.ID < b.ID
+				})
+				state.State.Messages[*msgSource] = bt
+			}
+			bt.ReplaceOrInsert(message)
+
 		}
 
 	case tea.KeyMsg:

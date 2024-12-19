@@ -180,7 +180,8 @@ func (m *RequestMessages) Type() PacketType {
 }
 
 type MessagesInfo struct {
-	Messages []data.Message
+	Messages       []data.Message
+	RemoveMessages []snowflake.ID
 }
 
 func (m *MessagesInfo) Type() PacketType {
