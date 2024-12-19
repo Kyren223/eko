@@ -7,8 +7,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/viminput"
+	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var (
@@ -28,6 +32,10 @@ type Model struct {
 	vi     viminput.Model
 	focus  bool
 	locked bool
+
+	networkIndex   int // Note this might be invalid, rely on frequencyIndex
+	receiverIndex  *int
+	frequencyIndex *int
 }
 
 func New() Model {
@@ -126,11 +134,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	if m.locked {
-		InNormal := m.vi.Mode() == viminput.NormalMode
-		if key, ok := msg.(tea.KeyMsg); ok && InNormal {
-			if key.String() == "q" {
+		if key, ok := msg.(tea.KeyMsg); ok {
+			InNormal := m.vi.Mode() == viminput.NormalMode
+			if key.String() == "q" && InNormal {
 				m.locked = false
 				return m, nil
+			}
+
+			if key.Type == tea.KeyEnter {
+				cmd := m.sendMessage()
+				return m, cmd
 			}
 		}
 
@@ -164,4 +177,42 @@ func (m *Model) Blur() {
 
 func (m Model) Locked() bool {
 	return m.locked
+}
+
+func (m *Model) sendMessage() tea.Cmd {
+	message := m.vi.String()
+	if len(message) > MaxCharCount {
+		return nil
+	}
+	if len(strings.TrimSpace(message)) == 0 {
+		return nil
+	}
+
+	m.vi.Reset()
+
+	var receiverId *snowflake.ID = nil
+	if m.receiverIndex != nil {
+		// TODO: do nothing for now, until trusted friends are implemented
+	}
+
+	var frequencyId *snowflake.ID = nil
+	if m.frequencyIndex != nil {
+		network := state.State.Networks[m.networkIndex]
+		frequencyId = &network.Frequencies[*m.frequencyIndex].ID
+	}
+
+	return gateway.Send(&packet.SendMessage{
+		ReceiverID:  receiverId,
+		FrequencyID: frequencyId,
+		Content:     message,
+	})
+}
+
+func (m *Model) SetNetworkIndex(networkIndex int) {
+	m.networkIndex = networkIndex
+}
+
+func (m *Model) Set(receiverIndex, frequencyIndex *int) {
+	m.receiverIndex = receiverIndex
+	m.frequencyIndex = frequencyIndex
 }

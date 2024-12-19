@@ -504,6 +504,10 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 
 	case "p":
 		paste := m.Paste()
+		if paste == "" {
+			return
+		}
+
 		newline := paste[len(paste)-1] == '\n'
 		if newline {
 			paste = paste[:len(paste)-1]
@@ -561,6 +565,10 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		}
 	case "P":
 		paste := m.Paste()
+		if paste == "" {
+			return
+		}
+
 		newline := paste[len(paste)-1] == '\n'
 		if newline {
 			paste = paste[:len(paste)-1]
@@ -626,20 +634,27 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	if key.Type == tea.KeyEnter {
-		line := m.lines[m.cursorLine]
-		after := line[m.cursorColumn:]
-		m.lines[m.cursorLine] = line[:m.cursorColumn]
+	// Note: commented out because enter is used to send a message
+	// even in insert mode, an alternative that discord uses is
+	// to use Shift+Enter for this functionality but unfortunately
+	// this is not supported in bubbletea (probably due to terminal limitations)
+	// If there is a way to add this for Shift+Enter please notify me
+	// at Kyren223@proton.me
 
-		var newline []rune
-		newline = append(newline, after...)
-		m.lines = slices.Insert(m.lines, m.cursorLine+1, newline)
-
-		m.SetCursorLine(m.cursorLine + 1)
-		m.SetCursorColumn(0)
-
-		return
-	}
+	// if key.Type == tea.KeyEnter {
+	// 	line := m.lines[m.cursorLine]
+	// 	after := line[m.cursorColumn:]
+	// 	m.lines[m.cursorLine] = line[:m.cursorColumn]
+	//
+	// 	var newline []rune
+	// 	newline = append(newline, after...)
+	// 	m.lines = slices.Insert(m.lines, m.cursorLine+1, newline)
+	//
+	// 	m.SetCursorLine(m.cursorLine + 1)
+	// 	m.SetCursorColumn(0)
+	//
+	// 	return
+	// }
 
 	keyStr := key.String()
 	length := len(keyStr)
@@ -1759,13 +1774,13 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 	}
 
 	if motion == "p" || motion == "P" {
-		copyPaste := m.Paste()
+		copyOfPaste := m.Paste()
 		m.Yank(paste)
 		key.Runes[0] = 'P' // In visual it should always use backwards P
 		m.handleNormalModeKeys(key)
 
 		if motion == "p" {
-			m.Yank(copyPaste) // Restore
+			m.Yank(copyOfPaste) // Restore
 		}
 		// Note: we don't restore for "P" because we use it like
 		// <leader>p (we paste over and keep what we had)
@@ -1872,14 +1887,14 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 				m.SetCursorColumn(0)
 			}
 
-			copyPaste := m.Paste()
+			copyOfPaste := m.Paste()
 			m.Yank(paste)
 			key.Runes[0] = 'p' // In visual line it should always use forward p
 			// This is bcz we are pasting on a blank line
 			m.handleNormalModeKeys(key)
 
 			if motion == "p" {
-				m.Yank(copyPaste) // Restore
+				m.Yank(copyOfPaste) // Restore
 			}
 			// Note: we don't restore for "P" because we use it like
 			// <leader>p (we paste over and keep what we had)
@@ -1993,4 +2008,33 @@ func (m *Model) Count() int {
 		sum += len(line)
 	}
 	return sum + len(m.lines) - 1
+}
+
+func (m *Model) String() string {
+	var builder strings.Builder
+	for _, line := range m.lines {
+		builder.WriteString(string(line))
+		builder.WriteByte('\n')
+	}
+	message := builder.String()
+	message = message[:len(message)-1] // strip last \n
+	return message
+}
+
+func (m *Model) Reset() {
+	m.lines = [][]rune{[]rune("")}
+	m.undoStack = []State{{[][]rune{[]rune("")}, 0, 0}}
+	m.redoStack = []State{}
+	m.cursorLine = 0
+	m.cursorColumn = 0
+	m.goalColumn = InvalidGoal
+	m.count = NoCount
+	m.pending = NullChar
+	m.gmod = false
+	m.fchar = NullChar
+	m.fmod = NullChar
+	m.tlast = false
+	m.imod = false
+	m.amod = false
+	m.offset = 0
 }

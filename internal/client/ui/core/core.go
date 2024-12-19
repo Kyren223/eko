@@ -288,9 +288,12 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	switch m.focus {
 	case FocusNetworkList:
 		m.networkList, cmd = m.networkList.Update(msg)
-		m.frequencyList.Set(m.networkList.Index())
+		m.frequencyList.SetNetworkIndex(m.networkList.Index())
+		m.chat.SetNetworkIndex(m.networkList.Index())
 	case FocusFrequencyList:
 		m.frequencyList, cmd = m.frequencyList.Update(msg)
+		index := m.frequencyList.Index()
+		m.chat.Set(nil, &index)
 	case FocusChat:
 		m.chat, cmd = m.chat.Update(msg)
 	}

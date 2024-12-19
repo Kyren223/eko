@@ -148,7 +148,7 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) Set(index int) {
+func (m *Model) SetNetworkIndex(index int) {
 	m.networkIndex = index
 }
 
@@ -161,4 +161,8 @@ func (m Model) Network() *packet.FullNetwork {
 		return nil
 	}
 	return &state.State.Networks[m.networkIndex]
+}
+
+func (m *Model) Index() int {
+	return  m.index
 }
