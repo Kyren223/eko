@@ -3,6 +3,7 @@ package chat
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,6 +29,19 @@ var (
 	ViFocusedBorder = ViBlurredBorder.BorderForeground(colors.Focus)
 
 	VimModeStyle = lipgloss.NewStyle().Bold(true)
+
+	NormalMemberStyle = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
+	AdminMemberStyle  = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
+	OwnerMemberStyle  = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
+
+	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray)
+
+	Margin      = 1
+	Border      = lipgloss.RoundedBorder()
+	LeftCorner  = Border.BottomLeft + Border.Bottom
+	RightCorner = Border.Bottom + Border.BottomRight
+
+	SelectedBackground = lipgloss.NewStyle().Background(colors.BackgroundHighlight)
 )
 
 const MaxCharCount = 2000
@@ -40,10 +54,15 @@ type Model struct {
 	networkIndex   int // Note this might be invalid, rely on frequencyIndex
 	receiverIndex  *int
 	frequencyIndex *int
+
+	index int
+
+	width int
 }
 
-func New() Model {
-	vi := viminput.New(90, 20)
+func New(width int) Model {
+	viWidth := width - Margin*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
+	vi := viminput.New(viWidth, ui.Height/2)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
@@ -51,6 +70,8 @@ func New() Model {
 		vi:     vi,
 		focus:  false,
 		locked: false,
+		width:  width,
+		index:  -1,
 	}
 }
 
@@ -70,7 +91,6 @@ func (m Model) View() string {
 	builder.WriteString(input)
 	builder.WriteByte('\n')
 
-	border := lipgloss.RoundedBorder()
 	style := lipgloss.NewStyle()
 	if m.locked {
 		style = focusStyle
@@ -80,9 +100,8 @@ func (m Model) View() string {
 	leftAngle := style.Render("")
 	rightAngle := style.Render("")
 
-	leftCorner := border.BottomLeft + border.Bottom
-	builder.WriteString(style.Render(leftCorner))
-	width -= lipgloss.Width(leftCorner)
+	builder.WriteString(style.Render(LeftCorner))
+	width -= lipgloss.Width(LeftCorner)
 
 	builder.WriteString(leftAngle)
 	width -= lipgloss.Width(leftAngle)
@@ -116,17 +135,16 @@ func (m Model) View() string {
 	width -= lipgloss.Width(countStr)
 	width -= lipgloss.Width(rightAngle)
 
-	rightCorner := border.Bottom + border.BottomRight
-	width -= lipgloss.Width(rightCorner)
+	width -= lipgloss.Width(RightCorner)
 
-	bottomCount := width / lipgloss.Width(border.Bottom)
-	bottom := strings.Repeat(border.Bottom, bottomCount)
+	bottomCount := width / lipgloss.Width(Border.Bottom)
+	bottom := strings.Repeat(Border.Bottom, bottomCount)
 	builder.WriteString(style.Render(bottom))
 
 	builder.WriteString(leftAngle)
 	builder.WriteString(countStr)
 	builder.WriteString(rightAngle)
-	builder.WriteString(style.Render(rightCorner))
+	builder.WriteString(style.Render(RightCorner))
 	//  NORMAL   master  󰀦 1   LSP                                                                utf-8     go  51%   67:21
 
 	messagebox := builder.String()
@@ -148,7 +166,11 @@ func (m Model) View() string {
 		initialTime := int64(0)
 		previousSender := snowflake.ID(0)
 
+		count := btree.Len()
+
 		btree.Ascend(func(message data.Message) bool {
+			count--
+
 			outsideTimeRange := message.ID.Time()-timeGap > initialTime
 			header := outsideTimeRange || previousSender != message.SenderID
 
@@ -157,7 +179,14 @@ func (m Model) View() string {
 				previousSender = message.SenderID
 			}
 
-			remains -= m.renderMessage(message, &builder, header)
+			if m.index != count {
+				remains -= m.renderMessage(message, &builder, header)
+			} else {
+				var b strings.Builder
+				remains -= m.renderMessage(message, &b, header)
+				b.String()
+			}
+
 			return true
 		})
 	}
@@ -184,7 +213,12 @@ func (m Model) View() string {
 		messages = messages[index:]
 	}
 
-	return messages + messagebox
+	result := messages + messagebox
+	result = lipgloss.NewStyle().Padding(0, Margin).
+		MaxWidth(m.width).MaxHeight(ui.Height).
+		Render(result)
+
+	return result
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -278,15 +312,53 @@ func (m *Model) Set(receiverIndex, frequencyIndex *int) {
 
 func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {
 	lines := 0
+
 	if header {
-		builder.WriteString(message.SenderID.String())
+		builder.WriteByte('\n')
+		lines += 1
+
+		var member *data.GetNetworkMembersRow = nil
+		network := state.State.Networks[m.networkIndex]
+		for _, networkMember := range network.Members {
+			if networkMember.User.ID == message.SenderID {
+				member = &networkMember
+			}
+		}
+		assert.NotNil(member, "user should always exist")
+
+		senderStyle := NormalMemberStyle
+		if network.OwnerID == member.User.ID {
+			senderStyle = OwnerMemberStyle
+		} else if member.IsAdmin {
+			senderStyle = AdminMemberStyle
+		}
+		builder.WriteString(senderStyle.Render(member.User.Name))
+
+		now := time.Now()
+		unixTime := time.UnixMilli(message.ID.Time()).Local()
+
+		var datetime string
+		if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay() {
+			datetime = "Today at " + unixTime.Format("3:04 PM")
+		} else if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay()-1 {
+			datetime = "Yesterday at " + unixTime.Format("3:04 PM")
+		} else {
+			datetime = unixTime.Format("02/01/2006 3:04 PM")
+		}
+
+		builder.WriteByte(' ')
+		builder.WriteString(DateTimeStyle.Render(datetime))
+
 		builder.WriteByte('\n')
 		lines += 1
 	}
 
-	builder.WriteString(message.Content)
-	builder.WriteByte('\n')
-	lines += 1
+	for _, line := range strings.Split(message.Content, "\n") {
+		builder.WriteString("  ")
+		builder.WriteString(line)
+		builder.WriteByte('\n')
+		lines += 1
+	}
 
 	return lines
 }

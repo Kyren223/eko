@@ -73,7 +73,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		frequencyCreationPopup: nil,
 		networkList:            networklist.New(),
 		frequencyList:          frequencylist.New(),
-		chat:                   chat.New(),
+		chat:                   chat.New(70),
 		focus:                  FocusNetworkList,
 	}
 	m.move(0) // Update focus

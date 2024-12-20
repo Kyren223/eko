@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	LightGray        = lipgloss.Color("#939AA3")
 	Gray             = lipgloss.Color("#585858")
 	DarkGray         = lipgloss.Color("#313244")
 	LightBlue        = lipgloss.Color("#5874FF")
@@ -23,6 +24,7 @@ var (
 	Purple           = lipgloss.Color("#BB91F0")
 	DarkPurple       = lipgloss.Color("#87123d")
 	Orange           = lipgloss.Color("#F5A670")
+	Gold             = lipgloss.Color("#FFBF00")
 
 	Background          = DarkMidnightBlue
 	BackgroundHighlight = MidnightBlue
