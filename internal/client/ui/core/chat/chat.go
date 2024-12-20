@@ -34,14 +34,15 @@ var (
 	AdminMemberStyle  = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
 	OwnerMemberStyle  = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
 
-	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray)
+	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray).SetString("")
 
-	Margin      = 1
+	Padding     = 1
 	Border      = lipgloss.RoundedBorder()
 	LeftCorner  = Border.BottomLeft + Border.Bottom
 	RightCorner = Border.Bottom + Border.BottomRight
 
-	SelectedBackground = lipgloss.NewStyle().Background(colors.BackgroundHighlight)
+	SelectedBackground = lipgloss.NewStyle().Padding(0, Padding).
+				Background(colors.BackgroundDim)
 )
 
 const MaxCharCount = 2000
@@ -61,7 +62,7 @@ type Model struct {
 }
 
 func New(width int) Model {
-	viWidth := width - Margin*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
+	viWidth := width - Padding*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
 	vi := viminput.New(viWidth, ui.Height/2)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
@@ -161,6 +162,9 @@ func (m Model) View() string {
 		// TODO: implement support for receiver id
 	}
 
+	selectedStart := -1
+	selectedMessage := ""
+
 	if btree != nil {
 		const timeGap = 7 * 60 * 1000 // 7 minutes in millis
 		initialTime := int64(0)
@@ -177,14 +181,23 @@ func (m Model) View() string {
 			if header {
 				initialTime = message.ID.Time()
 				previousSender = message.SenderID
+				builder.WriteByte('\n')
+				remains -= 1
+
 			}
 
-			if m.index != count {
-				remains -= m.renderMessage(message, &builder, header)
-			} else {
+			if m.index == count {
+				selectedStart = messagesHeight - remains
 				var b strings.Builder
+
+				DateTimeStyle = DateTimeStyle.Background(SelectedBackground.GetBackground())
 				remains -= m.renderMessage(message, &b, header)
-				b.String()
+				DateTimeStyle = DateTimeStyle.UnsetBackground()
+
+				selectedMessage = b.String()
+				builder.WriteString(b.String())
+			} else {
+				remains -= m.renderMessage(message, &builder, header)
 			}
 
 			return true
@@ -196,6 +209,9 @@ func (m Model) View() string {
 	if actualMessagesHeight < messagesHeight {
 		diff := messagesHeight - actualMessagesHeight
 		messages = strings.Repeat("\n", diff) + messages
+		if selectedStart != -1 {
+			selectedStart += diff
+		}
 	} else if actualMessagesHeight > messagesHeight {
 		diff := actualMessagesHeight - messagesHeight
 		newlines := 0
@@ -214,9 +230,16 @@ func (m Model) View() string {
 	}
 
 	result := messages + messagebox
-	result = lipgloss.NewStyle().Padding(0, Margin).
+	result = lipgloss.NewStyle().Padding(0, Padding).
 		MaxWidth(m.width).MaxHeight(ui.Height).
 		Render(result)
+
+	if selectedStart != -1 {
+		selectedMessage = selectedMessage[:len(selectedMessage)-1]
+		selectedMessage = SelectedBackground.Width(m.width).
+			Render(selectedMessage)
+		result = ui.PlaceOverlay(0, selectedStart, selectedMessage, result)
+	}
 
 	return result
 }
@@ -252,6 +275,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "i":
 			m.locked = true
 			m.vi.SetMode(viminput.InsertMode)
+			m.index = -1
+		case "k":
+			m.index++
+		case "j":
+			m.index = max(-1, m.index-1)
 		}
 	}
 
@@ -314,9 +342,6 @@ func (m *Model) renderMessage(message data.Message, builder *strings.Builder, he
 	lines := 0
 
 	if header {
-		builder.WriteByte('\n')
-		lines += 1
-
 		var member *data.GetNetworkMembersRow = nil
 		network := state.State.Networks[m.networkIndex]
 		for _, networkMember := range network.Members {
@@ -339,14 +364,13 @@ func (m *Model) renderMessage(message data.Message, builder *strings.Builder, he
 
 		var datetime string
 		if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay() {
-			datetime = "Today at " + unixTime.Format("3:04 PM")
+			datetime = " Today at " + unixTime.Format("3:04 PM")
 		} else if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay()-1 {
-			datetime = "Yesterday at " + unixTime.Format("3:04 PM")
+			datetime = " Yesterday at " + unixTime.Format("3:04 PM")
 		} else {
-			datetime = unixTime.Format("02/01/2006 3:04 PM")
+			datetime = unixTime.Format(" 02/01/2006 3:04 PM")
 		}
 
-		builder.WriteByte(' ')
 		builder.WriteString(DateTimeStyle.Render(datetime))
 
 		builder.WriteByte('\n')
