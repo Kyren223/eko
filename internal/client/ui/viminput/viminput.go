@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
@@ -605,6 +606,20 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 	if key.Type == tea.KeyEscape {
 		m.SetCursorColumn(m.cursorColumn - 1)
 		m.mode = NormalMode
+		return
+	}
+
+	if key.Type == tea.KeyTab || key.Type == tea.KeyShiftTab {
+		conf := config.Read()
+		var runes []rune
+		if conf.InsertModeTabToSpace {
+			runes = []rune(strings.Repeat(" ", int(conf.InsertModeSpacesPerTab)))
+		} else {
+			runes = []rune{'\t'}
+		}
+		line := m.lines[m.cursorLine]
+		m.lines[m.cursorLine] = slices.Insert(line, m.cursorColumn, runes...)
+		m.SetCursorColumn(m.cursorColumn + len(runes))
 		return
 	}
 

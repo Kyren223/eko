@@ -3,18 +3,28 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 )
 
 type Config struct {
-	PrivateKeyPath string
+	PrivateKeyPath         string `json:"private_key_path"`
+	InsertModeTabToSpace   bool   `json:"insert_mode_tab_to_space"`
+	InsertModeSpacesPerTab uint8  `json:"insert_mode_spaces_per_tab"`
 }
 
 func Default() Config {
 	return Config{
-		PrivateKeyPath: "",
+		PrivateKeyPath:         "",
+		InsertModeTabToSpace:   true,
+		InsertModeSpacesPerTab: 4,
 	}
+}
+
+func Verify(config *Config) error {
+	return nil
 }
 
 var (
@@ -45,12 +55,42 @@ func Load() error {
 		return err
 	}
 
-	err = json.Unmarshal(contents, &config)
+	var rawMap map[string]json.RawMessage
+	if err := json.Unmarshal(contents, &rawMap); err != nil {
+		return err
+	}
+
+	defaultVal := reflect.ValueOf(Default())
+	finalConfig := reflect.New(defaultVal.Type()).Elem()
+	finalConfig.Set(defaultVal)
+
+	for i := 0; i < defaultVal.NumField(); i++ {
+		field := defaultVal.Type().Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" {
+			jsonTag = field.Name
+		}
+
+		rawValue, found := rawMap[jsonTag]
+		fieldValue := finalConfig.Field(i)
+		if !found || !fieldValue.CanAddr() {
+			continue
+		}
+
+		err := json.Unmarshal(rawValue, fieldValue.Addr().Interface())
+		if err != nil {
+			return fmt.Errorf("error unmarshaling field %s: %w", field.Name, err)
+		}
+	}
+
+	config = finalConfig.Interface().(Config)
+
+	err = Verify(&config)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return write()
 }
 
 func write() error {
