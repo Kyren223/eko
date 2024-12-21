@@ -331,6 +331,7 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet.DeleteFrequency) packet.Payload {
 	queries := data.New(db)
 
+	// Existence
 	frequency, err := queries.GetFrequencyById(ctx, request.Frequency)
 	if err == sql.ErrNoRows {
 		return &packet.Error{Error: "frequency doesn't exist"}
@@ -340,6 +341,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &ErrInternalError
 	}
 
+	// Authentication
 	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
 	if err == sql.ErrNoRows {
 		return &packet.Error{Error: "either user or network don't exist"}
@@ -352,9 +354,19 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &ErrPermissionDenied
 	}
 
-	err = queries.DeleteFrequency(ctx, frequency.ID)
+	// At least one frequency exists
+	frequencies, err := queries.GetNetworkFrequencies(frequency.NetworkID)
 	if err != nil {
 		log.Println("database error 3:", err)
+		return &ErrInternalError
+	}
+	if len(frequencies) == 1 {
+		return &packet.Error{Error: "at least 1 frequency must exist at all times"}
+	}
+
+	err = queries.DeleteFrequency(ctx, frequency.ID)
+	if err != nil {
+		log.Println("database error 4:", err)
 		return &ErrInternalError
 	}
 
