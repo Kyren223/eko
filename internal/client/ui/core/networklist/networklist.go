@@ -41,38 +41,14 @@ var (
 */
 
 func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
-	if true {
-		bgStyle := lipgloss.NewStyle().Background(bg).Foreground(colors.Background)
-		top := bgStyle.Render("🭠🭘  🭣🭕")
-		middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
-			Background(bg).Foreground(fg).Render(icon)
-		bgStyle2 := lipgloss.NewStyle().Foreground(bg)
-		bottom := bgStyle2.Render("🭥🭓██🭞🭚")
-		combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
-		return lipgloss.NewStyle().SetString(combined)
-	}
-	if true {
-		bgStyle := lipgloss.NewStyle().Background(bg).Foreground(colors.Background)
-		top := bgStyle.Render("🭠🭘  🭣🭕")
-		middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
-			Background(bg).Foreground(fg).Render(icon)
-		bottom := bgStyle.Render("🭏🬽  🭈🭄")
-		combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
-		return lipgloss.NewStyle().SetString(combined)
-	}
-	if true {
-		return partialIconStyle.Foreground(fg).SetString("\n" + icon)
-	}
-	if true {
-		bgStyle := lipgloss.NewStyle().Foreground(bg)
-		top := bgStyle.Render("🭊🭂██🭍🬿")
-		middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
-			Background(bg).Foreground(fg).Render(icon)
-		bottom := bgStyle.Render("🭥🭓██🭞🭚")
-		combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
-		return lipgloss.NewStyle().SetString(combined)
-	}
-	return partialIconStyle.Foreground(fg).Background(bg).SetString("\n" + icon)
+	bgStyle := lipgloss.NewStyle().Background(bg).Foreground(colors.Background)
+	top := bgStyle.Render("🭠🭘  🭣🭕")
+	middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
+		Background(bg).Foreground(fg).Render(icon)
+	bgStyle2 := lipgloss.NewStyle().Foreground(bg)
+	bottom := bgStyle2.Render("🭥🭓██🭞🭚")
+	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
+	return lipgloss.NewStyle().SetString(combined)
 }
 
 type Model struct {

@@ -35,8 +35,10 @@ type Model struct {
 
 func New() Model {
 	return Model{
-		focus: false,
-		index: 0,
+		history:      []func(m *Model){},
+		networkIndex: -1,
+		index:        -1,
+		focus:        false,
 	}
 }
 
@@ -148,8 +150,38 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Model) SetNetworkIndex(index int) {
-	m.networkIndex = index
+func (m *Model) SetNetworkIndex(networkIndex int) {
+	if m.networkIndex == networkIndex {
+		return
+	}
+
+	if 0 <= m.networkIndex && m.networkIndex < len(state.State.Networks) {
+		network := state.State.Networks[m.networkIndex]
+		if 0 <= m.index && m.index < len(network.Frequencies) {
+			frequencyId := network.Frequencies[m.index].ID
+			state.State.LastFrequency[network.ID] = frequencyId
+		}
+	}
+
+	if networkIndex == -1 {
+		m.networkIndex = -1
+		m.index = -1
+		return
+	}
+
+	m.networkIndex = networkIndex
+	m.index = 0
+
+	// Try restoring last ID
+	network := state.State.Networks[m.networkIndex]
+	if id, ok := state.State.LastFrequency[network.ID]; ok {
+		for i, frequency := range network.Frequencies {
+			if frequency.ID == id {
+				m.index = i
+				break
+			}
+		}
+	}
 }
 
 func (m Model) FrequenciesLength() int {
@@ -164,5 +196,5 @@ func (m Model) Network() *packet.FullNetwork {
 }
 
 func (m *Model) Index() int {
-	return  m.index
+	return m.index
 }

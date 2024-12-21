@@ -53,9 +53,9 @@ type Model struct {
 	focus  bool
 	locked bool
 
-	networkIndex   int // Note this might be invalid, rely on frequencyIndex
-	receiverIndex  *int
-	frequencyIndex *int
+	networkIndex   int
+	receiverIndex  int
+	frequencyIndex int
 
 	index int
 
@@ -69,11 +69,14 @@ func New(width int) Model {
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
 	return Model{
-		vi:     vi,
-		focus:  false,
-		locked: false,
-		width:  width,
-		index:  -1,
+		vi:             vi,
+		focus:          false,
+		locked:         false,
+		networkIndex:   -1,
+		receiverIndex:  -1,
+		frequencyIndex: -1,
+		index:          -1,
+		width:          width,
 	}
 }
 
@@ -155,9 +158,9 @@ func (m Model) View() string {
 
 	builder.Reset()
 	var btree *btree.BTreeG[data.Message]
-	if m.frequencyIndex != nil {
+	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
-		frequencyId := network.Frequencies[*m.frequencyIndex].ID
+		frequencyId := network.Frequencies[m.frequencyIndex].ID
 		btree = state.State.Messages[frequencyId]
 	} else {
 		// TODO: implement support for receiver id
@@ -313,14 +316,14 @@ func (m *Model) sendMessage() tea.Cmd {
 	m.vi.Reset()
 
 	var receiverId *snowflake.ID = nil
-	if m.receiverIndex != nil {
+	if m.receiverIndex != -1 {
 		// TODO: do nothing for now, until trusted friends are implemented
 	}
 
 	var frequencyId *snowflake.ID = nil
-	if m.frequencyIndex != nil {
+	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
-		frequencyId = &network.Frequencies[*m.frequencyIndex].ID
+		frequencyId = &network.Frequencies[m.frequencyIndex].ID
 	}
 
 	return gateway.Send(&packet.SendMessage{
@@ -330,69 +333,59 @@ func (m *Model) sendMessage() tea.Cmd {
 	})
 }
 
-// func (m *Model) SetNetworkIndex(networkIndex int) {
-// 	if m.networkIndex != networkIndex {
-// 		m.index = -1
-// 	}
-// 	m.networkIndex = networkIndex
-// }
-
 func (m *Model) SetReceiver(receiverIndex int) {
-	if m.receiverIndex != nil && *m.receiverIndex == receiverIndex {
+	if m.receiverIndex == receiverIndex {
 		return
 	}
 	m.ResetBeforeSwitch()
-	m.receiverIndex = &receiverIndex
-	m.frequencyIndex = nil
+	m.receiverIndex = receiverIndex
+	m.frequencyIndex = -1
+	m.networkIndex = -1
 	m.RestoreAfterSwitch()
 }
 
 func (m *Model) SetFrequency(networkIndex, frequencyIndex int) {
-	if m.frequencyIndex != nil && *m.frequencyIndex == frequencyIndex {
+	if m.frequencyIndex == frequencyIndex && m.networkIndex == networkIndex {
 		return
 	}
 	m.ResetBeforeSwitch()
-	m.receiverIndex = nil
-	m.frequencyIndex = &frequencyIndex
+	m.receiverIndex = -1
+	m.frequencyIndex = frequencyIndex
 	m.networkIndex = networkIndex
 	m.RestoreAfterSwitch()
 }
 
 func (m *Model) ResetBeforeSwitch() {
-	source := m.frequencyIndex
-	if source == nil {
-		source = m.receiverIndex
-	}
-	if source == nil {
-		return
-	}
-
-	log.Println("Resetting", source)
-	state.State.IncompleteMessages[snowflake.ID(*source)] = m.vi.String()
-	m.vi.Reset()
 	m.index = -1
+	if m.frequencyIndex != -1 && m.networkIndex != -1 {
+		network := state.State.Networks[m.networkIndex]
+		frequencyId := network.Frequencies[m.frequencyIndex].ID
+		log.Println("Saving", frequencyId)
+		state.State.IncompleteMessages[frequencyId] = m.vi.String()
+		m.vi.Reset()
+	} else if m.receiverIndex != -1 {
+		// TODO: receiver
+	}
 }
 
 func (m *Model) RestoreAfterSwitch() {
-	source := m.frequencyIndex
-	if source == nil {
-		source = m.receiverIndex
-	}
-	if source == nil {
-		return
-	}
-
-	log.Println("Restoring", source)
 	msgs := state.State.IncompleteMessages
-	if val, ok := msgs[snowflake.ID(*source)]; ok {
-		m.vi.SetString(val)
+	if m.frequencyIndex != -1 && m.networkIndex != -1 {
+		network := state.State.Networks[m.networkIndex]
+		frequencyId := network.Frequencies[m.frequencyIndex].ID
+		log.Println("Restoring", frequencyId)
+		if val, ok := msgs[frequencyId]; ok {
+			m.vi.SetString(val)
+		}
+	} else if m.receiverIndex != -1 {
+		// TODO: receiver
 	}
 }
 
 func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {
 	lines := 0
 
-	if header {
+	if header && m.networkIndex != -1 {
 		var member *data.GetNetworkMembersRow = nil
 		network := state.State.Networks[m.networkIndex]
 		for _, networkMember := range network.Members {
