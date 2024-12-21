@@ -329,13 +329,28 @@ func (m *Model) sendMessage() tea.Cmd {
 	})
 }
 
-func (m *Model) SetNetworkIndex(networkIndex int) {
-	m.networkIndex = networkIndex
+// func (m *Model) SetNetworkIndex(networkIndex int) {
+// 	if m.networkIndex != networkIndex {
+// 		m.index = -1
+// 	}
+// 	m.networkIndex = networkIndex
+// }
+
+func (m *Model) SetReceiver(receiverIndex int) {
+	if m.receiverIndex == nil || *m.receiverIndex != receiverIndex {
+		m.index = -1
+	}
+	m.receiverIndex = &receiverIndex
+	m.frequencyIndex = nil
 }
 
-func (m *Model) Set(receiverIndex, frequencyIndex *int) {
-	m.receiverIndex = receiverIndex
-	m.frequencyIndex = frequencyIndex
+func (m *Model) SetFrequency(networkIndex, frequencyIndex int) {
+	if m.frequencyIndex == nil || *m.frequencyIndex != frequencyIndex {
+		m.index = -1
+	}
+	m.receiverIndex = nil
+	m.frequencyIndex = &frequencyIndex
+	m.networkIndex = networkIndex
 }
 
 func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {
