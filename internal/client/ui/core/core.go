@@ -308,19 +308,22 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 
+	var cmds []tea.Cmd
 	var cmd tea.Cmd
-	switch m.focus {
-	case FocusNetworkList:
-		m.networkList, cmd = m.networkList.Update(msg)
-		m.frequencyList.SetNetworkIndex(m.networkList.Index())
-		m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
-	case FocusFrequencyList:
-		m.frequencyList, cmd = m.frequencyList.Update(msg)
-		m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
-	case FocusChat:
-		m.chat, cmd = m.chat.Update(msg)
-	}
-	return cmd
+
+	m.networkList, cmd = m.networkList.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.frequencyList.SetNetworkIndex(m.networkList.Index())
+	m.frequencyList, cmd = m.frequencyList.Update(msg)
+	cmds = append(cmds, cmd)
+
+	cmd = m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
+	cmds = append(cmds, cmd)
+	m.chat, cmd = m.chat.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) updateLoadScreenContent() {

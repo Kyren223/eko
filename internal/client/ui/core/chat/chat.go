@@ -344,15 +344,15 @@ func (m *Model) SetReceiver(receiverIndex int) {
 	m.RestoreAfterSwitch()
 }
 
-func (m *Model) SetFrequency(networkIndex, frequencyIndex int) {
+func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 	if m.frequencyIndex == frequencyIndex && m.networkIndex == networkIndex {
-		return
+		return nil
 	}
 	m.ResetBeforeSwitch()
 	m.receiverIndex = -1
 	m.frequencyIndex = frequencyIndex
 	m.networkIndex = networkIndex
-	m.RestoreAfterSwitch()
+	return m.RestoreAfterSwitch()
 }
 
 func (m *Model) ResetBeforeSwitch() {
@@ -368,7 +368,7 @@ func (m *Model) ResetBeforeSwitch() {
 	}
 }
 
-func (m *Model) RestoreAfterSwitch() {
+func (m *Model) RestoreAfterSwitch() tea.Cmd {
 	msgs := state.State.IncompleteMessages
 	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
@@ -377,9 +377,15 @@ func (m *Model) RestoreAfterSwitch() {
 		if val, ok := msgs[frequencyId]; ok {
 			m.vi.SetString(val)
 		}
+		return gateway.Send(&packet.RequestMessages{
+			ReceiverID:  nil,
+			FrequencyID: &frequencyId,
+		})
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
+
+	return nil
 }
 
 func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {

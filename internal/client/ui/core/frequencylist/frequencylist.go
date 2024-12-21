@@ -96,6 +96,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		if !m.focus {
+			return m, nil
+		}
+
 		key := msg.String()
 		switch key {
 		case "K":
