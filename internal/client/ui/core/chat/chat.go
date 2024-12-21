@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -337,20 +338,55 @@ func (m *Model) sendMessage() tea.Cmd {
 // }
 
 func (m *Model) SetReceiver(receiverIndex int) {
-	if m.receiverIndex == nil || *m.receiverIndex != receiverIndex {
-		m.index = -1
+	if m.receiverIndex != nil && *m.receiverIndex == receiverIndex {
+		return
 	}
+	m.ResetBeforeSwitch()
 	m.receiverIndex = &receiverIndex
 	m.frequencyIndex = nil
+	m.RestoreAfterSwitch()
 }
 
 func (m *Model) SetFrequency(networkIndex, frequencyIndex int) {
-	if m.frequencyIndex == nil || *m.frequencyIndex != frequencyIndex {
-		m.index = -1
+	if m.frequencyIndex != nil && *m.frequencyIndex == frequencyIndex {
+		return
 	}
+	m.ResetBeforeSwitch()
 	m.receiverIndex = nil
 	m.frequencyIndex = &frequencyIndex
 	m.networkIndex = networkIndex
+	m.RestoreAfterSwitch()
+}
+
+func (m *Model) ResetBeforeSwitch() {
+	source := m.frequencyIndex
+	if source == nil {
+		source = m.receiverIndex
+	}
+	if source == nil {
+		return
+	}
+
+	log.Println("Resetting", source)
+	state.State.IncompleteMessages[snowflake.ID(*source)] = m.vi.String()
+	m.vi.Reset()
+	m.index = -1
+}
+
+func (m *Model) RestoreAfterSwitch() {
+	source := m.frequencyIndex
+	if source == nil {
+		source = m.receiverIndex
+	}
+	if source == nil {
+		return
+	}
+
+	log.Println("Restoring", source)
+	msgs := state.State.IncompleteMessages
+	if val, ok := msgs[snowflake.ID(*source)]; ok {
+		m.vi.SetString(val)
+	}
 }
 
 func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {

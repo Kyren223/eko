@@ -341,14 +341,6 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m *Model) SetLines(lines ...[]rune) {
-	m.lines = lines
-}
-
-func (m *Model) Lines() [][]rune {
-	return m.lines
-}
-
 func (m *Model) SetCursorColumn(col int) {
 	if len(m.lines[m.cursorLine]) == 0 {
 		m.cursorColumn = 0
@@ -2019,6 +2011,18 @@ func (m *Model) String() string {
 	message := builder.String()
 	message = message[:len(message)-1] // strip last \n
 	return message
+}
+
+func (m *Model) SetString(s string) {
+	m.lines = [][]rune{[]rune("")}
+	i := 0
+	for _, c := range s {
+		if c == '\n' {
+			m.lines = append(m.lines, []rune(""))
+		} else {
+			m.lines[i] = append(m.lines[i], c)
+		}
+	}
 }
 
 func (m *Model) Reset() {

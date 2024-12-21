@@ -8,11 +8,15 @@ import (
 )
 
 type state struct {
+	// Key is either a frequency or receiver
+	IncompleteMessages map[snowflake.ID]string
+
 	Messages map[snowflake.ID]*btree.BTreeG[data.Message]
-	Networks     []packet.FullNetwork
+	Networks []packet.FullNetwork
 }
 
 var State state = state{
-	Networks: []packet.FullNetwork{},
-	Messages: map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Messages:           map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Networks:           []packet.FullNetwork{},
+	IncompleteMessages: map[snowflake.ID]string{},
 }
