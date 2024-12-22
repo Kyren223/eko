@@ -355,7 +355,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	// At least one frequency exists
-	frequencies, err := queries.GetNetworkFrequencies(frequency.NetworkID)
+	frequencies, err := queries.GetNetworkFrequencies(ctx, frequency.NetworkID)
 	if err != nil {
 		log.Println("database error 3:", err)
 		return &ErrInternalError
