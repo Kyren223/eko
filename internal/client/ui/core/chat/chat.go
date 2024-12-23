@@ -160,14 +160,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetMode(viminput.InsertMode)
 			m.index = -1
 		case "k":
-			// TODO: if not snap to bottom and -1 then do offset - lastHeight
-			m.index++
-			maxHeight := m.offset
-			if m.offset == SnapToBottom {
-				maxHeight = m.messagesHeight
-			}
-			if m.index == maxHeight-1 {
-				m.offset = maxHeight + 1
+			if m.index == -1 && m.offset != SnapToBottom {
+				m.index = m.offset - m.messagesHeight
+			} else if m.index == -1{
+				m.index = 1 // Skip bottom blank line
+			} else {
+				m.index++
+				maxHeight := m.offset
+				if m.offset == SnapToBottom {
+					maxHeight = m.messagesHeight
+				}
+				if m.index == maxHeight-1 {
+					m.offset = maxHeight + 1
+				}
 			}
 		case "j":
 			m.index = max(-1, m.index-1)
@@ -177,7 +182,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.offset -= diff
 				}
 			}
-			if m.index <= 0 {
+			if m.index <= 1 {
 				m.offset = SnapToBottom
 			}
 		}
@@ -211,6 +216,7 @@ func (m *Model) sendMessage() tea.Cmd {
 	}
 
 	m.vi.Reset()
+	m.offset = SnapToBottom
 
 	var receiverId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
@@ -489,13 +495,13 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		bottom := height - *remaining
 		top := bottom + h
 		*remaining -= h
-		if bottom <= m.index && m.index <= top {
+		if bottom < m.index && m.index <= top {
 			selectedIndex = i
 		}
 	}
-	// buf = append(buf, '\n') // Gap between each message group
-	// *remaining--            // For gap
-	*remaining-- // For the header
+	*remaining--            // For the header
+	buf = append(buf, '\n') // Gap between each message group
+	*remaining--            // For gap
 
 	if selectedIndex != -1 {
 		if selectedIndex == len(group)-1 {
@@ -515,7 +521,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			buf = append(buf, content...)
 			buf = append(buf, '\n')
 		}
-		// buf = append(buf, '\n') // Gap between each message group
+		buf = append(buf, '\n') // Gap between each message group
 	}
 
 	return string(buf)
