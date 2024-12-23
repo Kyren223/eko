@@ -166,15 +166,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.offset == SnapToBottom {
 				maxHeight = m.messagesHeight
 			}
-			if m.index == maxHeight-2 {
-				log.Println("Index:", m.index, "Height:", m.messagesHeight)
+			if m.index == maxHeight-1 {
 				m.offset = maxHeight + 1
-				m.index--
-
-				// Max height is here
-				// Should be rendered up to here <-
-				// After add
-				// Here
 			}
 		case "j":
 			m.index = max(-1, m.index-1)
@@ -184,7 +177,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.offset -= diff
 				}
 			}
-			if m.offset == 0 {
+			if m.index <= 0 {
 				m.offset = SnapToBottom
 			}
 		}
@@ -364,7 +357,7 @@ func (m *Model) renderMessageBox() string {
 	return lipgloss.NewStyle().Padding(0, PaddingCount).Render(result)
 }
 
-func (m *Model) renderMessages(height int) string {
+func (m *Model) renderMessages(screenHeight int) string {
 	var btree *btree.BTreeG[data.Message]
 	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
@@ -375,13 +368,14 @@ func (m *Model) renderMessages(height int) string {
 	}
 
 	if btree == nil {
-		return NilBtreeError.Height(height).String()
+		return NilBtreeError.Height(screenHeight).String()
 	}
 
-	remainingHeight := m.offset
-	if m.offset == SnapToBottom {
-		remainingHeight = height
+	height := screenHeight
+	if m.offset != SnapToBottom {
+		height = m.offset
 	}
+	remainingHeight := height
 
 	renderedGroups := []string{}
 	group := []data.Message{}
@@ -454,7 +448,7 @@ func (m *Model) renderMessages(height int) string {
 			if newlines == m.offset && offsetIndex == -1 {
 				offsetIndex = i
 			}
-			if newlines == m.offset-height && upToIndex == -1 {
+			if newlines == m.offset-screenHeight+1 && upToIndex == -1 {
 				upToIndex = i
 			}
 			if offsetIndex != -1 && upToIndex != -1 {
@@ -499,11 +493,9 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			selectedIndex = i
 		}
 	}
-	buf = append(buf, '\n') // Gap between each message group
-	*remaining--            // For gap
-	*remaining--            // For the header
-
-	log.Println(selectedIndex)
+	// buf = append(buf, '\n') // Gap between each message group
+	// *remaining--            // For gap
+	*remaining-- // For the header
 
 	if selectedIndex != -1 {
 		if selectedIndex == len(group)-1 {
@@ -520,14 +512,10 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		// Redraw rest
 		for i := selectedIndex - 1; i >= 0; i-- {
 			content := messageStyle.Render(group[i].Content)
-
 			buf = append(buf, content...)
 			buf = append(buf, '\n')
-
-			heights[i] = lipgloss.Height(content)
-			checkpoints[i] = len(buf)
 		}
-		buf = append(buf, '\n') // Gap between each message group
+		// buf = append(buf, '\n') // Gap between each message group
 	}
 
 	return string(buf)
