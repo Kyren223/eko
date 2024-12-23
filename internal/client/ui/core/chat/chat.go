@@ -375,7 +375,25 @@ func (m *Model) renderMessages(height int) string {
 		builder.WriteString(renderedGroups[i])
 	}
 
-	return builder.String()
+	result := builder.String()
+
+	// Truncate any excess and show only the bottom
+	newlines := 0
+	index := -1
+	for i := len(result) - 1; i >= 0; i-- {
+		if result[i] == '\n' {
+			newlines++
+		}
+		if newlines == height {
+			index = i
+			break
+		}
+	}
+	if index != -1 {
+		return result[index+1:]
+	}
+
+	return result
 }
 
 func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height int) string {
