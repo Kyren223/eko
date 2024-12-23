@@ -53,6 +53,8 @@ const (
 	MaxViewableMessages = 200
 
 	TimeGap = 7 * 60 * 1000 // 7 minutes in millis
+
+	SnapToBottom = -1
 )
 
 type Model struct {
@@ -64,9 +66,12 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	snapToBottom bool
-	offset       int
-	index        int
+	offset int
+	index  int
+
+	messagesHeight int
+	messagesCache  *string
+	prerender      string
 
 	width int
 }
@@ -84,9 +89,11 @@ func New(width int) Model {
 		networkIndex:   -1,
 		receiverIndex:  -1,
 		frequencyIndex: -1,
-		snapToBottom:   true,
-		offset:         -1,
+		offset:         SnapToBottom,
 		index:          -1,
+		messagesHeight: 0,
+		messagesCache:  nil,
+		prerender:      "",
 		width:          width,
 	}
 }
@@ -95,18 +102,30 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) View() string {
+func (m *Model) Prerender() {
 	messagebox := m.renderMessageBox()
 	messagesHeight := ui.Height - lipgloss.Height(messagebox)
 
+	// if m.messagesCache == nil || messagesHeight != m.messagesHeight {
+	// 	// Re-render
+	// }
 	messages := m.renderMessages(messagesHeight)
+	m.messagesCache = &messages
+	m.messagesHeight = messagesHeight
 
-	result := messages + messagebox
-	return result
+	m.prerender = *m.messagesCache + messagebox
+}
+
+func (m Model) View() string {
+	return m.prerender
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	// TODO: properly invalidate cache
+	m.messagesCache = nil
+
 	if !m.focus {
+		m.Prerender()
 		return m, nil
 	}
 
@@ -115,17 +134,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			InNormal := m.vi.Mode() == viminput.NormalMode
 			if key.String() == "q" && InNormal {
 				m.locked = false
+				m.Prerender()
 				return m, nil
 			}
 
 			if key.Type == tea.KeyEnter {
 				cmd := m.sendMessage()
+				m.Prerender()
 				return m, cmd
 			}
 		}
 
 		var cmd tea.Cmd
 		m.vi, cmd = m.vi.Update(msg)
+		m.Prerender()
 		return m, cmd
 	}
 
@@ -138,12 +160,37 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetMode(viminput.InsertMode)
 			m.index = -1
 		case "k":
+			// TODO: if not snap to bottom and -1 then do offset - lastHeight
 			m.index++
+			maxHeight := m.offset
+			if m.offset == SnapToBottom {
+				maxHeight = m.messagesHeight
+			}
+			if m.index == maxHeight-2 {
+				log.Println("Index:", m.index, "Height:", m.messagesHeight)
+				m.offset = maxHeight + 1
+				m.index--
+
+				// Max height is here
+				// Should be rendered up to here <-
+				// After add
+				// Here
+			}
 		case "j":
 			m.index = max(-1, m.index-1)
+			if m.offset != SnapToBottom {
+				diff := m.offset - m.messagesHeight - m.index
+				if diff > 0 {
+					m.offset -= diff
+				}
+			}
+			if m.offset == 0 {
+				m.offset = SnapToBottom
+			}
 		}
 	}
 
+	m.Prerender()
 	return m, nil
 }
 
@@ -331,37 +378,39 @@ func (m *Model) renderMessages(height int) string {
 		return NilBtreeError.Height(height).String()
 	}
 
-	remainingHeight := height
+	remainingHeight := m.offset
+	if m.offset == SnapToBottom {
+		remainingHeight = height
+	}
+
 	renderedGroups := []string{}
 	group := []data.Message{}
 
-	if m.snapToBottom {
-		btree.Descend(func(message data.Message) bool {
-			if len(group) == 0 {
-				group = append(group, message)
-				return true
-			}
-
-			lastMsg := group[0]
-			sameSender := lastMsg.SenderID == message.SenderID
-			withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
-			if sameSender && withinTime && len(group) < MaxViewableMessages {
-				group = append(group, message)
-				return true
-			}
-
-			renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
-			group = []data.Message{}
-			renderedGroups = append(renderedGroups, renderedGroup)
-
-			return remainingHeight > 0
-		})
-
-		// We ran out of messages, so let's render the last group
-		if remainingHeight > 0 && len(group) != 0 {
-			renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
-			renderedGroups = append(renderedGroups, renderedGroup)
+	btree.Descend(func(message data.Message) bool {
+		if len(group) == 0 {
+			group = append(group, message)
+			return true
 		}
+
+		lastMsg := group[0]
+		sameSender := lastMsg.SenderID == message.SenderID
+		withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
+		if sameSender && withinTime && len(group) < MaxViewableMessages {
+			group = append(group, message)
+			return true
+		}
+
+		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
+		group = []data.Message{}
+		renderedGroups = append(renderedGroups, renderedGroup)
+
+		return remainingHeight > 0
+	})
+
+	// We ran out of messages, so let's render the last group
+	if remainingHeight > 0 && len(group) != 0 {
+		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
+		renderedGroups = append(renderedGroups, renderedGroup)
 	}
 
 	var builder strings.Builder
@@ -377,20 +426,44 @@ func (m *Model) renderMessages(height int) string {
 
 	result := builder.String()
 
-	// Truncate any excess and show only the bottom
-	newlines := 0
-	index := -1
-	for i := len(result) - 1; i >= 0; i-- {
-		if result[i] == '\n' {
-			newlines++
+	if m.offset == SnapToBottom {
+		// Truncate any excess and show only the bottom
+		newlines := 0
+		index := -1
+		for i := len(result) - 1; i >= 0; i-- {
+			if result[i] == '\n' {
+				newlines++
+			}
+			if newlines == height {
+				index = i
+				break
+			}
 		}
-		if newlines == height {
-			index = i
-			break
+		if index != -1 {
+			return result[index+1:]
 		}
-	}
-	if index != -1 {
-		return result[index+1:]
+	} else {
+		// Show from the offset up to offset+height
+		newlines := 0
+		offsetIndex := -1
+		upToIndex := -1
+		for i := len(result) - 1; i >= 0; i-- {
+			if result[i] == '\n' {
+				newlines++
+			}
+			if newlines == m.offset && offsetIndex == -1 {
+				offsetIndex = i
+			}
+			if newlines == m.offset-height && upToIndex == -1 {
+				upToIndex = i
+			}
+			if offsetIndex != -1 && upToIndex != -1 {
+				break
+			}
+		}
+		if offsetIndex != -1 && upToIndex != -1 {
+			return result[offsetIndex+1 : upToIndex+1]
+		}
 	}
 
 	return result
