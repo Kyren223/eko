@@ -43,9 +43,10 @@ var (
 	LeftCorner   = Border.BottomLeft + Border.Bottom
 	RightCorner  = Border.Bottom + Border.BottomRight
 
-	NilBtreeError = lipgloss.NewStyle().
-			Foreground(colors.Red).Padding(0, PaddingCount).
-			SetString("Error loading messages!")
+	NoMessages = lipgloss.NewStyle().
+			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
+			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
+			SetString("This frequency has no messages, start transmiting!")
 )
 
 const (
@@ -162,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "k":
 			if m.index == -1 && m.offset != SnapToBottom {
 				m.index = m.offset - m.messagesHeight
-			} else if m.index == -1{
+			} else if m.index == -1 {
 				m.index = 1 // Skip bottom blank line
 			} else {
 				m.index++
@@ -374,7 +375,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 	}
 
 	if btree == nil {
-		return NilBtreeError.Height(screenHeight).String()
+		return NoMessages.Width(m.width).Height(screenHeight-1).String() + "\n"
 	}
 
 	height := screenHeight
