@@ -37,16 +37,23 @@ var (
 
 	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray).SetString("")
 
-	Padding     = 1
-	Border      = lipgloss.RoundedBorder()
-	LeftCorner  = Border.BottomLeft + Border.Bottom
-	RightCorner = Border.Bottom + Border.BottomRight
+	PaddingCount = 1
+	Padding      = strings.Repeat(" ", PaddingCount)
+	Border       = lipgloss.RoundedBorder()
+	LeftCorner   = Border.BottomLeft + Border.Bottom
+	RightCorner  = Border.Bottom + Border.BottomRight
 
-	SelectedBackground = lipgloss.NewStyle().Padding(0, Padding).
-				Background(colors.BackgroundDim)
+	NilBtreeError = lipgloss.NewStyle().
+			Foreground(colors.Red).Padding(0, PaddingCount).
+			SetString("Error loading messages!")
 )
 
-const MaxCharCount = 2000
+const (
+	MaxCharCount        = 2000
+	MaxViewableMessages = 200
+
+	TimeGap = 7 * 60 * 1000 // 7 minutes in millis
+)
 
 type Model struct {
 	vi     viminput.Model
@@ -57,13 +64,15 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	index int
+	snapToBottom bool
+	offset       int
+	index        int
 
 	width int
 }
 
 func New(width int) Model {
-	viWidth := width - Padding*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
+	viWidth := width - PaddingCount*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
 	vi := viminput.New(viWidth, ui.Height/2)
 	vi.Placeholder = "Send a message..."
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
@@ -75,6 +84,8 @@ func New(width int) Model {
 		networkIndex:   -1,
 		receiverIndex:  -1,
 		frequencyIndex: -1,
+		snapToBottom:   true,
+		offset:         -1,
 		index:          -1,
 		width:          width,
 	}
@@ -85,166 +96,12 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	var builder strings.Builder
+	messagebox := m.renderMessageBox()
+	messagesHeight := ui.Height - lipgloss.Height(messagebox)
 
-	input := m.vi.View()
-	if m.locked {
-		input = ViFocusedBorder.Render(input)
-	} else {
-		input = ViBlurredBorder.Render(input)
-	}
-	builder.WriteString(input)
-	builder.WriteByte('\n')
+	messages := m.renderMessages(messagesHeight)
 
-	style := lipgloss.NewStyle()
-	if m.locked {
-		style = focusStyle
-	}
-	width := lipgloss.Width(input)
-
-	leftAngle := style.Render("")
-	rightAngle := style.Render("")
-
-	builder.WriteString(style.Render(LeftCorner))
-	width -= lipgloss.Width(LeftCorner)
-
-	builder.WriteString(leftAngle)
-	width -= lipgloss.Width(leftAngle)
-	mode := VimModeStyle.Foreground(colors.Gray).Render("  NONE ")
-	if m.locked {
-		switch m.vi.Mode() {
-		case viminput.InsertMode:
-			mode = VimModeStyle.Foreground(colors.Green).Render("  INSERT ")
-		case viminput.NormalMode:
-			mode = VimModeStyle.Foreground(colors.Orange).Render("  NORMAL ")
-		case viminput.OpendingMode:
-			mode = VimModeStyle.Foreground(colors.Red).Render("  O-PENDING ")
-		case viminput.VisualMode:
-			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  VISUAL ")
-		case viminput.VisualLineMode:
-			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  V-LINE ")
-		}
-	}
-	builder.WriteString(mode)
-	width -= lipgloss.Width(mode)
-	builder.WriteString(rightAngle)
-	width -= lipgloss.Width(rightAngle)
-
-	width -= lipgloss.Width(leftAngle)
-	count := m.vi.Count()
-	countStr := " " + strconv.Itoa(count)
-	if count > MaxCharCount {
-		countStr = lipgloss.NewStyle().Foreground(colors.Red).Render(countStr)
-	}
-	countStr += " / " + strconv.Itoa(MaxCharCount) + " "
-	width -= lipgloss.Width(countStr)
-	width -= lipgloss.Width(rightAngle)
-
-	width -= lipgloss.Width(RightCorner)
-
-	bottomCount := width / lipgloss.Width(Border.Bottom)
-	bottom := strings.Repeat(Border.Bottom, bottomCount)
-	builder.WriteString(style.Render(bottom))
-
-	builder.WriteString(leftAngle)
-	builder.WriteString(countStr)
-	builder.WriteString(rightAngle)
-	builder.WriteString(style.Render(RightCorner))
-	//  NORMAL   master  󰀦 1   LSP                                                                utf-8     go  51%   67:21
-
-	messagebox := builder.String()
-	messagesHeight := ui.Height - lipgloss.Height(messagebox) + 1
-	remains := messagesHeight
-
-	builder.Reset()
-	var btree *btree.BTreeG[data.Message]
-	if m.frequencyIndex != -1 && m.networkIndex != -1 {
-		network := state.State.Networks[m.networkIndex]
-		frequencyId := network.Frequencies[m.frequencyIndex].ID
-		btree = state.State.Messages[frequencyId]
-	} else {
-		// TODO: implement support for receiver id
-	}
-
-	selectedStart := -1
-	selectedMessage := ""
-
-	if btree != nil {
-		const timeGap = 7 * 60 * 1000 // 7 minutes in millis
-		initialTime := int64(0)
-		previousSender := snowflake.ID(0)
-
-		count := btree.Len()
-
-		btree.Ascend(func(message data.Message) bool {
-			count--
-
-			outsideTimeRange := message.ID.Time()-timeGap > initialTime
-			header := outsideTimeRange || previousSender != message.SenderID
-
-			if header {
-				initialTime = message.ID.Time()
-				previousSender = message.SenderID
-				builder.WriteByte('\n')
-				remains -= 1
-
-			}
-
-			if m.index == count {
-				selectedStart = messagesHeight - remains
-				var b strings.Builder
-
-				DateTimeStyle = DateTimeStyle.Background(SelectedBackground.GetBackground())
-				remains -= m.renderMessage(message, &b, header)
-				DateTimeStyle = DateTimeStyle.UnsetBackground()
-
-				selectedMessage = b.String()
-				builder.WriteString(b.String())
-			} else {
-				remains -= m.renderMessage(message, &builder, header)
-			}
-
-			return true
-		})
-	}
-
-	messages := builder.String()
-	actualMessagesHeight := lipgloss.Height(messages)
-	if actualMessagesHeight < messagesHeight {
-		diff := messagesHeight - actualMessagesHeight
-		messages = strings.Repeat("\n", diff) + messages
-		if selectedStart != -1 {
-			selectedStart += diff
-		}
-	} else if actualMessagesHeight > messagesHeight {
-		diff := actualMessagesHeight - messagesHeight
-		newlines := 0
-		index := -1
-		for i, c := range messages {
-			if newlines == diff {
-				index = i
-				break
-			}
-			if c == '\n' {
-				newlines++
-			}
-		}
-		assert.Assert(index != -1, "must always have enough newlines if it's greater")
-		messages = messages[index:]
-	}
-
-	result := messages + messagebox
-	result = lipgloss.NewStyle().Padding(0, Padding).
-		MaxWidth(m.width).MaxHeight(ui.Height).
-		Render(result)
-
-	if selectedStart != -1 {
-		selectedMessage = selectedMessage[:len(selectedMessage)-1]
-		selectedMessage = SelectedBackground.Width(m.width).
-			Render(selectedMessage)
-		result = ui.PlaceOverlay(0, selectedStart, selectedMessage, result)
-	}
-
+	result := messages + "\n" + messagebox
 	return result
 }
 
@@ -388,9 +245,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 	return nil
 }
 
-func (m *Model) renderMessage(message data.Message, builder *strings.Builder, header bool) int {
-	lines := 0
-
+func (m *Model) renderMessage(message data.Message, width int, header bool, selected bool) string {
+	metadata := ""
 	if header && m.networkIndex != -1 {
 		var member *data.GetNetworkMembersRow = nil
 		network := state.State.Networks[m.networkIndex]
@@ -407,7 +263,6 @@ func (m *Model) renderMessage(message data.Message, builder *strings.Builder, he
 		} else if member.IsAdmin {
 			senderStyle = AdminMemberStyle
 		}
-		builder.WriteString(senderStyle.Render(member.User.Name))
 
 		now := time.Now()
 		unixTime := time.UnixMilli(message.ID.Time()).Local()
@@ -421,18 +276,283 @@ func (m *Model) renderMessage(message data.Message, builder *strings.Builder, he
 			datetime = unixTime.Format(" 02/01/2006 3:04 PM")
 		}
 
-		builder.WriteString(DateTimeStyle.Render(datetime))
+		dateTimeStyle := DateTimeStyle
+		if selected {
+			dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
+			senderStyle = senderStyle.Background(colors.BackgroundDim)
+		}
 
-		builder.WriteByte('\n')
-		lines += 1
+		sender := senderStyle.Render(member.User.Name)
+		sentDatetime := dateTimeStyle.Render(datetime)
+		metadata = Padding + sender + " " + sentDatetime + Padding + "\n"
 	}
 
-	for _, line := range strings.Split(message.Content, "\n") {
-		builder.WriteString("  ")
-		builder.WriteString(line)
-		builder.WriteByte('\n')
-		lines += 1
+	messageStyle := lipgloss.NewStyle().Width(width).
+		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+	if selected {
+		messageStyle = messageStyle.Background(colors.BackgroundDim)
+	}
+	content := messageStyle.Render(message.Content)
+
+	return metadata + content
+}
+
+func (m *Model) renderMessageBox() string {
+	var builder strings.Builder
+
+	input := m.vi.View()
+	if m.locked {
+		input = ViFocusedBorder.Render(input)
+	} else {
+		input = ViBlurredBorder.Render(input)
+	}
+	builder.WriteString(input)
+	builder.WriteByte('\n')
+
+	style := lipgloss.NewStyle()
+	if m.locked {
+		style = focusStyle
+	}
+	width := lipgloss.Width(input)
+
+	leftAngle := style.Render("")
+	rightAngle := style.Render("")
+
+	builder.WriteString(style.Render(LeftCorner))
+	width -= lipgloss.Width(LeftCorner)
+
+	builder.WriteString(leftAngle)
+	width -= lipgloss.Width(leftAngle)
+	mode := VimModeStyle.Foreground(colors.Gray).Render("  NONE ")
+	if m.locked {
+		switch m.vi.Mode() {
+		case viminput.InsertMode:
+			mode = VimModeStyle.Foreground(colors.Green).Render("  INSERT ")
+		case viminput.NormalMode:
+			mode = VimModeStyle.Foreground(colors.Orange).Render("  NORMAL ")
+		case viminput.OpendingMode:
+			mode = VimModeStyle.Foreground(colors.Red).Render("  O-PENDING ")
+		case viminput.VisualMode:
+			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  VISUAL ")
+		case viminput.VisualLineMode:
+			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  V-LINE ")
+		}
+	}
+	builder.WriteString(mode)
+	width -= lipgloss.Width(mode)
+	builder.WriteString(rightAngle)
+	width -= lipgloss.Width(rightAngle)
+
+	width -= lipgloss.Width(leftAngle)
+	count := m.vi.Count()
+	countStr := " " + strconv.Itoa(count)
+	if count > MaxCharCount {
+		countStr = lipgloss.NewStyle().Foreground(colors.Red).Render(countStr)
+	}
+	countStr += " / " + strconv.Itoa(MaxCharCount) + " "
+	width -= lipgloss.Width(countStr)
+	width -= lipgloss.Width(rightAngle)
+
+	width -= lipgloss.Width(RightCorner)
+
+	bottomCount := width / lipgloss.Width(Border.Bottom)
+	bottom := strings.Repeat(Border.Bottom, bottomCount)
+	builder.WriteString(style.Render(bottom))
+
+	builder.WriteString(leftAngle)
+	builder.WriteString(countStr)
+	builder.WriteString(rightAngle)
+	builder.WriteString(style.Render(RightCorner))
+
+	result := builder.String()
+
+	return lipgloss.NewStyle().Padding(0, PaddingCount).Render(result)
+}
+
+func (m *Model) renderMessages(height int) string {
+	var btree *btree.BTreeG[data.Message]
+	if m.frequencyIndex != -1 && m.networkIndex != -1 {
+		network := state.State.Networks[m.networkIndex]
+		frequencyId := network.Frequencies[m.frequencyIndex].ID
+		btree = state.State.Messages[frequencyId]
+	} else {
+		// TODO: implement support for receiver id
 	}
 
-	return lines
+	if btree == nil {
+		return NilBtreeError.Height(height).String()
+	}
+
+	remainingHeight := height
+	renderedGroups := []string{}
+	group := []data.Message{}
+
+	if m.snapToBottom {
+		btree.Descend(func(message data.Message) bool {
+			if len(group) == 0 {
+				group = append(group, message)
+				return true
+			}
+
+			lastMsg := group[0]
+			sameSender := lastMsg.SenderID == message.SenderID
+			withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
+			log.Println(sameSender, withinTime)
+			if sameSender && withinTime && len(group) < MaxViewableMessages {
+				group = append(group, message)
+				return true
+			}
+
+			renderedGroup := m.renderMessageGroup(group)
+			renderedGroups = append(renderedGroups, renderedGroup)
+			remainingHeight -= lipgloss.Height(renderedGroup)
+
+			return remainingHeight > 0
+		})
+
+		// We ran out of messages, so let's render the last group
+		if remainingHeight > 0 {
+			renderedGroup := m.renderMessageGroup(group)
+			renderedGroups = append(renderedGroups, renderedGroup)
+		}
+	}
+
+	// selectedStart := -1
+	// selectedMessage := ""
+	// _ = selectedMessage
+
+	// const timeGap = 7 * 60 * 1000 // 7 minutes in millis
+	// initialTime := int64(0)
+	// previousSender := snowflake.ID(0)
+	//
+	// count := btree.Len()
+
+	// btree.Ascend(func(message data.Message) bool {
+	// 	count--
+	//
+	// 	outsideTimeRange := message.ID.Time()-timeGap > initialTime
+	// 	header := outsideTimeRange || previousSender != message.SenderID
+	//
+	// 	if header {
+	// 		initialTime = message.ID.Time()
+	// 		previousSender = message.SenderID
+	// 		builder.WriteByte('\n')
+	// 		remains -= 1
+	//
+	// 	}
+	//
+	// 	if m.index == count {
+	// 		selectedStart = height - remains
+	// 		var b strings.Builder
+	//
+	// 		DateTimeStyle = DateTimeStyle.Background(SelectedBackground.GetBackground())
+	// 		remains -= m.renderMessage(message, &b, header)
+	// 		DateTimeStyle = DateTimeStyle.UnsetBackground()
+	//
+	// 		selectedMessage = b.String()
+	// 		builder.WriteString(b.String())
+	// 	} else {
+	// 		remains -= m.renderMessage(message, &builder, header)
+	// 	}
+	//
+	// 	return true
+	// })
+	//
+	// messages := builder.String()
+	// actualMessagesHeight := lipgloss.Height(messages)
+	// if actualMessagesHeight < height {
+	// 	diff := height - actualMessagesHeight
+	// 	messages = strings.Repeat("\n", diff) + messages
+	// 	if selectedStart != -1 {
+	// 		selectedStart += diff
+	// 	}
+	// } else if actualMessagesHeight > height {
+	// 	diff := actualMessagesHeight - height
+	// 	newlines := 0
+	// 	index := -1
+	// 	for i, c := range messages {
+	// 		if newlines == diff {
+	// 			index = i
+	// 			break
+	// 		}
+	// 		if c == '\n' {
+	// 			newlines++
+	// 		}
+	// 	}
+	// 	assert.Assert(index != -1, "must always have enough newlines if it's greater")
+	// 	messages = messages[index:]
+	// }
+
+	var builder strings.Builder
+	for i := len(renderedGroups) - 1; i >= 0; i-- {
+		builder.WriteString(renderedGroups[i])
+		builder.WriteByte('\n') // Gap between each group
+	}
+
+	return builder.String()
+}
+
+func (m *Model) renderMessageGroup(group []data.Message) string {
+	assert.Assert(len(group) != 0, "cannot render a group with length 0")
+
+	var builder strings.Builder
+	firstMsg := group[len(group)-1]
+
+	// Render the header of the first group
+	builder.WriteString(Padding)
+	if m.networkIndex != -1 {
+		var member *data.GetNetworkMembersRow = nil
+		network := state.State.Networks[m.networkIndex]
+		for _, networkMember := range network.Members {
+			if networkMember.User.ID == firstMsg.SenderID {
+				member = &networkMember
+			}
+		}
+		assert.NotNil(member, "sender should always exist")
+
+		senderStyle := NormalMemberStyle
+		if network.OwnerID == member.User.ID {
+			senderStyle = OwnerMemberStyle
+		} else if member.IsAdmin {
+			senderStyle = AdminMemberStyle
+		}
+		sender := senderStyle.Render(member.User.Name)
+		builder.WriteString(sender)
+	} else if m.receiverIndex != -1 {
+		// TODO: receiver
+	}
+
+	// Render header time format
+	now := time.Now()
+	unixTime := time.UnixMilli(firstMsg.ID.Time()).Local()
+	var datetime string
+	if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay() {
+		datetime = " Today at " + unixTime.Format("3:04 PM")
+	} else if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay()-1 {
+		datetime = " Yesterday at " + unixTime.Format("3:04 PM")
+	} else {
+		datetime = unixTime.Format(" 02/01/2006 3:04 PM")
+	}
+	dateTimeStyle := DateTimeStyle
+	// if selected {
+	// 	dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
+	// 	senderStyle = senderStyle.Background(colors.BackgroundDim)
+	// }
+	builder.WriteByte(' ') // Gap between sender and time format
+	builder.WriteString(dateTimeStyle.Render(datetime))
+	builder.WriteByte('\n')
+
+	// Render all messages content
+	messageStyle := lipgloss.NewStyle().Width(m.width).
+		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+	for i := len(group) - 1; i >= 0; i-- {
+		// if selected {
+		// 	messageStyle = messageStyle.Background(colors.BackgroundDim)
+		// }
+		content := messageStyle.Render(group[i].Content)
+		builder.WriteString(content)
+		builder.WriteByte('\n')
+	}
+
+	return builder.String()
 }
