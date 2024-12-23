@@ -101,7 +101,7 @@ func (m Model) View() string {
 
 	messages := m.renderMessages(messagesHeight)
 
-	result := messages + "\n" + messagebox
+	result := messages + messagebox
 	return result
 }
 
@@ -245,58 +245,6 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 	return nil
 }
 
-func (m *Model) renderMessage(message data.Message, width int, header bool, selected bool) string {
-	metadata := ""
-	if header && m.networkIndex != -1 {
-		var member *data.GetNetworkMembersRow = nil
-		network := state.State.Networks[m.networkIndex]
-		for _, networkMember := range network.Members {
-			if networkMember.User.ID == message.SenderID {
-				member = &networkMember
-			}
-		}
-		assert.NotNil(member, "user should always exist")
-
-		senderStyle := NormalMemberStyle
-		if network.OwnerID == member.User.ID {
-			senderStyle = OwnerMemberStyle
-		} else if member.IsAdmin {
-			senderStyle = AdminMemberStyle
-		}
-
-		now := time.Now()
-		unixTime := time.UnixMilli(message.ID.Time()).Local()
-
-		var datetime string
-		if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay() {
-			datetime = " Today at " + unixTime.Format("3:04 PM")
-		} else if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay()-1 {
-			datetime = " Yesterday at " + unixTime.Format("3:04 PM")
-		} else {
-			datetime = unixTime.Format(" 02/01/2006 3:04 PM")
-		}
-
-		dateTimeStyle := DateTimeStyle
-		if selected {
-			dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
-			senderStyle = senderStyle.Background(colors.BackgroundDim)
-		}
-
-		sender := senderStyle.Render(member.User.Name)
-		sentDatetime := dateTimeStyle.Render(datetime)
-		metadata = Padding + sender + " " + sentDatetime + Padding + "\n"
-	}
-
-	messageStyle := lipgloss.NewStyle().Width(width).
-		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
-	if selected {
-		messageStyle = messageStyle.Background(colors.BackgroundDim)
-	}
-	content := messageStyle.Render(message.Content)
-
-	return metadata + content
-}
-
 func (m *Model) renderMessageBox() string {
 	var builder strings.Builder
 
@@ -404,6 +352,7 @@ func (m *Model) renderMessages(height int) string {
 			}
 
 			renderedGroup := m.renderMessageGroup(group)
+			group = []data.Message{}
 			renderedGroups = append(renderedGroups, renderedGroup)
 			remainingHeight -= lipgloss.Height(renderedGroup)
 
@@ -411,79 +360,20 @@ func (m *Model) renderMessages(height int) string {
 		})
 
 		// We ran out of messages, so let's render the last group
-		if remainingHeight > 0 {
+		if remainingHeight > 0 && len(group) != 0 {
 			renderedGroup := m.renderMessageGroup(group)
 			renderedGroups = append(renderedGroups, renderedGroup)
+			remainingHeight -= lipgloss.Height(renderedGroup)
 		}
 	}
 
-	// selectedStart := -1
-	// selectedMessage := ""
-	// _ = selectedMessage
-
-	// const timeGap = 7 * 60 * 1000 // 7 minutes in millis
-	// initialTime := int64(0)
-	// previousSender := snowflake.ID(0)
-	//
-	// count := btree.Len()
-
-	// btree.Ascend(func(message data.Message) bool {
-	// 	count--
-	//
-	// 	outsideTimeRange := message.ID.Time()-timeGap > initialTime
-	// 	header := outsideTimeRange || previousSender != message.SenderID
-	//
-	// 	if header {
-	// 		initialTime = message.ID.Time()
-	// 		previousSender = message.SenderID
-	// 		builder.WriteByte('\n')
-	// 		remains -= 1
-	//
-	// 	}
-	//
-	// 	if m.index == count {
-	// 		selectedStart = height - remains
-	// 		var b strings.Builder
-	//
-	// 		DateTimeStyle = DateTimeStyle.Background(SelectedBackground.GetBackground())
-	// 		remains -= m.renderMessage(message, &b, header)
-	// 		DateTimeStyle = DateTimeStyle.UnsetBackground()
-	//
-	// 		selectedMessage = b.String()
-	// 		builder.WriteString(b.String())
-	// 	} else {
-	// 		remains -= m.renderMessage(message, &builder, header)
-	// 	}
-	//
-	// 	return true
-	// })
-	//
-	// messages := builder.String()
-	// actualMessagesHeight := lipgloss.Height(messages)
-	// if actualMessagesHeight < height {
-	// 	diff := height - actualMessagesHeight
-	// 	messages = strings.Repeat("\n", diff) + messages
-	// 	if selectedStart != -1 {
-	// 		selectedStart += diff
-	// 	}
-	// } else if actualMessagesHeight > height {
-	// 	diff := actualMessagesHeight - height
-	// 	newlines := 0
-	// 	index := -1
-	// 	for i, c := range messages {
-	// 		if newlines == diff {
-	// 			index = i
-	// 			break
-	// 		}
-	// 		if c == '\n' {
-	// 			newlines++
-	// 		}
-	// 	}
-	// 	assert.Assert(index != -1, "must always have enough newlines if it's greater")
-	// 	messages = messages[index:]
-	// }
-
 	var builder strings.Builder
+
+	// Add blank newline to fill any remaining height
+	for i := 0; i < remainingHeight; i++ {
+		builder.WriteByte('\n')
+	}
+
 	for i := len(renderedGroups) - 1; i >= 0; i-- {
 		builder.WriteString(renderedGroups[i])
 		builder.WriteByte('\n') // Gap between each group
