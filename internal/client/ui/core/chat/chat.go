@@ -345,25 +345,22 @@ func (m *Model) renderMessages(height int) string {
 			lastMsg := group[0]
 			sameSender := lastMsg.SenderID == message.SenderID
 			withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
-			log.Println(sameSender, withinTime)
 			if sameSender && withinTime && len(group) < MaxViewableMessages {
 				group = append(group, message)
 				return true
 			}
 
-			renderedGroup := m.renderMessageGroup(group)
+			renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 			group = []data.Message{}
 			renderedGroups = append(renderedGroups, renderedGroup)
-			remainingHeight -= lipgloss.Height(renderedGroup)
 
 			return remainingHeight > 0
 		})
 
 		// We ran out of messages, so let's render the last group
 		if remainingHeight > 0 && len(group) != 0 {
-			renderedGroup := m.renderMessageGroup(group)
+			renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 			renderedGroups = append(renderedGroups, renderedGroup)
-			remainingHeight -= lipgloss.Height(renderedGroup)
 		}
 	}
 
@@ -376,25 +373,84 @@ func (m *Model) renderMessages(height int) string {
 
 	for i := len(renderedGroups) - 1; i >= 0; i-- {
 		builder.WriteString(renderedGroups[i])
-		builder.WriteByte('\n') // Gap between each group
 	}
 
 	return builder.String()
 }
 
-func (m *Model) renderMessageGroup(group []data.Message) string {
+func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height int) string {
 	assert.Assert(len(group) != 0, "cannot render a group with length 0")
 
-	var builder strings.Builder
 	firstMsg := group[len(group)-1]
+	buf := m.renderHeader(firstMsg, false)
 
-	// Render the header of the first group
-	builder.WriteString(Padding)
+	heights := make([]int, len(group))
+	checkpoints := make([]int, len(group))
+
+	// Render all messages content
+	messageStyle := lipgloss.NewStyle().Width(m.width).
+		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+	for i := len(group) - 1; i >= 0; i-- {
+		content := messageStyle.Render(group[i].Content)
+		heights[i] = lipgloss.Height(content)
+		checkpoints[i] = len(buf)
+
+		buf = append(buf, content...)
+		buf = append(buf, '\n')
+	}
+
+	selectedIndex := -1
+	for i, h := range heights {
+		bottom := height - *remaining
+		top := bottom + h
+		*remaining -= h
+		if bottom <= m.index && m.index <= top {
+			selectedIndex = i
+		}
+	}
+	buf = append(buf, '\n') // Gap between each message group
+	*remaining--            // For gap
+	*remaining--            // For the header
+
+	log.Println(selectedIndex)
+
+	if selectedIndex != -1 {
+		if selectedIndex == len(group)-1 {
+			buf = m.renderHeader(group[selectedIndex], true)
+		} else {
+			buf = buf[:checkpoints[selectedIndex]] // Revert
+		}
+
+		content := group[selectedIndex].Content
+		content = messageStyle.Background(colors.BackgroundDim).Render(content)
+		buf = append(buf, content...)
+		buf = append(buf, '\n')
+
+		// Redraw rest
+		for i := selectedIndex - 1; i >= 0; i-- {
+			content := messageStyle.Render(group[i].Content)
+
+			buf = append(buf, content...)
+			buf = append(buf, '\n')
+
+			heights[i] = lipgloss.Height(content)
+			checkpoints[i] = len(buf)
+		}
+		buf = append(buf, '\n') // Gap between each message group
+	}
+
+	return string(buf)
+}
+
+func (m *Model) renderHeader(message data.Message, selected bool) []byte {
+	var buf []byte
+	buf = append(buf, Padding...)
+
 	if m.networkIndex != -1 {
 		var member *data.GetNetworkMembersRow = nil
 		network := state.State.Networks[m.networkIndex]
 		for _, networkMember := range network.Members {
-			if networkMember.User.ID == firstMsg.SenderID {
+			if networkMember.User.ID == message.SenderID {
 				member = &networkMember
 			}
 		}
@@ -406,15 +462,16 @@ func (m *Model) renderMessageGroup(group []data.Message) string {
 		} else if member.IsAdmin {
 			senderStyle = AdminMemberStyle
 		}
+
 		sender := senderStyle.Render(member.User.Name)
-		builder.WriteString(sender)
+		buf = append(buf, sender...)
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
 
 	// Render header time format
 	now := time.Now()
-	unixTime := time.UnixMilli(firstMsg.ID.Time()).Local()
+	unixTime := time.UnixMilli(message.ID.Time()).Local()
 	var datetime string
 	if unixTime.Year() == now.Year() && unixTime.YearDay() == now.YearDay() {
 		datetime = " Today at " + unixTime.Format("3:04 PM")
@@ -423,26 +480,19 @@ func (m *Model) renderMessageGroup(group []data.Message) string {
 	} else {
 		datetime = unixTime.Format(" 02/01/2006 3:04 PM")
 	}
-	dateTimeStyle := DateTimeStyle
-	// if selected {
-	// 	dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
-	// 	senderStyle = senderStyle.Background(colors.BackgroundDim)
-	// }
-	builder.WriteByte(' ') // Gap between sender and time format
-	builder.WriteString(dateTimeStyle.Render(datetime))
-	builder.WriteByte('\n')
 
-	// Render all messages content
-	messageStyle := lipgloss.NewStyle().Width(m.width).
-		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
-	for i := len(group) - 1; i >= 0; i-- {
-		// if selected {
-		// 	messageStyle = messageStyle.Background(colors.BackgroundDim)
-		// }
-		content := messageStyle.Render(group[i].Content)
-		builder.WriteString(content)
-		builder.WriteByte('\n')
+	dateTimeStyle := DateTimeStyle
+	if selected {
+		dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
 	}
 
-	return builder.String()
+	buf = append(buf, dateTimeStyle.Render(datetime)...)
+
+	if selected {
+		style := lipgloss.NewStyle().Background(colors.BackgroundDim).Width(m.width).Inline(true)
+		buf = []byte(style.Render(string(buf)))
+	}
+
+	buf = append(buf, '\n')
+	return buf
 }
