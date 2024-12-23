@@ -634,7 +634,7 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 
 			m.SetCursorLine(m.cursorLine - 1)
 			m.SetCursorColumn(cursorColumn)
-		} else if len(line) != 0 {
+		} else if len(line) != 0 && m.cursorColumn != 0 {
 			m.lines[m.cursorLine] = slices.Delete(line, m.cursorColumn-1, m.cursorColumn)
 			m.SetCursorColumn(m.cursorColumn - 1)
 		}
