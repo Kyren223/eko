@@ -473,18 +473,19 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		buf = append(buf, '\n')
 	}
 
+	buf = append(buf, '\n') // Gap between each message group
+	*remaining--            // For gap
+
 	selectedIndex := -1
 	for i, h := range heights {
 		bottom := height - *remaining
 		top := bottom + h
 		*remaining -= h
-		if bottom < m.index && m.index <= top {
+		if bottom <= m.index && m.index <= top {
 			selectedIndex = i
 		}
 	}
-	*remaining--            // For the header
-	buf = append(buf, '\n') // Gap between each message group
-	*remaining--            // For gap
+	*remaining-- // For the header
 
 	if selectedIndex != -1 {
 		if selectedIndex == len(group)-1 {
@@ -566,6 +567,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 }
 
 func (m *Model) Scroll(amount int) {
+	log.Println("SCROLL", m.index, amount)
 	if m.index == -1 {
 		if amount <= 0 {
 			return
@@ -588,7 +590,7 @@ func (m *Model) Scroll(amount int) {
 			maxHeight = m.messagesHeight
 		}
 		if m.index >= maxHeight-1 {
-			m.offset = m.index+2
+			m.offset = m.index + 2
 		}
 	} else {
 		// Scrolling down
