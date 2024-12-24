@@ -416,10 +416,12 @@ func (m *Model) renderMessages(screenHeight int) string {
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 		renderedGroups = append(renderedGroups, renderedGroup)
 
-		if remainingHeight > 0 && m.offset != SnapToBottom {
+		if remainingHeight > 0 {
 			m.maxMessagesHeight = height - remainingHeight
-			m.offset = min(m.offset, m.maxMessagesHeight+1)
-			m.index = min(m.index, m.offset-2)
+			if m.offset != SnapToBottom {
+				m.offset = min(m.offset, m.maxMessagesHeight+1)
+				m.index = min(m.index, m.offset-2)
+			}
 		}
 	}
 
@@ -608,6 +610,11 @@ func (m *Model) Scroll(amount int) {
 
 	if amount > 0 {
 		// Scrolling up
+		if m.offset == SnapToBottom && m.maxMessagesHeight != -1 {
+			m.index = min(m.index, m.maxMessagesHeight-1)
+			return
+		}
+
 		maxHeight := m.offset
 		if m.offset == SnapToBottom {
 			maxHeight = m.messagesHeight
