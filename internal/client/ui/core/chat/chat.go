@@ -170,6 +170,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Scroll(m.messagesHeight / 2)
 		case "ctrl+d":
 			m.Scroll(-m.messagesHeight / 2)
+		case "g":
+			// HACK: hacky way to scroll to the top
+			// Also for the first time a user scrolls there will be a visual
+			// glitch that doesn't show the top message being selected
+			m.Scroll(10000) // Large numbers can slow this!!!!
+		case "G":
+			fallthrough
+		case "enter":
+			m.offset = SnapToBottom
+			m.index = -1
 		}
 	}
 
