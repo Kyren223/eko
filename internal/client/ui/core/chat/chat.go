@@ -594,18 +594,14 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 }
 
 func (m *Model) Scroll(amount int) {
-	log.Println("SCROLL", m.index, amount)
 	if m.index == -1 {
-		if amount <= 0 {
-			return
-		}
-
 		if m.offset != SnapToBottom {
 			m.index = m.offset - m.messagesHeight
-		} else {
+			amount--
+		} else if amount > 0 {
 			m.index = 1 // Skip bottom blank line
+			amount--
 		}
-		amount--
 	}
 
 	m.index = max(-1, m.index+amount)
