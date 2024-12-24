@@ -87,7 +87,7 @@ func New(network snowflake.ID) Model {
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
 	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
-	name.Input.CharLimit = width
+	name.Input.CharLimit = packet.MaxFrequencyName
 	name.Focus()
 	name.Input.Validate = func(s string) error {
 		if strings.TrimSpace(s) == "" {
@@ -116,7 +116,7 @@ func New(network snowflake.ID) Model {
 		lastColor: lipgloss.Color("#" + color.Value()),
 		perms:     packet.PermReadWrite,
 		create:    blurredCreate,
-		network: network,
+		network:   network,
 
 		nameWidth:        nameWidth,
 		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3),

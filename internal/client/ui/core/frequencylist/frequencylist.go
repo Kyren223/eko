@@ -19,7 +19,7 @@ var (
 	nameStyle = lipgloss.NewStyle().
 			Margin(0, 0, 1).Padding(1).Width(width).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
-	margin         = 3
+	margin         = 2
 	frequencyStyle = lipgloss.NewStyle().
 			Margin(0, margin).Padding(0, 1).Width(width - (margin * 2)).
 			Align(lipgloss.Left)
@@ -67,7 +67,11 @@ func (m Model) View() string {
 		if m.index == i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
 		}
-		builder.WriteString(frequencyStyle.Render(symbol + frequency.Name))
+
+		frequencyName := lipgloss.NewStyle().
+			MaxWidth(width - (margin * 2) - 4).
+			Render(frequency.Name)
+		builder.WriteString(frequencyStyle.Render(symbol + frequencyName))
 		builder.WriteString("\n")
 	}
 
