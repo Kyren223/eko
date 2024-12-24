@@ -339,15 +339,18 @@ func (m *Model) move(direction int) {
 	focus := m.focus + direction
 	m.focus = max(0, min(FocusMax-1, focus))
 
-	m.networkList.Blur()
-	m.frequencyList.Blur()
-	m.chat.Blur()
 	switch m.focus {
 	case FocusNetworkList:
+		m.frequencyList.Blur()
+		m.chat.Blur()
 		m.networkList.Focus()
 	case FocusFrequencyList:
+		m.networkList.Blur()
+		m.chat.Blur()
 		m.frequencyList.Focus()
 	case FocusChat:
+		m.networkList.Blur()
+		m.frequencyList.Blur()
 		m.chat.Focus()
 	default:
 		assert.Never("missing switch statement field in move", "focus", m.focus)

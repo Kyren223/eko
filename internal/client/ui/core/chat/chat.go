@@ -194,6 +194,7 @@ func (m *Model) Focus() {
 
 func (m *Model) Blur() {
 	m.focus = false
+	m.index = -1
 	m.vi.Blur()
 }
 
