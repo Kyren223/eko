@@ -119,13 +119,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "j":
 			m.index = min(m.FrequenciesLength()-1, m.index+1)
 
-		case "ctrl+d":
-			if len(m.Network().Frequencies) == 1 {
+		case "x":
+			frequenciesCount := len(m.Network().Frequencies)
+			if frequenciesCount == 1 {
 				// Don't delete the last frequency!
 				return m, nil
 			}
 			// TODO: consider adding a confirmation popup
 			frequencyId := m.Network().Frequencies[m.index].ID
+			if m.index == frequenciesCount-1 {
+				m.index--
+			}
 			return m, gateway.Send(&packet.DeleteFrequency{
 				Frequency: frequencyId,
 			})

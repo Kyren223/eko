@@ -325,7 +325,11 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 		return &ErrInternalError
 	}
 
-	return request
+	return &packet.SwapFrequencies{
+		Network: request.Network,
+		Pos1:    request.Pos1,
+		Pos2:    request.Pos2,
+	}
 }
 
 func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet.DeleteFrequency) packet.Payload {
