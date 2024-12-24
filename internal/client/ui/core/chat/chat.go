@@ -70,9 +70,10 @@ type Model struct {
 	offset int
 	index  int
 
-	messagesHeight int
-	messagesCache  *string
-	prerender      string
+	messagesHeight    int
+	maxMessagesHeight int
+	messagesCache     *string
+	prerender         string
 
 	width int
 }
@@ -84,18 +85,19 @@ func New(width int) Model {
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
 	return Model{
-		vi:             vi,
-		focus:          false,
-		locked:         false,
-		networkIndex:   -1,
-		receiverIndex:  -1,
-		frequencyIndex: -1,
-		offset:         SnapToBottom,
-		index:          -1,
-		messagesHeight: 0,
-		messagesCache:  nil,
-		prerender:      "",
-		width:          width,
+		vi:                vi,
+		focus:             false,
+		locked:            false,
+		networkIndex:      -1,
+		receiverIndex:     -1,
+		frequencyIndex:    -1,
+		offset:            SnapToBottom,
+		index:             -1,
+		messagesHeight:    0,
+		maxMessagesHeight: -1,
+		messagesCache:     nil,
+		prerender:         "",
+		width:             width,
 	}
 }
 
@@ -394,6 +396,12 @@ func (m *Model) renderMessages(screenHeight int) string {
 	if remainingHeight > 0 && len(group) != 0 {
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 		renderedGroups = append(renderedGroups, renderedGroup)
+
+		if remainingHeight > 0 && m.offset != SnapToBottom {
+			m.maxMessagesHeight = height - remainingHeight
+			m.offset = min(m.offset, m.maxMessagesHeight+1)
+			m.index = min(m.index, m.offset-2)
+		}
 	}
 
 	var builder strings.Builder
@@ -591,6 +599,10 @@ func (m *Model) Scroll(amount int) {
 		}
 		if m.index >= maxHeight-1 {
 			m.offset = m.index + 2
+			if m.maxMessagesHeight != -1 && m.offset > m.maxMessagesHeight {
+				m.offset = min(m.offset, m.maxMessagesHeight+1)
+				m.index = min(m.index, m.offset-2)
+			}
 		}
 	} else {
 		// Scrolling down
