@@ -255,26 +255,34 @@ func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 }
 
 func (m *Model) ResetBeforeSwitch() {
-	m.index = -1
 	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
 		frequencyId := network.Frequencies[m.frequencyIndex].ID
 		log.Println("Saving", frequencyId)
-		state.State.IncompleteMessages[frequencyId] = m.vi.String()
+		state.State.FrequencyState[frequencyId] = state.Frequency{
+			IncompleteMessage: m.vi.String(),
+			Offset:            m.offset,
+			MaxHeight:         m.maxMessagesHeight,
+		}
 		m.vi.Reset()
+		m.offset = SnapToBottom
+		m.maxMessagesHeight = -1
+		m.index = -1
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
 }
 
 func (m *Model) RestoreAfterSwitch() tea.Cmd {
-	msgs := state.State.IncompleteMessages
+	msgs := state.State.FrequencyState
 	if m.frequencyIndex != -1 && m.networkIndex != -1 {
 		network := state.State.Networks[m.networkIndex]
 		frequencyId := network.Frequencies[m.frequencyIndex].ID
 		log.Println("Restoring", frequencyId)
 		if val, ok := msgs[frequencyId]; ok {
-			m.vi.SetString(val)
+			m.vi.SetString(val.IncompleteMessage)
+			m.offset = val.Offset
+			m.maxMessagesHeight = val.MaxHeight
 		}
 		return gateway.Send(&packet.RequestMessages{
 			ReceiverID:  nil,

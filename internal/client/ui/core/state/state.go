@@ -7,18 +7,24 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+type Frequency struct {
+	IncompleteMessage string
+	Offset            int
+	MaxHeight         int
+}
+
 type state struct {
 	// Key is either a frequency or receiver
-	IncompleteMessages map[snowflake.ID]string
-	LastFrequency      map[snowflake.ID]snowflake.ID // key is network
+	FrequencyState map[snowflake.ID]Frequency
+	LastFrequency  map[snowflake.ID]snowflake.ID // key is network
 
 	Messages map[snowflake.ID]*btree.BTreeG[data.Message]
 	Networks []packet.FullNetwork
 }
 
 var State state = state{
-	IncompleteMessages: map[snowflake.ID]string{},
-	LastFrequency:      map[snowflake.ID]snowflake.ID{},
-	Messages:           map[snowflake.ID]*btree.BTreeG[data.Message]{},
-	Networks:           []packet.FullNetwork{},
+	FrequencyState: map[snowflake.ID]Frequency{},
+	LastFrequency:  map[snowflake.ID]snowflake.ID{},
+	Messages:       map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Networks:       []packet.FullNetwork{},
 }
