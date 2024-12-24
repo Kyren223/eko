@@ -161,31 +161,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetMode(viminput.InsertMode)
 			m.index = -1
 		case "k":
-			if m.index == -1 && m.offset != SnapToBottom {
-				m.index = m.offset - m.messagesHeight
-			} else if m.index == -1 {
-				m.index = 1 // Skip bottom blank line
-			} else {
-				m.index++
-				maxHeight := m.offset
-				if m.offset == SnapToBottom {
-					maxHeight = m.messagesHeight
-				}
-				if m.index == maxHeight-1 {
-					m.offset = maxHeight + 1
-				}
-			}
+			m.Scroll(1)
 		case "j":
-			m.index = max(-1, m.index-1)
-			if m.offset != SnapToBottom {
-				diff := m.offset - m.messagesHeight - m.index
-				if diff > 0 {
-					m.offset -= diff
-				}
-			}
-			if m.index <= 1 {
-				m.offset = SnapToBottom
-			}
+			m.Scroll(-1)
+		case "ctrl+u":
+			m.Scroll(m.messagesHeight / 2)
+		case "ctrl+d":
+			m.Scroll(-m.messagesHeight / 2)
 		}
 	}
 
@@ -581,4 +563,45 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 
 	buf = append(buf, '\n')
 	return buf
+}
+
+func (m *Model) Scroll(amount int) {
+	if m.index == -1 {
+		if amount <= 0 {
+			return
+		}
+
+		if m.offset != SnapToBottom {
+			m.index = m.offset - m.messagesHeight
+		} else {
+			m.index = 1 // Skip bottom blank line
+		}
+		amount--
+	}
+
+	m.index = max(-1, m.index+amount)
+
+	if amount > 0 {
+		// Scrolling up
+		maxHeight := m.offset
+		if m.offset == SnapToBottom {
+			maxHeight = m.messagesHeight
+		}
+		if m.index >= maxHeight-1 {
+			m.offset = m.index+2
+		}
+	} else {
+		// Scrolling down
+		if m.offset != SnapToBottom {
+			diff := m.offset - m.messagesHeight - m.index
+			if diff > 0 {
+				m.offset -= diff
+			}
+		}
+	}
+
+	// If at bottom snap to it
+	if m.index <= 1 {
+		m.offset = SnapToBottom
+	}
 }
