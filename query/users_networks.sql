@@ -16,6 +16,11 @@ FROM users_networks
 JOIN users ON users.id = users_networks.user_id
 WHERE users_networks.network_id = ? AND is_member = true;
 
+-- name: GetNetworkMemberById :one
+SELECT *
+FROM users_networks
+WHERE users_networks.network_id = ? AND users_networks.user_id = ?;
+
 -- name: GetUserNetworks :many
 SELECT sqlc.embed(networks), users_networks.position FROM networks
 JOIN users_networks ON networks.id = users_networks.network_id

@@ -14,6 +14,8 @@ type Frequency struct {
 }
 
 type state struct {
+	UserID *snowflake.ID
+
 	// Key is either a frequency or receiver
 	FrequencyState map[snowflake.ID]Frequency
 	LastFrequency  map[snowflake.ID]snowflake.ID // key is network
@@ -23,6 +25,7 @@ type state struct {
 }
 
 var State state = state{
+	UserID:         nil,
 	FrequencyState: map[snowflake.ID]Frequency{},
 	LastFrequency:  map[snowflake.ID]snowflake.ID{},
 	Messages:       map[snowflake.ID]*btree.BTreeG[data.Message]{},

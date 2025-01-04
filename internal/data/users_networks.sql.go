@@ -56,6 +56,34 @@ func (q *Queries) GetNetworkBannedUsers(ctx context.Context, networkID snowflake
 	return items, nil
 }
 
+const getNetworkMemberById = `-- name: GetNetworkMemberById :one
+SELECT user_id, network_id, joined_at, is_member, is_admin, is_muted, is_banned, ban_reason, position
+FROM users_networks
+WHERE users_networks.network_id = ? AND users_networks.user_id = ?
+`
+
+type GetNetworkMemberByIdParams struct {
+	NetworkID snowflake.ID
+	UserID    snowflake.ID
+}
+
+func (q *Queries) GetNetworkMemberById(ctx context.Context, arg GetNetworkMemberByIdParams) (UserNetwork, error) {
+	row := q.db.QueryRowContext(ctx, getNetworkMemberById, arg.NetworkID, arg.UserID)
+	var i UserNetwork
+	err := row.Scan(
+		&i.UserID,
+		&i.NetworkID,
+		&i.JoinedAt,
+		&i.IsMember,
+		&i.IsAdmin,
+		&i.IsMuted,
+		&i.IsBanned,
+		&i.BanReason,
+		&i.Position,
+	)
+	return i, err
+}
+
 const getNetworkMembers = `-- name: GetNetworkMembers :many
 SELECT
   users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,

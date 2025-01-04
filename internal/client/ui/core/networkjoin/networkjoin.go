@@ -2,16 +2,19 @@ package networkjoin
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var (
@@ -69,6 +72,9 @@ func New() Model {
 	name.Input.Validate = func(s string) error {
 		if strings.TrimSpace(s) == "" {
 			return errors.New("cannot be empty")
+		}
+		if _, err := strconv.ParseInt(s, 10, 64); err != nil {
+			return err
 		}
 
 		return nil
@@ -154,10 +160,19 @@ func (m *Model) Select() tea.Cmd {
 	if m.name.Input.Err != nil {
 		return nil
 	}
+	name := m.name.Input.Value()
+	id, err := strconv.ParseInt(name, 10, 64)
+	assert.NoError(err, "input is already validated to be valid")
 
-	// TODO: change this to actual invite packet
-	request := packet.CreateNetwork{
-		Name: m.name.Input.Value(),
+	yes := true
+	request := packet.SetNetworkUser{
+		Member:    &yes,
+		Admin:     nil,
+		Muted:     nil,
+		Banned:    nil,
+		BanReason: nil,
+		Network:   snowflake.ID(id),
+		User:      *state.State.UserID,
 	}
 	return gateway.Send(&request)
 }

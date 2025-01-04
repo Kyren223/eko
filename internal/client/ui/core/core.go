@@ -46,7 +46,6 @@ const (
 type Model struct {
 	name    string
 	privKey ed25519.PrivateKey
-	id      snowflake.ID
 
 	loading   loadscreen.Model
 	timer     timer.Model
@@ -66,7 +65,6 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 	m := Model{
 		name:                   name,
 		privKey:                privKey,
-		id:                     0,
 		loading:                loadscreen.New(connectingToServer),
 		timer:                  newTimer(initialTimeout),
 		timeout:                initialTimeout,
@@ -134,7 +132,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case gateway.ConnectionEstablished:
-		m.id = snowflake.ID(msg)
+		state.State.UserID = (*snowflake.ID)(&msg)
 		m.connected = true
 		m.timeout = initialTimeout
 		return m.timer.Stop()
@@ -176,6 +174,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		gateway.Disconnect()
 
 	case gateway.ConnectionLost:
+		state.State.UserID = nil
 		m.connected = false
 		m.timeout = initialTimeout
 		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
@@ -185,7 +184,24 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			state.State.Networks = msg.Networks
 		} else {
 			networks := state.State.Networks
-			networks = append(networks, msg.Networks...)
+
+			for _, newNetwork := range msg.Networks {
+				add := true
+				for i, existingNetwork := range networks {
+					if existingNetwork.ID == newNetwork.ID {
+						add = false
+						if newNetwork.Position == -1 {
+							newNetwork.Position = existingNetwork.Position
+						}
+						networks[i] = newNetwork
+						break
+					}
+				}
+				if add {
+					networks = append(networks, newNetwork)
+				}
+			}
+
 			networks = slices.DeleteFunc(networks, func(network packet.FullNetwork) bool {
 				return slices.Contains(msg.RemoveNetworks, network.ID)
 			})

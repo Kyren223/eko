@@ -411,3 +411,113 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 		Set:            false,
 	}
 }
+
+func SetNetworkUser(ctx context.Context, sess *session.Session, request packet.SetNetworkUser) packet.Payload {
+	queries := data.New(db)
+
+	network, err := queries.GetNetworkById(ctx, request.Network)
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
+	member, err := queries.GetNetworkMemberById(ctx, data.GetNetworkMemberByIdParams{
+		NetworkID: request.Network,
+		UserID:    request.User,
+	})
+
+	wantsToJoin := request.Member != nil && *request.Member && request.User == sess.ID()
+	if err == sql.ErrNoRows && network.IsPublic && wantsToJoin {
+		_, err = queries.SetNetworkUser(ctx, data.SetNetworkUserParams{
+			UserID:    request.User,
+			NetworkID: request.Network,
+			IsMember:  true,
+			IsAdmin:   false,
+			IsMuted:   false,
+			IsBanned:  false,
+			BanReason: nil,
+		})
+		if err != nil {
+			log.Println("database error 2:", err)
+			return &ErrInternalError
+		}
+
+		payload, err := GetSingleNetworkInfo(ctx, queries, network)
+		if err != nil {
+			log.Println("database error 3:", err)
+			return &ErrInternalError
+		}
+
+		return payload
+	}
+
+	if err != nil {
+		log.Println("database error 4:", err)
+		return &ErrInternalError
+	}
+
+	isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
+	if err != nil {
+		log.Println("database error 5:", err)
+		return &ErrInternalError
+	}
+
+	isMember := member.IsMember
+	isAdmin := member.IsAdmin
+	isMuted := member.IsMuted
+	IsBanned := member.IsBanned
+	banReason := member.BanReason
+
+	if request.Member != nil && !IsBanned {
+		isLeave := !*request.Member && request.User == sess.ID()
+		isKick := !*request.Member && isSessAdmin
+		if request.User != network.OwnerID && (isLeave || isKick) {
+			isMember = false
+			isAdmin = false // Important for security
+		}
+		isJoin := *request.Member && request.User == sess.ID() && network.IsPublic
+		if isJoin {
+			isMember = true
+		}
+	} else if request.Admin != nil {
+		if network.OwnerID == sess.ID() && request.User != sess.ID() {
+			isAdmin = *request.Admin
+		}
+	} else if request.Muted != nil {
+		notSelf := request.User != sess.ID()
+		notOwner := request.User != network.OwnerID
+		if isSessAdmin && notSelf && notOwner {
+			isMuted = *request.Muted
+		}
+	} else if request.Banned != nil {
+		notSelf := request.User != sess.ID()
+		notOwner := request.User != network.OwnerID
+		if isSessAdmin && notSelf && notOwner {
+			IsBanned = *request.Banned
+			banReason = request.BanReason
+			isAdmin = false // Important for security
+		}
+	}
+
+	_, err = queries.SetNetworkUser(ctx, data.SetNetworkUserParams{
+		UserID:    request.User,
+		NetworkID: request.Network,
+		IsMember:  isMember,
+		IsAdmin:   isAdmin,
+		IsMuted:   isMuted,
+		IsBanned:  IsBanned,
+		BanReason: banReason,
+	})
+	if err != nil {
+		log.Println("database error 6:", err)
+		return &ErrInternalError
+	}
+
+	payload, err := GetSingleNetworkInfo(ctx, queries, network)
+	if err != nil {
+		log.Println("database error 7:", err)
+		return &ErrInternalError
+	}
+
+	return payload
+}
