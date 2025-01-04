@@ -412,7 +412,7 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 	}
 }
 
-func SetNetworkUser(ctx context.Context, sess *session.Session, request packet.SetNetworkUser) packet.Payload {
+func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.SetNetworkUser) packet.Payload {
 	queries := data.New(db)
 
 	network, err := queries.GetNetworkById(ctx, request.Network)
