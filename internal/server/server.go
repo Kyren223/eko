@@ -319,8 +319,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 		response = timeout(500*time.Millisecond, api.DeleteNetwork, ctx, sess, request)
 	case *packet.SwapUserNetworks:
 		response = timeout(5*time.Millisecond, api.SwapUserNetworks, ctx, sess, request)
-	case *packet.SetNetworkUser:
-		response = timeout(50*time.Millisecond, api.SetNetworkUser, ctx, sess, request)
+	case *packet.SetMember:
+		response = timeout(50*time.Millisecond, api.SetMember, ctx, sess, request)
 
 	case *packet.CreateFrequency:
 		response = timeout(5*time.Millisecond, api.CreateFrequency, ctx, sess, request)

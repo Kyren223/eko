@@ -31,7 +31,7 @@ ORDER BY users_networks.position;
 SELECT * FROM users_networks
 WHERE user_id = ? AND network_id = ?;
 
--- name: SetNetworkUser :one
+-- name: SetMember :one
 INSERT INTO users_networks (
   user_id, network_id,
   is_member, is_admin, is_muted,

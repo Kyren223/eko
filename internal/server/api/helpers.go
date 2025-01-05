@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/kyren223/eko/internal/data"
-	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -42,27 +41,3 @@ func IsNetworkAdmin(ctx context.Context, queries *data.Queries, userId, networkI
 	return isAdmin, nil
 }
 
-func GetSingleNetworkInfo(ctx context.Context, queries *data.Queries, network data.Network) (packet.Payload, error) {
-	frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	members, err := queries.GetNetworkMembers(ctx, network.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	fullNetwork := packet.FullNetwork{
-		Network:     network,
-		Frequencies: frequencies,
-		Members:     members,
-		Position:    -1,
-	}
-
-	return &packet.NetworksInfo{
-		Networks:       []packet.FullNetwork{fullNetwork},
-		RemoveNetworks: nil,
-		Set:            false,
-	}, nil
-}

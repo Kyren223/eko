@@ -138,7 +138,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		return &ErrInternalError
 	}
 
-	networkUser, err := qtx.SetNetworkUser(ctx, data.SetNetworkUserParams{
+	networkUser, err := qtx.SetMember(ctx, data.SetMemberParams{
 		UserID:    network.OwnerID,
 		NetworkID: network.ID,
 		IsMember:  true,
@@ -176,9 +176,9 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		Position: int(*networkUser.Position),
 	}
 	return &packet.NetworksInfo{
-		Networks:       []packet.FullNetwork{fullNetwork},
-		Set:            false,
-		RemoveNetworks: nil,
+		Networks:        []packet.FullNetwork{fullNetwork},
+		Set:             false,
+		RemovedNetworks: nil,
 	}
 }
 
@@ -226,9 +226,9 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	}
 
 	return &packet.NetworksInfo{
-		Networks:       fullNetworks,
-		RemoveNetworks: nil,
-		Set:            true,
+		Networks:        fullNetworks,
+		RemovedNetworks: nil,
+		Set:             true,
 	}, nil
 }
 
@@ -293,10 +293,9 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	return &packet.FrequenciesInfo{
-		RemoveFrequencies: nil,
-		Frequencies:       []data.Frequency{frequency},
-		Network:           request.Network,
-		Set:               false,
+		RemovedFrequencies: nil,
+		Frequencies:        []data.Frequency{frequency},
+		Network:            request.Network,
 	}
 }
 
@@ -375,10 +374,9 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	return &packet.FrequenciesInfo{
-		RemoveFrequencies: []snowflake.ID{frequency.ID},
-		Frequencies:       nil,
-		Network:           frequency.NetworkID,
-		Set:               false,
+		RemovedFrequencies: []snowflake.ID{frequency.ID},
+		Frequencies:        nil,
+		Network:            frequency.NetworkID,
 	}
 }
 
@@ -406,13 +404,13 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 	}
 
 	return &packet.NetworksInfo{
-		Networks:       nil,
-		RemoveNetworks: []snowflake.ID{request.Network},
-		Set:            false,
+		Networks:        nil,
+		RemovedNetworks: []snowflake.ID{request.Network},
+		Set:             false,
 	}
 }
 
-func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.SetNetworkUser) packet.Payload {
+func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMember) packet.Payload {
 	queries := data.New(db)
 
 	network, err := queries.GetNetworkById(ctx, request.Network)
@@ -428,7 +426,7 @@ func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.
 
 	wantsToJoin := request.Member != nil && *request.Member && request.User == sess.ID()
 	if err == sql.ErrNoRows && network.IsPublic && wantsToJoin {
-		_, err = queries.SetNetworkUser(ctx, data.SetNetworkUserParams{
+		newMember, err := queries.SetMember(ctx, data.SetMemberParams{
 			UserID:    request.User,
 			NetworkID: request.Network,
 			IsMember:  true,
@@ -442,13 +440,22 @@ func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.
 			return &ErrInternalError
 		}
 
-		payload, err := GetSingleNetworkInfo(ctx, queries, network)
+		user, err := queries.GetUserById(ctx, newMember.UserID)
 		if err != nil {
 			log.Println("database error 3:", err)
 			return &ErrInternalError
 		}
 
-		return payload
+		return &packet.MembersInfo{
+			RemovedMembers: nil,
+			Members: []data.GetNetworkMembersRow{{
+				User:     user,
+				JoinedAt: newMember.JoinedAt,
+				IsAdmin:  newMember.IsAdmin,
+				IsMuted:  newMember.IsMuted,
+			}},
+			Network: request.Network,
+		}
 	}
 
 	if err != nil {
@@ -499,7 +506,7 @@ func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.
 		}
 	}
 
-	_, err = queries.SetNetworkUser(ctx, data.SetNetworkUserParams{
+	newMember, err := queries.SetMember(ctx, data.SetMemberParams{
 		UserID:    request.User,
 		NetworkID: request.Network,
 		IsMember:  isMember,
@@ -513,11 +520,28 @@ func SetNetworkUser(ctx context.Context, sess *session.Session, request *packet.
 		return &ErrInternalError
 	}
 
-	payload, err := GetSingleNetworkInfo(ctx, queries, network)
+	if !newMember.IsMember {
+		return &packet.MembersInfo{
+			RemovedMembers: []snowflake.ID{newMember.UserID},
+			Members:        nil,
+			Network:        request.Network,
+		}
+	}
+
+	user, err := queries.GetUserById(ctx, newMember.UserID)
 	if err != nil {
 		log.Println("database error 7:", err)
 		return &ErrInternalError
 	}
 
-	return payload
+	return &packet.MembersInfo{
+		RemovedMembers: nil,
+		Members: []data.GetNetworkMembersRow{{
+			User:     user,
+			JoinedAt: newMember.JoinedAt,
+			IsAdmin:  newMember.IsAdmin,
+			IsMuted:  newMember.IsMuted,
+		}},
+		Network: request.Network,
+	}
 }

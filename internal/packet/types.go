@@ -61,7 +61,7 @@ func (m *SwapUserNetworks) Type() PacketType {
 	return PacketSwapUserNetworks
 }
 
-type SetNetworkUser struct {
+type SetMember struct {
 	Member    *bool
 	Admin     *bool
 	Muted     *bool
@@ -71,8 +71,8 @@ type SetNetworkUser struct {
 	User      snowflake.ID
 }
 
-func (m *SetNetworkUser) Type() PacketType {
-	return PacketSetNetworkUser
+func (m *SetMember) Type() PacketType {
+	return PacketSetMember
 }
 
 type FullNetwork struct {
@@ -83,9 +83,9 @@ type FullNetwork struct {
 }
 
 type NetworksInfo struct {
-	Networks       []FullNetwork
-	RemoveNetworks []snowflake.ID
-	Set            bool
+	Networks        []FullNetwork
+	RemovedNetworks []snowflake.ID
+	Set             bool
 }
 
 func (m *NetworksInfo) Type() PacketType {
@@ -133,10 +133,9 @@ func (m *SwapFrequencies) Type() PacketType {
 }
 
 type FrequenciesInfo struct {
-	RemoveFrequencies []snowflake.ID
-	Frequencies       []data.Frequency
-	Network           snowflake.ID
-	Set               bool
+	RemovedFrequencies []snowflake.ID
+	Frequencies        []data.Frequency
+	Network            snowflake.ID
 }
 
 func (m *FrequenciesInfo) Type() PacketType {
@@ -180,10 +179,20 @@ func (m *RequestMessages) Type() PacketType {
 }
 
 type MessagesInfo struct {
-	Messages       []data.Message
-	RemoveMessages []snowflake.ID
+	Messages        []data.Message
+	RemovedMessages []snowflake.ID
 }
 
 func (m *MessagesInfo) Type() PacketType {
+	return PacketMessagesInfo
+}
+
+type MembersInfo struct {
+	RemovedMembers []snowflake.ID
+	Members        []data.GetNetworkMembersRow
+	Network        snowflake.ID
+}
+
+func (m *MembersInfo) Type() PacketType {
 	return PacketMessagesInfo
 }

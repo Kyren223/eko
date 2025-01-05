@@ -206,7 +206,7 @@ func (q *Queries) GetUserNetworks(ctx context.Context, userID snowflake.ID) ([]G
 	return items, nil
 }
 
-const setNetworkUser = `-- name: SetNetworkUser :one
+const setMember = `-- name: SetMember :one
 INSERT INTO users_networks (
   user_id, network_id,
   is_member, is_admin, is_muted,
@@ -228,7 +228,7 @@ WHERE user_id = EXCLUDED.user_id AND network_id = EXCLUDED.network_id
 RETURNING user_id, network_id, joined_at, is_member, is_admin, is_muted, is_banned, ban_reason, position
 `
 
-type SetNetworkUserParams struct {
+type SetMemberParams struct {
 	UserID    snowflake.ID
 	NetworkID snowflake.ID
 	IsMember  bool
@@ -238,8 +238,8 @@ type SetNetworkUserParams struct {
 	BanReason *string
 }
 
-func (q *Queries) SetNetworkUser(ctx context.Context, arg SetNetworkUserParams) (UserNetwork, error) {
-	row := q.db.QueryRowContext(ctx, setNetworkUser,
+func (q *Queries) SetMember(ctx context.Context, arg SetMemberParams) (UserNetwork, error) {
+	row := q.db.QueryRowContext(ctx, setMember,
 		arg.UserID,
 		arg.NetworkID,
 		arg.IsMember,

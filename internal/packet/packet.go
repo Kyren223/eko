@@ -57,8 +57,10 @@ const (
 	PacketTransferNetwork
 	PacketDeleteNetwork
 	PacketSwapUserNetworks
-	PacketSetNetworkUser
 	PacketNetworksInfo
+
+	PacketSetMember
+	PacketMembersInfo
 
 	PacketCreateFrequency
 	PacketUpdateFrequency
@@ -197,8 +199,8 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &DeleteNetwork{}
 	case PacketSwapUserNetworks:
 		payload = &SwapUserNetworks{}
-	case PacketSetNetworkUser:
-		payload = &SetNetworkUser{}
+	case PacketSetMember:
+		payload = &SetMember{}
 	case PacketNetworksInfo:
 		payload = &NetworksInfo{}
 

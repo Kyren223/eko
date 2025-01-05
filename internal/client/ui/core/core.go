@@ -203,7 +203,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 			networks = slices.DeleteFunc(networks, func(network packet.FullNetwork) bool {
-				return slices.Contains(msg.RemoveNetworks, network.ID)
+				return slices.Contains(msg.RemovedNetworks, network.ID)
 			})
 			slices.SortFunc(networks, func(a, b packet.FullNetwork) int {
 				return a.Position - b.Position
@@ -219,24 +219,19 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				network = &state.State.Networks[i]
 			}
 		}
-
-		if msg.Set {
-			network.Frequencies = msg.Frequencies
-		} else {
-			frequencies := network.Frequencies
-			frequencies = append(frequencies, msg.Frequencies...)
-			frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
-				return slices.Contains(msg.RemoveFrequencies, frequency.ID)
-			})
-			slices.SortFunc(frequencies, func(a, b data.Frequency) int {
-				return int(a.Position - b.Position)
-			})
-			log.Println(frequencies)
-			network.Frequencies = frequencies
-		}
+		frequencies := network.Frequencies
+		frequencies = append(frequencies, msg.Frequencies...)
+		frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
+			return slices.Contains(msg.RemovedFrequencies, frequency.ID)
+		})
+		slices.SortFunc(frequencies, func(a, b data.Frequency) int {
+			return int(a.Position - b.Position)
+		})
+		log.Println(frequencies)
+		network.Frequencies = frequencies
 
 	case *packet.MessagesInfo:
-		for _, id := range msg.RemoveMessages {
+		for _, id := range msg.RemovedMessages {
 			for _, btree := range state.State.Messages {
 				btree.Delete(data.Message{ID: id})
 			}

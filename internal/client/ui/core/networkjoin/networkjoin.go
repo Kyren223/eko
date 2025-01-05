@@ -165,7 +165,7 @@ func (m *Model) Select() tea.Cmd {
 	assert.NoError(err, "input is already validated to be valid")
 
 	yes := true
-	request := packet.SetNetworkUser{
+	request := packet.SetMember{
 		Member:    &yes,
 		Admin:     nil,
 		Muted:     nil,
