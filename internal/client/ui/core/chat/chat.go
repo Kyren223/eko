@@ -407,8 +407,8 @@ func (m *Model) renderMessages(screenHeight int) string {
 		}
 
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
-		group = []data.Message{}
 		renderedGroups = append(renderedGroups, renderedGroup)
+		group = []data.Message{message}
 
 		return remainingHeight > 0
 	})
