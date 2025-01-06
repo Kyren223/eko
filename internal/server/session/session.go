@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -99,7 +100,7 @@ func (s *Session) Read(ctx context.Context) (packet.Packet, bool) {
 }
 
 func (s *Session) Close() {
-	timeout := 1 * time.Second
+	timeout := 10 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	payload := &packet.Error{
 		Error:   "new connection from another location, closing this one",
@@ -108,6 +109,14 @@ func (s *Session) Close() {
 	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	s.Write(ctx, pkt)
 	cancel()
+
+	// Add some delay before canceling to let the writer enough time to
+	// actually write that into the connection
+	// HACK: consider just giving session the private connection and to
+	// write directly so we don't have to wait
+	time.Sleep(100 * time.Millisecond)
+
+	log.Println(s.addr, "closed due to new connection from another location")
 
 	s.cancel()
 }

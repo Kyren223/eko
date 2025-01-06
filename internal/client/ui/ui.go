@@ -23,6 +23,8 @@ var Width int
 var Height int
 var Program *tea.Program
 
+var NewAuth func() tea.Model
+
 type ModelTransition struct {
 	Model tea.Model
 }

@@ -80,14 +80,22 @@ ___] | |__] | \|    | | \|`)
 	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(0.5)
 )
 
+func init() {
+	// HACK: to avoid a circular dependency, so core can transition to this
+	// I don't like how go has this issue, I would rather slower compilations
+	ui.NewAuth = func() tea.Model {
+		return New()
+	}
+}
+
 type Model struct {
-	focusIndex int
+	popup *choicepopup.Model
+
 	fields     []authfield.Model
+	focusIndex int
 	remember   bool
 
 	signup bool
-
-	popup *choicepopup.Model
 }
 
 func New() Model {

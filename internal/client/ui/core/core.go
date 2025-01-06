@@ -179,6 +179,12 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		m.timeout = initialTimeout
 		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
 
+	case *packet.Error:
+		err := "new connection from another location, closing this one"
+		if msg.PktType == packet.PacketError && err == msg.Error {
+			return ui.Transition(ui.NewAuth())
+		}
+
 	case *packet.NetworksInfo:
 		if msg.Set {
 			state.State.Networks = msg.Networks

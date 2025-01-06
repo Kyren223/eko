@@ -196,7 +196,10 @@ func (server *server) handleConnection(conn net.Conn) {
 	}()
 	defer func() {
 		conn.Close()
-		server.RemoveSession(sess.ID())
+		sameAddress := addr.String() == server.Session(sess.ID()).Addr().String()
+		if sameAddress {
+			server.RemoveSession(sess.ID())
+		}
 		log.Println(addr, "disconnected")
 	}()
 
