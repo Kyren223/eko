@@ -71,6 +71,9 @@ func NewServer(ctx context.Context, port uint16) server {
 func (s *server) AddSession(session *session.Session) {
 	s.sessMu.Lock()
 	defer s.sessMu.Unlock()
+	if sess, ok := s.sessions[session.ID()]; ok {
+		sess.Close()
+	}
 	s.sessions[session.ID()] = session
 }
 
@@ -142,7 +145,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	log.Println(addr, "accepted")
 
-	initialCtx, cancel := context.WithTimeout(server.ctx, 5*time.Second)
+	initialCtx, initialCancel := context.WithTimeout(server.ctx, 5*time.Second)
 	deadline, _ := initialCtx.Deadline()
 	err := conn.SetDeadline(deadline)
 	assert.NoError(err, "setting read deadline should not error")
@@ -152,7 +155,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	pubKey, err := handleAuth(conn)
 	if err != nil {
-		cancel()
+		initialCancel()
 		log.Println(addr, err)
 		conn.Close()
 		log.Println(addr, "disconnected")
@@ -161,13 +164,15 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	user, err := api.CreateOrGetUser(initialCtx, server.Node(), pubKey)
 	if err != nil {
-		cancel()
+		initialCancel()
 		log.Println(addr, "user creation/fetching error:", err)
 		conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
-	sess := session.NewSession(server, addr, user.ID, pubKey)
+	ctx, cancel := context.WithCancel(server.ctx)
+	defer cancel()
+	sess := session.NewSession(server, addr, cancel, user.ID, pubKey)
 	server.AddSession(sess)
 	framer := packet.NewFramer()
 
@@ -176,17 +181,17 @@ func (server *server) handleConnection(conn net.Conn) {
 	binary.BigEndian.PutUint64(id[:], uint64(user.ID))
 	_, err = conn.Write(id[:])
 	if err != nil {
-		cancel()
+		initialCancel()
 		log.Println(addr, "failed to write user id")
 		conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
 
-	cancel()
+	initialCancel()
 
 	go func() {
-		<-server.ctx.Done()
+		<-ctx.Done()
 		conn.Close()
 	}()
 	defer func() {
@@ -197,7 +202,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	go func() {
 		for {
-			packet, ok := sess.Read(server.ctx)
+			packet, ok := sess.Read(ctx)
 			if !ok {
 				return
 			}
@@ -212,15 +217,15 @@ func (server *server) handleConnection(conn net.Conn) {
 	go func() {
 		for {
 			select {
-			case <-server.ctx.Done():
+			case <-ctx.Done():
 				return
 			case request, ok := <-framer.Out:
 				if !ok {
 					return
 				}
 
-				response := processPacket(server.ctx, sess, request)
-				if ok := sess.Write(server.ctx, response); !ok {
+				response := processPacket(ctx, sess, request)
+				if ok := sess.Write(ctx, response); !ok {
 					return
 				}
 			}
@@ -228,12 +233,12 @@ func (server *server) handleConnection(conn net.Conn) {
 	}()
 
 	// Send initial packets
-	payload, err := api.GetNetworksInfo(server.ctx, sess)
+	payload, err := api.GetNetworksInfo(ctx, sess)
 	if err != nil {
 		return // closes the connection
 	}
 	infoPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(server.ctx, infoPacket)
+	sess.Write(ctx, infoPacket)
 
 	buffer := make([]byte, 512)
 	for {
@@ -245,15 +250,15 @@ func (server *server) handleConnection(conn net.Conn) {
 			break
 		}
 
-		err = framer.Push(server.ctx, buffer[:n])
-		if server.ctx.Err() != nil {
-			log.Println(addr, server.ctx.Err())
+		err = framer.Push(ctx, buffer[:n])
+		if ctx.Err() != nil {
+			log.Println(addr, ctx.Err())
 			break
 		}
 		if err != nil {
 			payload := packet.Error{Error: err.Error()}
 			pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
-			sess.Write(server.ctx, pkt)
+			sess.Write(ctx, pkt)
 			break
 		}
 	}

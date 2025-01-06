@@ -78,7 +78,7 @@ func NetworkPropagate(
 		context, cancel := context.WithTimeout(context.Background(), timeout)
 		go func() {
 			defer cancel()
-			pkt := packet.NewPacket(packet.NewJsonEncoder(payload))
+			pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 			if ok := session.Write(context, pkt); !ok {
 				log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
 			}
