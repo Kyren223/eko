@@ -106,10 +106,12 @@ BEGIN
   UPDATE users_networks SET
     position = position - 1
   WHERE user_id IN (
-    SELECT user_id FROM users_networks WHERE network_id = OLD.network_id
-  ) AND position > OLD.position;
-  
-  DELETE FROM users_networks WHERE network_id = OLD.network_id;
+    SELECT user_id FROM users_networks WHERE network_id = OLD.id
+  ) AND position > (
+    SELECT position FROM users_networks WHERE user_id = users_networks.user_id AND network_id = OLD.id
+  );
+
+  DELETE FROM users_networks WHERE network_id = OLD.id;
 END
 -- +goose StatementEnd
 
