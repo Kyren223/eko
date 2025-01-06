@@ -2,9 +2,13 @@ package api
 
 import (
 	"context"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/kyren223/eko/internal/data"
+	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -41,3 +45,45 @@ func IsNetworkAdmin(ctx context.Context, queries *data.Queries, userId, networkI
 	return isAdmin, nil
 }
 
+func NetworkPropagate(
+	ctx context.Context, sess *session.Session,
+	network snowflake.ID, payload packet.Payload,
+) packet.Payload {
+	var sessions []snowflake.ID
+	sess.Manager().UseSessions(func(s map[snowflake.ID]*session.Session) {
+		sessions = make([]snowflake.ID, 0, len(s)-1)
+		for key := range s {
+			if key != sess.ID() {
+				sessions = append(sessions, key)
+			}
+		}
+	})
+
+	queries := data.New(db)
+	sessions, err := queries.FilterUsersInNetwork(ctx, data.FilterUsersInNetworkParams{
+		NetworkID: network,
+		Users:     sessions,
+	})
+	if err != nil {
+		log.Println("database error in propagate:", err)
+		return &ErrInternalError
+	}
+
+	for _, sessionId := range sessions {
+		session := sess.Manager().Session(sessionId)
+		if session == nil {
+			continue
+		}
+		timeout := 1 * time.Second
+		context, cancel := context.WithTimeout(context.Background(), timeout)
+		go func() {
+			defer cancel()
+			pkt := packet.NewPacket(packet.NewJsonEncoder(payload))
+			if ok := session.Write(context, pkt); !ok {
+				log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
+			}
+		}()
+	}
+
+	return payload
+}

@@ -212,6 +212,35 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			state.State.Networks = networks
 		}
 
+	case *packet.MembersInfo:
+		var network *packet.FullNetwork
+		for i, fullNetwork := range state.State.Networks {
+			if fullNetwork.ID == msg.Network {
+				network = &state.State.Networks[i]
+			}
+		}
+
+		members := network.Members
+		for _, updatedMember := range msg.Members {
+			add := true
+			for i, existingMember := range members {
+				if existingMember.User.ID == updatedMember.User.ID {
+					add = false
+					members[i] = updatedMember
+					break
+				}
+			}
+			if add {
+				members = append(members, updatedMember)
+			}
+		}
+
+		members = slices.DeleteFunc(members, func(member data.GetNetworkMembersRow) bool {
+			return slices.Contains(msg.RemovedMembers, member.User.ID)
+		})
+		log.Println(members)
+		network.Members = members
+
 	case *packet.FrequenciesInfo:
 		var network *packet.FullNetwork
 		for i, fullNetwork := range state.State.Networks {
@@ -219,8 +248,25 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				network = &state.State.Networks[i]
 			}
 		}
+
 		frequencies := network.Frequencies
-		frequencies = append(frequencies, msg.Frequencies...)
+		for _, newFrequency := range msg.Frequencies {
+			add := true
+			for i, existingFrequency := range frequencies {
+				if existingFrequency.ID == newFrequency.ID {
+					add = false
+					if newFrequency.Position == -1 {
+						newFrequency.Position = existingFrequency.Position
+					}
+					frequencies[i] = newFrequency
+					break
+				}
+			}
+			if add {
+				frequencies = append(frequencies, newFrequency)
+			}
+		}
+
 		frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
 			return slices.Contains(msg.RemovedFrequencies, frequency.ID)
 		})

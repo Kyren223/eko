@@ -16,7 +16,8 @@ import (
 type SessionManager interface {
 	AddSession(session *Session)
 	RemoveSession(id snowflake.ID)
-	Session(id snowflake.ID) (session *Session, ok bool)
+	Session(id snowflake.ID) *Session
+	UseSessions(f func(map[snowflake.ID]*Session))
 
 	Node() *snowflake.Node
 }

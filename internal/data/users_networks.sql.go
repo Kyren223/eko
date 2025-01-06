@@ -7,9 +7,54 @@ package data
 
 import (
 	"context"
+	"strings"
 
 	"github.com/kyren223/eko/pkg/snowflake"
 )
+
+const filterUsersInNetwork = `-- name: FilterUsersInNetwork :many
+SELECT user_id FROM users_networks
+WHERE network_id = ? AND user_id IN (/*SLICE:users*/?)
+`
+
+type FilterUsersInNetworkParams struct {
+	NetworkID snowflake.ID
+	Users     []snowflake.ID
+}
+
+func (q *Queries) FilterUsersInNetwork(ctx context.Context, arg FilterUsersInNetworkParams) ([]snowflake.ID, error) {
+	query := filterUsersInNetwork
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.NetworkID)
+	if len(arg.Users) > 0 {
+		for _, v := range arg.Users {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:users*/?", strings.Repeat(",?", len(arg.Users))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:users*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []snowflake.ID
+	for rows.Next() {
+		var user_id snowflake.ID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const getNetworkBannedUsers = `-- name: GetNetworkBannedUsers :many
 SELECT

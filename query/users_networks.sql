@@ -59,3 +59,7 @@ UPDATE users_networks SET
     WHEN position = @pos2 THEN @pos1
   END
 WHERE user_id = @user_id AND position IN (@pos1, @pos2);
+
+-- name: FilterUsersInNetwork :many
+SELECT user_id FROM users_networks
+WHERE network_id = ? AND user_id IN (sqlc.slice('users'));

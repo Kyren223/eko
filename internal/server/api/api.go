@@ -201,6 +201,12 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 
 	for _, userNetwork := range networks {
 		network := userNetwork.Network
+
+		// User was in this network but is no longer there (left/kicked/banned)
+		if userNetwork.Position == nil {
+			continue
+		}
+
 		position := int(*userNetwork.Position)
 		frequencies, err := qtx.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
@@ -446,7 +452,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			return &ErrInternalError
 		}
 
-		return &packet.MembersInfo{
+		NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: nil,
 			Members: []data.GetNetworkMembersRow{{
 				User:     user,
@@ -455,17 +461,40 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 				IsMuted:  newMember.IsMuted,
 			}},
 			Network: request.Network,
+		})
+
+		frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
+		if err != nil {
+			log.Println("database error 4:", err)
+			return &ErrInternalError
+		}
+
+		members, err := queries.GetNetworkMembers(ctx, network.ID)
+		if err != nil {
+			log.Println("database error 5:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.NetworksInfo{
+			Networks: []packet.FullNetwork{{
+				Network:     network,
+				Frequencies: frequencies,
+				Members:     members,
+				Position:    int(*newMember.Position),
+			}},
+			RemovedNetworks: nil,
+			Set:             false,
 		}
 	}
 
 	if err != nil {
-		log.Println("database error 4:", err)
+		log.Println("database error 6:", err)
 		return &ErrInternalError
 	}
 
 	isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
 	if err != nil {
-		log.Println("database error 5:", err)
+		log.Println("database error 7:", err)
 		return &ErrInternalError
 	}
 
@@ -516,25 +545,25 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		BanReason: banReason,
 	})
 	if err != nil {
-		log.Println("database error 6:", err)
+		log.Println("database error 8:", err)
 		return &ErrInternalError
 	}
 
 	if !newMember.IsMember {
-		return &packet.MembersInfo{
+		return NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: []snowflake.ID{newMember.UserID},
 			Members:        nil,
 			Network:        request.Network,
-		}
+		})
 	}
 
 	user, err := queries.GetUserById(ctx, newMember.UserID)
 	if err != nil {
-		log.Println("database error 7:", err)
+		log.Println("database error 9:", err)
 		return &ErrInternalError
 	}
 
-	return &packet.MembersInfo{
+	payload := NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 		RemovedMembers: nil,
 		Members: []data.GetNetworkMembersRow{{
 			User:     user,
@@ -543,5 +572,34 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			IsMuted:  newMember.IsMuted,
 		}},
 		Network: request.Network,
+	})
+
+	// Joined
+	if !member.IsMember && newMember.IsMember {
+		frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
+		if err != nil {
+			log.Println("database error 10:", err)
+			return &ErrInternalError
+		}
+
+		members, err := queries.GetNetworkMembers(ctx, network.ID)
+		if err != nil {
+			log.Println("database error 11:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.NetworksInfo{
+			Networks: []packet.FullNetwork{{
+				Network:     network,
+				Frequencies: frequencies,
+				Members:     members,
+				Position:    int(*newMember.Position),
+			}},
+			RemovedNetworks: nil,
+			Set:             false,
+		}
 	}
+
+	// Normal case, was already in the server
+	return payload
 }

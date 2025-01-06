@@ -80,11 +80,17 @@ func (s *server) RemoveSession(id snowflake.ID) {
 	delete(s.sessions, id)
 }
 
-func (s *server) Session(id snowflake.ID) (*session.Session, bool) {
+func (s *server) Session(id snowflake.ID) *session.Session {
 	s.sessMu.RLock()
 	defer s.sessMu.RUnlock()
-	session, ok := s.sessions[id]
-	return session, ok
+	session := s.sessions[id]
+	return session
+}
+
+func (s *server) UseSessions(f func(map[snowflake.ID]*session.Session)) {
+	s.sessMu.RLock()
+	defer s.sessMu.RUnlock()
+	f(s.sessions)
 }
 
 func (s *server) Node() *snowflake.Node {

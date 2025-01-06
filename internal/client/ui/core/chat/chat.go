@@ -255,8 +255,10 @@ func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 }
 
 func (m *Model) ResetBeforeSwitch() {
-	if m.frequencyIndex != -1 && m.networkIndex != -1 {
-		network := state.State.Networks[m.networkIndex]
+	networks := state.State.Networks
+	networkInBounds := 0 <= m.networkIndex && m.networkIndex < len(networks)
+	if m.frequencyIndex != -1 && networkInBounds {
+		network := networks[m.networkIndex]
 		frequencyId := network.Frequencies[m.frequencyIndex].ID
 		log.Println("Saving", frequencyId)
 		state.State.FrequencyState[frequencyId] = state.Frequency{

@@ -1,6 +1,7 @@
 package networklist
 
 import (
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,6 +52,8 @@ func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
 	return lipgloss.NewStyle().SetString(combined)
 }
 
+const TrustedIndex = -1
+
 type Model struct {
 	history []func(m *Model)
 	index   int
@@ -60,7 +63,7 @@ type Model struct {
 func New() Model {
 	return Model{
 		focus: false,
-		index: -1,
+		index: TrustedIndex,
 	}
 }
 
@@ -71,7 +74,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	var builder strings.Builder
 	builder.WriteString("\n")
-	if m.index == -1 {
+	if m.index == TrustedIndex {
 		builder.WriteString(trustedUsersButtonSelected)
 	} else {
 		builder.WriteString(trustedUsersButton)
@@ -138,6 +141,33 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.index = max(-1, m.index-1)
 		case "j":
 			m.index = min(len(state.State.Networks)-1, m.index+1)
+
+		case "Q":
+			if state.State.UserID == nil || m.index == TrustedIndex {
+				return m, nil
+			}
+
+			networks := state.State.Networks
+			network := networks[m.index]
+
+			// Remove network from the list so it's not visible
+			state.State.Networks = slices.Delete(networks, m.index, m.index+1)
+
+			// Set back to trusted bcz that's always valid
+			// Where if u were on the network u just left
+			// it'd be an issue (or if u left all networks)
+			m.index = TrustedIndex
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    &no,
+				Admin:     nil,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   network.ID,
+				User:      *state.State.UserID,
+			})
 		}
 	}
 	return m, nil
