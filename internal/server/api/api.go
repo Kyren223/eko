@@ -409,11 +409,11 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 		return &ErrInternalError
 	}
 
-	return &packet.NetworksInfo{
+	return NetworkPropagate(ctx, sess, network.ID, &packet.NetworksInfo{
 		Networks:        nil,
 		RemovedNetworks: []snowflake.ID{request.Network},
 		Set:             false,
-	}
+	})
 }
 
 func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMember) packet.Payload {
