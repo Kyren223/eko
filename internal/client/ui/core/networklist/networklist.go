@@ -168,6 +168,27 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   network.ID,
 				User:      *state.State.UserID,
 			})
+
+		case "D":
+			if state.State.UserID == nil || m.index == TrustedIndex {
+				return m, nil
+			}
+
+			networks := state.State.Networks
+			network := networks[m.index]
+
+			// Remove network from the list so it's not visible
+			state.State.Networks = slices.Delete(networks, m.index, m.index+1)
+
+			// Set back to trusted bcz that's always valid
+			// Where if u were on the network u just left
+			// it'd be an issue (or if u left all networks)
+			m.index = TrustedIndex
+
+			return m, gateway.Send(&packet.DeleteNetwork{
+				Network: network.ID,
+			})
+
 		}
 	}
 	return m, nil
