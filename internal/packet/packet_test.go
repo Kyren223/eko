@@ -55,7 +55,6 @@ func testPacketEncodingDecoding(t *testing.T, payload Payload) {
 }
 
 func TestPacketFramer(t *testing.T) {
-	require.True(t, false, "Failing on purpose")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*20)
 	defer cancel()
 	framer := NewFramer()
