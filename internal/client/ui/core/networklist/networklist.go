@@ -16,10 +16,6 @@ import (
 var (
 	sepStyle = lipgloss.NewStyle().Width(0).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
-	partialIconStyle = lipgloss.NewStyle().
-				Width(6).Height(3).
-				Align(lipgloss.Center).
-				Border(lipgloss.ThickBorder(), false, false)
 
 	selectedIndicator          = "🭀\n▌\n🭛"
 	trustedUsersIcon           = IconStyle(" ", colors.Turquoise, colors.DarkerCyan)

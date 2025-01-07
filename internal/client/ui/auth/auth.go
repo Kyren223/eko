@@ -416,13 +416,13 @@ func (m *Model) Signup() tea.Cmd {
 	hasPassphrase := len(passphrase) != 0
 	hasConfirmation := len(confirmation) != 0
 	if hasPassphrase && !hasConfirmation {
-		m.fields[passphraseConfirmField].Input.Err = errors.New("Confirmation required")
+		m.fields[passphraseConfirmField].Input.Err = errors.New("confirmation required")
 		return nil
 	} else if !hasPassphrase && hasConfirmation {
-		m.fields[passphraseField].Input.Err = errors.New("Empty passphrase")
+		m.fields[passphraseField].Input.Err = errors.New("empty passphrase")
 		return nil
 	} else if hasPassphrase && hasConfirmation && passphrase != confirmation {
-		m.fields[passphraseConfirmField].Input.Err = errors.New("Passphrase mismatch")
+		m.fields[passphraseConfirmField].Input.Err = errors.New("passphrase mismatch")
 		return nil
 	}
 
@@ -438,7 +438,7 @@ func (m *Model) Signup() tea.Cmd {
 		info, e := os.Stat(privateKeyFilepath)
 		assert.NoError(e, "if file exists it should be fine to stat it")
 		if info.IsDir() {
-			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
+			m.fields[privateKeyField].Input.Err = errors.New("file is a directory")
 			return nil
 		}
 		content := fmt.Sprintf("File '%s' exists.\nDo you want to sign-in instead?", privateKeyFilepath)
@@ -448,7 +448,7 @@ func (m *Model) Signup() tea.Cmd {
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
 		if errors.Unwrap(err).Error() == "is a directory" {
-			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
+			m.fields[privateKeyField].Input.Err = errors.New("file is a directory")
 		}
 		log.Println("signup open file error:", err)
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
@@ -458,7 +458,7 @@ func (m *Model) Signup() tea.Cmd {
 
 	_, privKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
-		m.fields[privateKeyField].Input.Err = errors.New("Failed private key generation")
+		m.fields[privateKeyField].Input.Err = errors.New("failed private key generation")
 		log.Println("ed25519 generate key error:", err)
 		return nil
 	}
@@ -469,13 +469,13 @@ func (m *Model) Signup() tea.Cmd {
 		pemBlock, err = ssh.MarshalPrivateKey(privKey, username)
 	}
 	if err != nil {
-		m.fields[privateKeyField].Input.Err = errors.New("Failed private key marshaling")
+		m.fields[privateKeyField].Input.Err = errors.New("failed private key marshaling")
 		log.Println("ssh marshaling error:", err)
 		return nil
 	}
 	err = pem.Encode(file, pemBlock)
 	if err != nil {
-		m.fields[privateKeyField].Input.Err = errors.New("Failed writing to disk")
+		m.fields[privateKeyField].Input.Err = errors.New("failed writing to disk")
 		log.Println("pem encoding to file error:", err)
 		return nil
 	}
@@ -494,7 +494,7 @@ func (m *Model) signin() tea.Cmd {
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
 		if errors.Unwrap(err).Error() == "is a directory" {
-			m.fields[privateKeyField].Input.Err = errors.New("File is a directory")
+			m.fields[privateKeyField].Input.Err = errors.New("file is a directory")
 		}
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
@@ -506,26 +506,26 @@ func (m *Model) signin() tea.Cmd {
 	if len(passphrase) == 0 {
 		privateKey, err = ssh.ParseRawPrivateKey(file)
 		if err, ok := err.(*ssh.PassphraseMissingError); ok {
-			m.fields[passphraseField].Input.Err = errors.New("Missing passphrase")
+			m.fields[passphraseField].Input.Err = errors.New("missing passphrase")
 			log.Println("passphrase missing:", err)
 			return nil
 		}
 		if err != nil {
-			m.fields[privateKeyField].Input.Err = errors.New("Invalid private key file format")
+			m.fields[privateKeyField].Input.Err = errors.New("invalid private key file format")
 			log.Println("passphrase error:", err)
 			return nil
 		}
 	} else {
 		privateKey, err = ssh.ParseRawPrivateKeyWithPassphrase(file, []byte(passphrase))
 		if err == x509.IncorrectPasswordError {
-			m.fields[passphraseField].Input.Err = errors.New("Incorrect Passphrase")
+			m.fields[passphraseField].Input.Err = errors.New("incorrect Passphrase")
 			return nil
 		}
 		if err != nil && (err.Error() == "ssh: not an encrypted key" || err.Error() == "ssh: key is not password protected") {
 			privateKey, err = ssh.ParseRawPrivateKey(file)
 		}
 		if err != nil {
-			m.fields[privateKeyField].Input.Err = errors.New("Invalid private key file format")
+			m.fields[privateKeyField].Input.Err = errors.New("invalid private key file format")
 			log.Println("passphrase error:", err)
 			return nil
 		}
@@ -533,7 +533,7 @@ func (m *Model) signin() tea.Cmd {
 
 	privKey, ok := privateKey.(*ed25519.PrivateKey)
 	if !ok {
-		m.fields[privateKeyField].Input.Err = errors.New("Must be ed25519")
+		m.fields[privateKeyField].Input.Err = errors.New("must be ed25519")
 		keyType := reflect.TypeOf(privateKey)
 		log.Println("incorrect private key type, got:", keyType.String(), reflect.ValueOf(privateKey).String())
 		return nil

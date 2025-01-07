@@ -1,16 +1,12 @@
 package api
 
 import (
-	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/pkg/assert"
-	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var db *sql.DB
@@ -38,30 +34,4 @@ func ConnectToDatabase() {
 
 func DB() *sql.DB {
 	return db
-}
-
-func demo() {
-	ctx := context.Background()
-	node := snowflake.NewNode(1)
-	pubKey, _, _ := ed25519.GenerateKey(nil)
-
-	queries := data.New(db)
-	user, _ := queries.CreateUser(ctx, data.CreateUserParams{
-		ID:        node.Generate(),
-		PublicKey: pubKey,
-	})
-	user, _ = queries.SetUserName(ctx, data.SetUserNameParams{
-		ID:   user.ID,
-		Name: "admin",
-	})
-	network, _ := queries.CreateNetwork(ctx, data.CreateNetworkParams{
-		ID:      node.Generate(),
-		Name:    "global",
-		OwnerID: user.ID,
-	})
-	_, _ = queries.CreateFrequency(ctx, data.CreateFrequencyParams{
-		ID:        node.Generate(),
-		NetworkID: network.ID,
-		Name:      "general",
-	})
 }

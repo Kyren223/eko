@@ -15,20 +15,6 @@ type whitespace struct {
 	chars string
 }
 
-// newWhitespace creates a new whitespace renderer. The order of the options
-// matters, if you're using WithWhitespaceRenderer, make sure it comes first as
-// other options might depend on it.
-func newWhitespace(r *lipgloss.Renderer, opts ...WhitespaceOption) *whitespace {
-	w := &whitespace{
-		re:    r,
-		style: r.ColorProfile().String(),
-	}
-	for _, opt := range opts {
-		opt(w)
-	}
-	return w
-}
-
 // Render whitespaces.
 func (w whitespace) render(width int) string {
 	if w.chars == "" {
