@@ -1,5 +1,4 @@
-internal/server/certs/
-*.crt
+*.key
 *.log
 *.db
 *.db-shm

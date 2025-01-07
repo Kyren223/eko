@@ -5,17 +5,18 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
-	_ "embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/kyren223/eko/certs"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/api"
 	"github.com/kyren223/eko/internal/server/session"
@@ -23,19 +24,19 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-//go:embed certs/server.crt
-var certPEM []byte
-
-//go:embed certs/server.key
-var keyPEM []byte
-
 var (
 	nodeId    int64 = 0
 	tlsConfig *tls.Config
 )
 
 func init() {
-	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	path := "certs/server.key"
+	keyPEM, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatalln("failed to read certificate key from", path)
+	}
+
+	cert, err := tls.X509KeyPair(certs.CertPEM, keyPEM)
 	if err != nil {
 		log.Fatalln("error loading certificate:", err)
 	}

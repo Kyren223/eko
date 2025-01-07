@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
-	_ "embed"
 	"encoding/binary"
 	"errors"
 	"log"
@@ -15,14 +14,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/kyren223/eko/certs"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
-
-//go:embed server.crt
-var certPEM []byte
 
 var (
 	tlsConfig *tls.Config
@@ -42,7 +39,7 @@ type (
 
 func init() {
 	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(certPEM) {
+	if !certPool.AppendCertsFromPEM(certs.CertPEM) {
 		log.Fatalln("failed to append server certificate")
 	}
 
