@@ -16,7 +16,7 @@ import (
 
 const port = 7223
 
-func main(){
+func main() {
 	stdout := flag.Bool("stdout", false, "enable logging to stdout")
 	flag.Parse()
 

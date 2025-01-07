@@ -18,15 +18,15 @@ type Model struct {
 
 func NewHorizontal(contents ...string) Model {
 	return Model{
-		contents:  contents,
-		Vertical:  false,
+		contents: contents,
+		Vertical: false,
 	}
 }
 
 func NewVertical(contents ...string) Model {
 	return Model{
-		contents:  contents,
-		Vertical:  true,
+		contents: contents,
+		Vertical: true,
 	}
 }
 

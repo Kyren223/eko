@@ -2,9 +2,9 @@ package packet
 
 const (
 	MaxIconBytes          = 16
-	DefaultFrequencyName = "main"
+	DefaultFrequencyName  = "main"
 	DefaultFrequencyColor = "#FFFFFF"
-	MaxFrequencyName = 32
+	MaxFrequencyName      = 32
 )
 
 const (

@@ -53,7 +53,6 @@ func (m Model) View() string {
 		return ""
 	}
 
-	
 	style := m.BlurredStyle
 	if m.Input.Focused() {
 		style = m.FocusedStyle
