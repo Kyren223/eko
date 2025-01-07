@@ -117,8 +117,8 @@ type Packet struct {
 
 func NewPacket(encoder PacketEncoder) Packet {
 	payload := encoder.Payload()
-	n := len(payload)
-	assert.Assert(0 <= n && n <= PAYLOAD_MAX_SIZE, "size of payload must be valid", "size", n)
+	n := uint(len(payload))
+	assert.Assert(n <= PAYLOAD_MAX_SIZE, "size of payload must be valid", "size", n)
 
 	data := make([]byte, HEADER_SIZE+n)
 
@@ -129,7 +129,7 @@ func NewPacket(encoder PacketEncoder) Packet {
 	assert.Assert(encoding <= 3, "encoding exceeded allowed size", "encoding", encoding)
 	data[TYPE_OFFSET] = packetType | encoding<<6
 
-	binary.BigEndian.PutUint16(data[LENGTH_OFFSET:], uint16(n))
+	binary.BigEndian.PutUint16(data[LENGTH_OFFSET:], uint16(n)) // #nosec G115
 
 	copy(data[HEADER_SIZE:], payload)
 

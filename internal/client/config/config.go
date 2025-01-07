@@ -40,13 +40,13 @@ func Load() error {
 	}
 
 	Dir = filepath.Join(userConfigDir, "eko")
-	err = os.MkdirAll(Dir, 0o755)
+	err = os.MkdirAll(Dir, 0o750)
 	if err != nil {
 		return err
 	}
 
 	ConfigFile = filepath.Join(Dir, "config.json")
-	contents, err := os.ReadFile(ConfigFile)
+	contents, err := os.ReadFile(ConfigFile) // #nosec 304
 	if errors.Is(err, os.ErrNotExist) {
 		config = Default()
 		return write()
@@ -98,7 +98,7 @@ func write() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(ConfigFile, b, 0o644)
+	return os.WriteFile(ConfigFile, b, 0o600)
 }
 
 func Read() Config {

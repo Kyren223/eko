@@ -46,6 +46,7 @@ func init() {
 	tlsConfig = &tls.Config{
 		RootCAs:    certPool,
 		ServerName: "localhost",
+		MinVersion: tls.VersionTLS12,
 	}
 }
 
@@ -145,7 +146,7 @@ func handleAuth(ctx context.Context, conn net.Conn, privKey ed25519.PrivateKey) 
 		}
 		bytesRead += n
 	}
-	id := snowflake.ID(binary.BigEndian.Uint64(idBytes[:]))
+	id := snowflake.ID(binary.BigEndian.Uint64(idBytes[:])) // #nosec G115
 
 	return id, nil
 }

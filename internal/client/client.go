@@ -30,7 +30,7 @@ func Run() {
 	var dump *os.File
 	if ui.DEBUG {
 		var err error
-		dump, err = os.OpenFile("messages.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+		dump, err = os.OpenFile("messages.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 		if err != nil {
 			os.Exit(1)
 		}

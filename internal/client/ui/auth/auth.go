@@ -427,13 +427,13 @@ func (m *Model) Signup() tea.Cmd {
 	}
 
 	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
-	err := os.MkdirAll(filepath.Dir(privateKeyFilepath), 0o755)
+	err := os.MkdirAll(filepath.Dir(privateKeyFilepath), 0o750)
 	if err != nil {
 		m.fields[privateKeyField].Input.Err = errors.Unwrap(err)
 		assert.NotNil(errors.Unwrap(err), "there should always be an error to unwrap", "err", err)
 		return nil
 	}
-	file, err := os.OpenFile(privateKeyFilepath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(privateKeyFilepath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) // #nosec 304
 	if errors.Is(err, os.ErrExist) {
 		info, e := os.Stat(privateKeyFilepath)
 		assert.NoError(e, "if file exists it should be fine to stat it")
@@ -485,7 +485,7 @@ func (m *Model) Signup() tea.Cmd {
 
 func (m *Model) signin() tea.Cmd {
 	privateKeyFilepath := expandPath(m.fields[privateKeyField].Input.Value())
-	file, err := os.ReadFile(privateKeyFilepath)
+	file, err := os.ReadFile(privateKeyFilepath) // #nosec 304
 	if errors.Is(err, os.ErrNotExist) {
 		content := fmt.Sprintf("File '%s' doesn't exist.\nDo you want to sign-up instead?", privateKeyFilepath)
 		m.popup = createPopup(content, []string{"sign-up"}, []string{"cancel"})

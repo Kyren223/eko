@@ -43,6 +43,7 @@ func init() {
 
 	tlsConfig = &tls.Config{
 		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
 	}
 }
 
@@ -179,7 +180,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	// Write ID back, it's useful for the client to know, and signals successful authentication
 	var id [8]byte
-	binary.BigEndian.PutUint64(id[:], uint64(user.ID))
+	binary.BigEndian.PutUint64(id[:], uint64(user.ID)) // #nosec G115 -- sign bit is always 0 in snowflake IDs
 	_, err = conn.Write(id[:])
 	if err != nil {
 		initialCancel()
