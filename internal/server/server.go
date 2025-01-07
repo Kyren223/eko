@@ -114,7 +114,7 @@ func (s *server) Run() error {
 	defer listener.Close()
 	go func() {
 		<-s.ctx.Done()
-		listener.Close()
+		_ = listener.Close()
 	}()
 
 	log.Println("started listening on port", s.Port)
@@ -159,7 +159,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	if err != nil {
 		initialCancel()
 		log.Println(addr, err)
-		conn.Close()
+		_ = conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
@@ -168,7 +168,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	if err != nil {
 		initialCancel()
 		log.Println(addr, "user creation/fetching error:", err)
-		conn.Close()
+		_ = conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
@@ -185,7 +185,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	if err != nil {
 		initialCancel()
 		log.Println(addr, "failed to write user id")
-		conn.Close()
+		_ = conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
@@ -194,10 +194,10 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	go func() {
 		<-ctx.Done()
-		conn.Close()
+		_ = conn.Close()
 	}()
 	defer func() {
-		conn.Close()
+		_ = conn.Close()
 		sameAddress := addr.String() == server.Session(sess.ID()).Addr().String()
 		if sameAddress {
 			server.RemoveSession(sess.ID())

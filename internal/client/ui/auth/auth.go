@@ -540,7 +540,7 @@ func (m *Model) signin() tea.Cmd {
 	}
 
 	if m.remember {
-		config.Use(func(config *config.Config) {
+		_ = config.Use(func(config *config.Config) {
 			config.PrivateKeyPath = privateKeyFilepath
 		})
 	}

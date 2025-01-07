@@ -45,7 +45,7 @@ func runAssert(message string, args ...any) {
 	flushMu.Lock()
 	for len(flushes) != 0 {
 		flusher := flushes[len(flushes)-1]
-		flusher.Close()
+		_ = flusher.Close()
 		flushes = flushes[:len(flushes)-1]
 	}
 	flushMu.Unlock()
