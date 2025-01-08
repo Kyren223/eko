@@ -12,13 +12,8 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.23.2"
+      - name: Runs CI (will checkout the repo)
+        uses: ./.github/workflows/ci.yml
 
       - name: Build executable
         run: GOOS=linux GOARCH=amd64 go build ./cmd/server -o ./eko-server
