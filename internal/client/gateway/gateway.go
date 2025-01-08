@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/kyren223/eko/certs"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
@@ -44,9 +45,10 @@ func init() {
 	}
 
 	tlsConfig = &tls.Config{
-		RootCAs:    certPool,
-		ServerName: "localhost",
-		MinVersion: tls.VersionTLS12,
+		RootCAs:            certPool,
+		ServerName:         config.Read().ServerName,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: config.Read().InsecureSkipServerVerification,
 	}
 }
 
@@ -71,7 +73,8 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, err
 	errChan := make(chan error, 1)
 	go func() {
 		framer = packet.NewFramer()
-		connection, err := tls.Dial("tcp4", ":7223", tlsConfig)
+		address := config.Read().ServerName
+		connection, err := tls.Dial("tcp4", address + ":7223", tlsConfig)
 		if err != nil {
 			errChan <- err
 			return

@@ -1,15 +1,13 @@
-name: ci
+name: continious integration
 
 on:
-  push:
-    branches: [master]
   pull_request:
-    branches: [master]
 
 jobs:
   ci:
     name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Check out code

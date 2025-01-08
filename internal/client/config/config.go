@@ -10,16 +10,20 @@ import (
 )
 
 type Config struct {
-	PrivateKeyPath         string `json:"private_key_path"`
-	InsertModeTabToSpace   bool   `json:"insert_mode_tab_to_space"`
-	InsertModeSpacesPerTab uint8  `json:"insert_mode_spaces_per_tab"`
+	ServerName                     string `json:"server_name"`
+	PrivateKeyPath                 string `json:"private_key_path"`
+	InsertModeTabToSpace           bool   `json:"insert_mode_tab_to_space"`
+	InsertModeSpacesPerTab         uint8  `json:"insert_mode_spaces_per_tab"`
+	InsecureSkipServerVerification bool   `json:"insecure_skip_server_verification"`
 }
 
 func Default() Config {
 	return Config{
-		PrivateKeyPath:         "",
-		InsertModeTabToSpace:   true,
-		InsertModeSpacesPerTab: 4,
+		ServerName:                     "eko.kyren.codes",
+		PrivateKeyPath:                 "",
+		InsertModeTabToSpace:           true,
+		InsertModeSpacesPerTab:         4,
+		InsecureSkipServerVerification: false,
 	}
 }
 

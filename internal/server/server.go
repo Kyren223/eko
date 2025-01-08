@@ -30,7 +30,10 @@ var (
 )
 
 func init() {
-	path := "certs/server.key"
+	path, ok := os.LookupEnv("SERVER_CERT_KEY_FILE")
+	if !ok {
+		path = "certs/server.key"
+	}
 	keyPEM, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalln("failed to read certificate key from", path)

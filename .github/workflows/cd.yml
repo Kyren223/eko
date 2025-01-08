@@ -1,0 +1,42 @@
+name: continious deployment
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  cd:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: ci
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.2"
+
+      - name: Build executable
+        run: GOOS=linux GOARCH=amd64 go build ./cmd/server -o ./eko-server
+
+      - name: Deploy to server
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-avz"
+          SOURCE: "eko-server"
+          REMOTE_HOST: eko.kyren.codes
+          REMOTE_USER: website
+          TARGET: "/srv/website"
+          SCRIPT_BEFORE: |
+            whoami
+            ls -al
+          SCRIPT_AFTER: |
+            whoami
+            ls -al
+            echo $RSYNC_STDOUT
+
