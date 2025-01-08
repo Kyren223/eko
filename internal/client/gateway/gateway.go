@@ -74,7 +74,7 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, err
 	go func() {
 		framer = packet.NewFramer()
 		address := config.Read().ServerName
-		connection, err := tls.Dial("tcp4", address + ":7223", tlsConfig)
+		connection, err := tls.Dial("tcp4", address+":7223", tlsConfig)
 		if err != nil {
 			errChan <- err
 			return
