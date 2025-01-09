@@ -52,15 +52,14 @@ type PacketType uint8
 const (
 	PacketError PacketType = iota
 
+	PacketSetUserData
+	PacketGetUserData
+
 	PacketCreateNetwork
 	PacketUpdateNetwork
 	PacketTransferNetwork
 	PacketDeleteNetwork
-	PacketSwapUserNetworks
 	PacketNetworksInfo
-
-	PacketSetMember
-	PacketMembersInfo
 
 	PacketCreateFrequency
 	PacketUpdateFrequency
@@ -73,6 +72,9 @@ const (
 	PacketDeleteMessage
 	PacketRequestMessages
 	PacketMessagesInfo
+
+	PacketSetMember
+	PacketMembersInfo
 
 	PacketMax
 )
@@ -189,6 +191,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	case PacketError:
 		payload = &Error{}
 
+	case PacketSetUserData:
+		payload = &SetUserData{}
+	case PacketGetUserData:
+		payload = &GetUserData{}
+
 	case PacketCreateNetwork:
 		payload = &CreateNetwork{}
 	case PacketUpdateNetwork:
@@ -197,10 +204,6 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &TransferNetwork{}
 	case PacketDeleteNetwork:
 		payload = &DeleteNetwork{}
-	case PacketSwapUserNetworks:
-		payload = &SwapUserNetworks{}
-	case PacketSetMember:
-		payload = &SetMember{}
 	case PacketNetworksInfo:
 		payload = &NetworksInfo{}
 
@@ -225,6 +228,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &RequestMessages{}
 	case PacketMessagesInfo:
 		payload = &MessagesInfo{}
+
+	case PacketSetMember:
+		payload = &SetMember{}
+	case PacketMembersInfo:
+		payload = &MembersInfo{}
 
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())

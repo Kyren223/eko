@@ -52,15 +52,6 @@ func (m *DeleteNetwork) Type() PacketType {
 	return PacketDeleteNetwork
 }
 
-type SwapUserNetworks struct {
-	Pos1 int
-	Pos2 int
-}
-
-func (m *SwapUserNetworks) Type() PacketType {
-	return PacketSwapUserNetworks
-}
-
 type SetMember struct {
 	Member    *bool
 	Admin     *bool
@@ -78,8 +69,8 @@ func (m *SetMember) Type() PacketType {
 type FullNetwork struct {
 	data.Network
 	Frequencies []data.Frequency
-	Members     []data.GetNetworkMembersRow
-	Position    int
+	Members     []data.Member
+	Users       []data.User
 }
 
 type NetworksInfo struct {
@@ -189,10 +180,27 @@ func (m *MessagesInfo) Type() PacketType {
 
 type MembersInfo struct {
 	RemovedMembers []snowflake.ID
-	Members        []data.GetNetworkMembersRow
+	Members        []data.Member
+	Users          []data.User
 	Network        snowflake.ID
 }
 
 func (m *MembersInfo) Type() PacketType {
 	return PacketMessagesInfo
+}
+
+type SetUserData struct{
+	Data string
+}
+
+func (m *SetUserData) Type() PacketType {
+	return PacketSetUserData
+}
+
+type GetUserData struct{
+	Data string
+}
+
+func (m *GetUserData) Type() PacketType {
+	return PacketGetUserData
 }

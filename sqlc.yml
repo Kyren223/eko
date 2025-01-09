@@ -20,5 +20,5 @@ sql:
           - column: "*.*_id"
             go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
         rename:
-          users_network: "UserNetwork"
+          user_datum: "UserData"
           is_public_dm: "IsPublicDM"

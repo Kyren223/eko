@@ -33,9 +33,9 @@ func isValidHexColor(color string) (bool, string) {
 }
 
 func IsNetworkAdmin(ctx context.Context, queries *data.Queries, userId, networkId snowflake.ID) (bool, error) {
-	userNetwork, err := queries.GetUserNetwork(ctx, data.GetUserNetworkParams{
-		UserID:    userId,
+	userNetwork, err := queries.GetMemberById(ctx, data.GetMemberByIdParams{
 		NetworkID: networkId,
+		UserID:    userId,
 	})
 	if err != nil {
 		return false, err
@@ -86,4 +86,15 @@ func NetworkPropagate(
 	}
 
 	return payload
+}
+
+func SplitMembersAndUsers(membersAndUsers []data.GetNetworkMembersRow) ([]data.Member, []data.User) {
+	members := make([]data.Member, 0, len(membersAndUsers))
+	users := make([]data.User, 0, len(membersAndUsers))
+	for _, memberAndUser := range membersAndUsers {
+		members = append(members, memberAndUser.Member)
+		users = append(users, memberAndUser.User)
+	}
+
+	return members, users
 }

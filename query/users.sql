@@ -18,3 +18,19 @@ RETURNING *;
 UPDATE users SET
   is_deleted = true
 WHERE id = ? AND is_deleted = false;
+
+-- name: SetUserData :one
+INSERT INTO user_data (
+  user_id, data
+) VALUES (
+  @user_id, @data
+)
+ON CONFLICT DO
+UPDATE SET
+  user_id = EXCLUDED.user_id, data = EXCLUDED.data
+WHERE user_id = EXCLUDED.user_id
+RETURNING *;
+
+-- name: GetUserData :one
+SELECT data FROM user_data
+WHERE user_id = ?;

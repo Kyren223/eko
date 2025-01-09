@@ -67,3 +67,8 @@ type User struct {
 	IsPublicDM  bool
 	IsDeleted   bool
 }
+
+type UserData struct {
+	UserID snowflake.ID
+	Data   string
+}

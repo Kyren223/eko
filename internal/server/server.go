@@ -332,14 +332,16 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	// Potentially even separate time for code vs DB operations
 	var response packet.Payload
 	switch request := request.(type) {
+
+	case *packet.SetUserData:
+		response = timeout(5*time.Millisecond, api.SetUserData, ctx, sess, request)
+	case *packet.GetUserData:
+		response = timeout(5*time.Millisecond, api.GetUserData, ctx, sess, request)
+
 	case *packet.CreateNetwork:
 		response = timeout(10*time.Millisecond, api.CreateNetwork, ctx, sess, request)
 	case *packet.DeleteNetwork:
 		response = timeout(500*time.Millisecond, api.DeleteNetwork, ctx, sess, request)
-	case *packet.SwapUserNetworks:
-		response = timeout(5*time.Millisecond, api.SwapUserNetworks, ctx, sess, request)
-	case *packet.SetMember:
-		response = timeout(50*time.Millisecond, api.SetMember, ctx, sess, request)
 
 	case *packet.CreateFrequency:
 		response = timeout(5*time.Millisecond, api.CreateFrequency, ctx, sess, request)
@@ -352,6 +354,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 		response = timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
 	case *packet.RequestMessages:
 		response = timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
+
+	case *packet.SetMember:
+		response = timeout(50*time.Millisecond, api.SetMember, ctx, sess, request)
 
 	default:
 		response = &packet.Error{Error: "use of disallowed packet type for request"}

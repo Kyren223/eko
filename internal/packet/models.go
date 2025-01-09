@@ -5,6 +5,7 @@ const (
 	DefaultFrequencyName  = "main"
 	DefaultFrequencyColor = "#FFFFFF"
 	MaxFrequencyName      = 32
+	MaxUserDataBytes      = 8192
 )
 
 const (

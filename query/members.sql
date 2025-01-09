@@ -1,4 +1,4 @@
--- name: GetMembers :many
+-- name: GetNetworkMembers :many
 SELECT
   sqlc.embed(users),
   sqlc.embed(members)

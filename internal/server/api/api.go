@@ -43,7 +43,10 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 		return &ErrInternalError
 	}
 
-	return &packet.MessagesInfo{Messages: []data.Message{message}}
+	return &packet.MessagesInfo{
+		Messages:        []data.Message{message},
+		RemovedMessages: nil,
+	}
 }
 
 func RequestMessages(ctx context.Context, sess *session.Session, request *packet.RequestMessages) packet.Payload {
@@ -59,14 +62,27 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			User2: request.ReceiverID,
 		})
 	} else {
-		return &packet.Error{Error: "either receiver id or frequency id must exist"}
+		return &packet.Error{Error: "either receiver id or frequency id must be specified"}
 	}
 
 	if err != nil {
 		log.Println("database error when retrieving messages:", err)
 		return &packet.Error{Error: "internal server error"}
 	}
-	return &packet.MessagesInfo{Messages: messages}
+
+	// TODO:
+	// FIXME: If an attacker knows the frequency ID of a private frequency
+	// Such in a case where they used to have access to it but no longer do
+	// Then it's possible to view all messages including current ones
+	// Add a check to make sure the user is inside the network of this
+	// Frequency, and even if it is, if the frequency is "no access" then
+	// an admin-check needs to happen, and if he's not an admin it needs to be
+	// denied
+
+	return &packet.MessagesInfo{
+		Messages:        messages,
+		RemovedMessages: nil,
+	}
 }
 
 func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.PublicKey) (data.User, error) {
@@ -107,7 +123,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		log.Println("database error:", err)
 		return &ErrInternalError
 	}
-	defer tx.Rollback() //nolint
+	defer tx.Rollback()
 
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
@@ -138,7 +154,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		return &ErrInternalError
 	}
 
-	networkUser, err := qtx.SetMember(ctx, data.SetMemberParams{
+	member, err := qtx.SetMember(ctx, data.SetMemberParams{
 		UserID:    network.OwnerID,
 		NetworkID: network.ID,
 		IsMember:  true,
@@ -167,13 +183,8 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	fullNetwork := packet.FullNetwork{
 		Network:     network,
 		Frequencies: []data.Frequency{frequency},
-		Members: []data.GetNetworkMembersRow{{
-			JoinedAt: networkUser.JoinedAt,
-			User:     user,
-			IsAdmin:  networkUser.IsAdmin,
-			IsMuted:  networkUser.IsMuted,
-		}},
-		Position: int(*networkUser.Position),
+		Members:     []data.Member{member},
+		Users:       []data.User{user},
 	}
 	return &packet.NetworksInfo{
 		Networks:        []packet.FullNetwork{fullNetwork},
@@ -189,40 +200,33 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback() //nolint
+	defer tx.Rollback()
 
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
 
-	networks, err := qtx.GetUserNetworks(ctx, sess.ID())
+	networks, err := qtx.GetNetworksOfUser(ctx, sess.ID())
 	if err != nil {
 		return nil, err
 	}
 
-	for _, userNetwork := range networks {
-		network := userNetwork.Network
-
-		// User was in this network but is no longer there (left/kicked/banned)
-		if userNetwork.Position == nil {
-			continue
-		}
-
-		position := int(*userNetwork.Position)
+	for _, network := range networks {
 		frequencies, err := qtx.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		members, err := qtx.GetNetworkMembers(ctx, network.ID)
+		membersAndUsers, err := qtx.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
 			return nil, err
 		}
+		members, users := SplitMembersAndUsers(membersAndUsers)
 
 		fullNetworks = append(fullNetworks, packet.FullNetwork{
 			Network:     network,
 			Frequencies: frequencies,
 			Members:     members,
-			Position:    position,
+			Users:       users,
 		})
 	}
 
@@ -236,22 +240,6 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 		RemovedNetworks: nil,
 		Set:             true,
 	}, nil
-}
-
-func SwapUserNetworks(ctx context.Context, sess *session.Session, request *packet.SwapUserNetworks) packet.Payload {
-	queries := data.New(db)
-	pos1, pos2 := int64(request.Pos1), int64(request.Pos2)
-	err := queries.SwapUserNetworks(ctx, data.SwapUserNetworksParams{
-		Pos1:   &pos1,
-		Pos2:   &pos2,
-		UserID: sess.ID(),
-	})
-	if err != nil {
-		log.Println("database error:", err)
-		return &ErrInternalError
-	}
-
-	return request
 }
 
 func CreateFrequency(ctx context.Context, sess *session.Session, request *packet.CreateFrequency) packet.Payload {
@@ -425,7 +413,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		return &ErrInternalError
 	}
 
-	member, err := queries.GetNetworkMemberById(ctx, data.GetNetworkMemberByIdParams{
+	member, err := queries.GetMemberById(ctx, data.GetMemberByIdParams{
 		NetworkID: request.Network,
 		UserID:    request.User,
 	})
@@ -454,13 +442,9 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 		NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: nil,
-			Members: []data.GetNetworkMembersRow{{
-				User:     user,
-				JoinedAt: newMember.JoinedAt,
-				IsAdmin:  newMember.IsAdmin,
-				IsMuted:  newMember.IsMuted,
-			}},
-			Network: request.Network,
+			Members:        []data.Member{newMember},
+			Users:          []data.User{user},
+			Network:        request.Network,
 		})
 
 		frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
@@ -469,18 +453,19 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			return &ErrInternalError
 		}
 
-		members, err := queries.GetNetworkMembers(ctx, network.ID)
+		membersAndUsers, err := queries.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
 			log.Println("database error 5:", err)
 			return &ErrInternalError
 		}
+		members, users := SplitMembersAndUsers(membersAndUsers)
 
 		return &packet.NetworksInfo{
 			Networks: []packet.FullNetwork{{
 				Network:     network,
 				Frequencies: frequencies,
 				Members:     members,
-				Position:    int(*newMember.Position),
+				Users:       users,
 			}},
 			RemovedNetworks: nil,
 			Set:             false,
@@ -553,6 +538,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		return NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: []snowflake.ID{newMember.UserID},
 			Members:        nil,
+			Users:          nil,
 			Network:        request.Network,
 		})
 	}
@@ -565,13 +551,9 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 	payload := NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 		RemovedMembers: nil,
-		Members: []data.GetNetworkMembersRow{{
-			User:     user,
-			JoinedAt: newMember.JoinedAt,
-			IsAdmin:  newMember.IsAdmin,
-			IsMuted:  newMember.IsMuted,
-		}},
-		Network: request.Network,
+		Members:        []data.Member{newMember},
+		Users:          []data.User{user},
+		Network:        request.Network,
 	})
 
 	// Joined
@@ -582,18 +564,19 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			return &ErrInternalError
 		}
 
-		members, err := queries.GetNetworkMembers(ctx, network.ID)
+		membersAndUsers, err := queries.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
 			log.Println("database error 11:", err)
 			return &ErrInternalError
 		}
+		members, users := SplitMembersAndUsers(membersAndUsers)
 
 		return &packet.NetworksInfo{
 			Networks: []packet.FullNetwork{{
 				Network:     network,
 				Frequencies: frequencies,
 				Members:     members,
-				Position:    int(*newMember.Position),
+				Users:       users,
 			}},
 			RemovedNetworks: nil,
 			Set:             false,
@@ -602,4 +585,42 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 	// Normal case, was already in the server
 	return payload
+}
+
+func SetUserData(ctx context.Context, sess *session.Session, request *packet.SetUserData) packet.Payload {
+	queries := data.New(db)
+
+	if len(request.Data) > packet.MaxUserDataBytes {
+		return &packet.Error{
+			Error: "data bytes may not exceed " +
+				strconv.FormatInt(packet.MaxUserDataBytes, 10) + " bytes",
+		}
+	}
+
+	_, err := queries.SetUserData(ctx, data.SetUserDataParams{
+		UserID: sess.ID(),
+		Data:   request.Data,
+	})
+	if err != nil {
+		log.Println("database error:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.GetUserData{
+		Data: request.Data,
+	}
+}
+
+func GetUserData(ctx context.Context, sess *session.Session, request *packet.GetUserData) packet.Payload {
+	queries := data.New(db)
+
+	data, err := queries.GetUserData(ctx, sess.ID())
+	if err != nil {
+		log.Println("database error:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.GetUserData{
+		Data: data,
+	}
 }

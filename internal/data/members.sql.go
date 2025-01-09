@@ -82,7 +82,7 @@ func (q *Queries) GetMemberById(ctx context.Context, arg GetMemberByIdParams) (M
 	return i, err
 }
 
-const getMembers = `-- name: GetMembers :many
+const getNetworkMembers = `-- name: GetNetworkMembers :many
 SELECT
   users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
   members.user_id, members.network_id, members.joined_at, members.is_member, members.is_admin, members.is_muted, members.is_banned, members.ban_reason
@@ -91,20 +91,20 @@ JOIN users ON users.id = members.user_id
 WHERE network_id = ? AND is_member = true
 `
 
-type GetMembersRow struct {
+type GetNetworkMembersRow struct {
 	User   User
 	Member Member
 }
 
-func (q *Queries) GetMembers(ctx context.Context, networkID snowflake.ID) ([]GetMembersRow, error) {
-	rows, err := q.db.QueryContext(ctx, getMembers, networkID)
+func (q *Queries) GetNetworkMembers(ctx context.Context, networkID snowflake.ID) ([]GetNetworkMembersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getNetworkMembers, networkID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetMembersRow
+	var items []GetNetworkMembersRow
 	for rows.Next() {
-		var i GetMembersRow
+		var i GetNetworkMembersRow
 		if err := rows.Scan(
 			&i.User.ID,
 			&i.User.Name,

@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TRIGGER on_user_delete
+CREATE TRIGGER IF NOT EXISTS on_user_delete
 AFTER UPDATE OF is_deleted ON users
 WHEN NEW.is_deleted = true
 BEGIN

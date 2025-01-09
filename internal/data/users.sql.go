@@ -89,3 +89,40 @@ func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.Publ
 	)
 	return i, err
 }
+
+const getUserData = `-- name: GetUserData :one
+SELECT data FROM user_data
+WHERE user_id = ?
+`
+
+func (q *Queries) GetUserData(ctx context.Context, userID snowflake.ID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserData, userID)
+	var data string
+	err := row.Scan(&data)
+	return data, err
+}
+
+const setUserData = `-- name: SetUserData :one
+INSERT INTO user_data (
+  user_id, data
+) VALUES (
+  ?1, ?2
+)
+ON CONFLICT DO
+UPDATE SET
+  user_id = EXCLUDED.user_id, data = EXCLUDED.data
+WHERE user_id = EXCLUDED.user_id
+RETURNING user_id, data
+`
+
+type SetUserDataParams struct {
+	UserID snowflake.ID
+	Data   string
+}
+
+func (q *Queries) SetUserData(ctx context.Context, arg SetUserDataParams) (UserData, error) {
+	row := q.db.QueryRowContext(ctx, setUserData, arg.UserID, arg.Data)
+	var i UserData
+	err := row.Scan(&i.UserID, &i.Data)
+	return i, err
+}

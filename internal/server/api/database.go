@@ -46,7 +46,6 @@ func ConnectToDatabase() {
 		db.Close()
 		log.Fatalln("error running up migrations:", err)
 	}
-	log.Println("database up migrations applied successfully")
 
 	log.Println("database connection ready to be used")
 }
