@@ -40,7 +40,7 @@ jobs:
 
       # Starts deployment
       - name: Build executable
-        run: GOOS=linux GOARCH=amd64 go build ./cmd/server -o ./eko-server
+        run: GOOS=linux GOARCH=amd64 go build -o ./eko-server ./cmd/server
 
       - name: Deploy to server
         uses: easingthemes/ssh-deploy@main
