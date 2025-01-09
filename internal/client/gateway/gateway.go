@@ -51,7 +51,7 @@ func init() {
 		// This is fine, it's always false by default
 		// The user may change the config, the name should be clear enough
 		// that this is insecure (valid use cases are for testing purposes)
-		InsecureSkipVerify: config.Read().InsecureSkipServerVerification, //#nosec 402
+		InsecureSkipVerify: config.Read().InsecureSkipServerVerification, // #nosec 402
 	}
 }
 
