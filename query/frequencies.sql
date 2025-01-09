@@ -26,23 +26,5 @@ UPDATE frequencies SET
   END
 WHERE network_id = @network_id AND position IN (@pos1, @pos2);
 
--- name: SetFrequencyName :one
-UPDATE frequencies SET
-  name = ?
-WHERE id = ?
-RETURNING *;
-
--- name: SetFrequencyColor :one
-UPDATE frequencies SET
-  hex_color = ?
-WHERE id = ?
-RETURNING *;
-
--- name: SetFrequencyPerms :one
-UPDATE frequencies SET
-  perms = ?
-WHERE id = ?
-RETURNING *;
-
 -- name: DeleteFrequency :exec
 DELETE FROM frequencies WHERE id = ?;

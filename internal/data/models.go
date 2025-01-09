@@ -9,6 +9,11 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+type BlockedUser struct {
+	BlockingUserID snowflake.ID
+	BlockedUserID  snowflake.ID
+}
+
 type Frequency struct {
 	ID        snowflake.ID
 	NetworkID snowflake.ID
@@ -16,6 +21,17 @@ type Frequency struct {
 	HexColor  string
 	Perms     int64
 	Position  int64
+}
+
+type Member struct {
+	UserID    snowflake.ID
+	NetworkID snowflake.ID
+	JoinedAt  string
+	IsMember  bool
+	IsAdmin   bool
+	IsMuted   bool
+	IsBanned  bool
+	BanReason *string
 }
 
 type Message struct {
@@ -37,6 +53,12 @@ type Network struct {
 	IsPublic   bool
 }
 
+type TrustedUser struct {
+	TrustingUserID   snowflake.ID
+	TrustedUserID    snowflake.ID
+	TrustedPublicKey []byte
+}
+
 type User struct {
 	ID          snowflake.ID
 	Name        string
@@ -44,27 +66,4 @@ type User struct {
 	Description string
 	IsPublicDM  bool
 	IsDeleted   bool
-}
-
-type UserBlockedUser struct {
-	BlockerUserID snowflake.ID
-	BlockedUserID snowflake.ID
-}
-
-type UserNetwork struct {
-	UserID    snowflake.ID
-	NetworkID snowflake.ID
-	JoinedAt  string
-	IsMember  bool
-	IsAdmin   bool
-	IsMuted   bool
-	IsBanned  bool
-	BanReason *string
-	Position  *int64
-}
-
-type UserTrustedUser struct {
-	TrusterUserID    snowflake.ID
-	TrustedUserID    snowflake.ID
-	TrustedPublicKey []byte
 }
