@@ -76,7 +76,6 @@ type FullNetwork struct {
 type NetworksInfo struct {
 	Networks        []FullNetwork
 	RemovedNetworks []snowflake.ID
-	Set             bool
 }
 
 func (m *NetworksInfo) Type() PacketType {
@@ -189,7 +188,7 @@ func (m *MembersInfo) Type() PacketType {
 	return PacketMessagesInfo
 }
 
-type SetUserData struct{
+type SetUserData struct {
 	Data string
 }
 
@@ -197,7 +196,7 @@ func (m *SetUserData) Type() PacketType {
 	return PacketSetUserData
 }
 
-type GetUserData struct{
+type GetUserData struct {
 	Data string
 }
 

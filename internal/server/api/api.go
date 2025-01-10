@@ -188,7 +188,6 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	}
 	return &packet.NetworksInfo{
 		Networks:        []packet.FullNetwork{fullNetwork},
-		Set:             false,
 		RemovedNetworks: nil,
 	}
 }
@@ -238,7 +237,6 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	return &packet.NetworksInfo{
 		Networks:        fullNetworks,
 		RemovedNetworks: nil,
-		Set:             true,
 	}, nil
 }
 
@@ -400,7 +398,6 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 	return NetworkPropagate(ctx, sess, network.ID, &packet.NetworksInfo{
 		Networks:        nil,
 		RemovedNetworks: []snowflake.ID{request.Network},
-		Set:             false,
 	})
 }
 
@@ -468,7 +465,6 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 				Users:       users,
 			}},
 			RemovedNetworks: nil,
-			Set:             false,
 		}
 	}
 
@@ -579,7 +575,6 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 				Users:       users,
 			}},
 			RemovedNetworks: nil,
-			Set:             false,
 		}
 	}
 
