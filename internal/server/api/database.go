@@ -43,7 +43,7 @@ func ConnectToDatabase() {
 		assert.NoError(err, "sqlite3 is a valid dialect that shouldn't error")
 	}
 	if err := goose.Up(db, "migrations"); err != nil {
-		db.Close()
+		_ = db.Close()
 		log.Fatalln("error running up migrations:", err)
 	}
 
