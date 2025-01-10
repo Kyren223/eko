@@ -55,7 +55,7 @@ jobs:
           ARGS: "-avz"
           SOURCE: "eko-server"
           REMOTE_HOST: eko.kyren.codes
-          REMOTE_USER: website
+          REMOTE_USER: eko
           TARGET: "/srv/eko"
           SCRIPT_BEFORE: |
             whoami
