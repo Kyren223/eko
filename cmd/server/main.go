@@ -28,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	logPath := fmt.Sprintf("logs/eko-server-%s.log", time.Now().Format("2006-01-02_15-04-05"))
+	logPath := fmt.Sprintf("eko-server-%s.log", time.Now().Format("2006-01-02_15-04-05"))
 	logPath = filepath.Join(logDir, logPath)
 	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600) // #nosec G304
 	if err != nil {
