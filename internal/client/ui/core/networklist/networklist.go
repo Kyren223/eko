@@ -79,7 +79,8 @@ func (m Model) View() string {
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
 		)
-		if *state.NetworkId(m.index) == i {
+		networkId := state.NetworkId(m.index)
+		if networkId != nil && *networkId == i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,

@@ -75,6 +75,9 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		networks[network.ID] = network.Network
 		State.Frequencies[network.ID] = network.Frequencies
 		for _, member := range network.Members {
+			if State.Members[network.ID] == nil {
+				State.Members[network.ID] = map[snowflake.ID]data.Member{}
+			}
 			State.Members[network.ID][member.UserID] = member
 		}
 
@@ -136,12 +139,14 @@ func UpdateMessages(info *packet.MessagesInfo) {
 }
 
 func UpdateMembers(info *packet.MembersInfo) {
-	members := State.Members[info.Network]
 	for _, member := range info.Members {
-		members[member.UserID] = member
+		if State.Members[info.Network] == nil {
+			State.Members[info.Network] = map[snowflake.ID]data.Member{}
+		}
+		State.Members[info.Network][member.UserID] = member
 	}
 	for _, removedMember := range info.RemovedMembers {
-		delete(members, removedMember)
+		delete(State.Members[info.Network], removedMember)
 
 		if removedMember != *State.UserID {
 			continue
