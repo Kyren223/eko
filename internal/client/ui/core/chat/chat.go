@@ -220,9 +220,10 @@ func (m *Model) sendMessage() tea.Cmd {
 	}
 
 	var frequencyId *snowflake.ID = nil
-	if m.frequencyIndex != -1 && m.networkIndex != -1 {
-		network := state.State.Networks[m.networkIndex]
-		frequencyId = &network.Frequencies[m.frequencyIndex].ID
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequencyId = &frequencies[m.frequencyIndex].ID
 	}
 
 	return gateway.Send(&packet.SendMessage{
@@ -255,11 +256,10 @@ func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 }
 
 func (m *Model) ResetBeforeSwitch() {
-	networks := state.State.Networks
-	networkInBounds := 0 <= m.networkIndex && m.networkIndex < len(networks)
-	if m.frequencyIndex != -1 && networkInBounds {
-		network := networks[m.networkIndex]
-		frequencyId := network.Frequencies[m.frequencyIndex].ID
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequencyId := frequencies[m.frequencyIndex].ID
 		log.Println("Saving", frequencyId)
 		state.State.FrequencyState[frequencyId] = state.FrequencyState{
 			IncompleteMessage: m.vi.String(),
@@ -277,9 +277,10 @@ func (m *Model) ResetBeforeSwitch() {
 
 func (m *Model) RestoreAfterSwitch() tea.Cmd {
 	msgs := state.State.FrequencyState
-	if m.frequencyIndex != -1 && m.networkIndex != -1 {
-		network := state.State.Networks[m.networkIndex]
-		frequencyId := network.Frequencies[m.frequencyIndex].ID
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequencyId := frequencies[m.frequencyIndex].ID
 		log.Println("Restoring", frequencyId)
 		if val, ok := msgs[frequencyId]; ok {
 			m.vi.SetString(val.IncompleteMessage)
@@ -371,9 +372,10 @@ func (m *Model) renderMessageBox() string {
 
 func (m *Model) renderMessages(screenHeight int) string {
 	var btree *btree.BTreeG[data.Message]
-	if m.frequencyIndex != -1 && m.networkIndex != -1 {
-		network := state.State.Networks[m.networkIndex]
-		frequencyId := network.Frequencies[m.frequencyIndex].ID
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequencyId := frequencies[m.frequencyIndex].ID
 		btree = state.State.Messages[frequencyId]
 	} else {
 		// TODO: implement support for receiver id
@@ -546,24 +548,21 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 	var buf []byte
 	buf = append(buf, Padding...)
 
-	if m.networkIndex != -1 {
-		var member *data.GetNetworkMembersRow = nil
-		network := state.State.Networks[m.networkIndex]
-		for _, networkMember := range network.Members {
-			if networkMember.User.ID == message.SenderID {
-				member = &networkMember
-			}
-		}
-		assert.NotNil(member, "sender should always exist")
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId != nil {
+		ownerId := state.State.Networks[*networkId].OwnerID
+		members := state.State.Members[*networkId]
+		member := members[message.SenderID]
+		user := state.State.Users[message.SenderID]
 
 		senderStyle := NormalMemberStyle
-		if network.OwnerID == member.User.ID {
+		if ownerId == member.UserID {
 			senderStyle = OwnerMemberStyle
 		} else if member.IsAdmin {
 			senderStyle = AdminMemberStyle
 		}
 
-		sender := senderStyle.Render(member.User.Name)
+		sender := senderStyle.Render(user.Name)
 		buf = append(buf, sender...)
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
