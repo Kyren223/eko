@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/kyren223/eko/internal/server"
 	"github.com/kyren223/eko/internal/server/api"
@@ -20,11 +23,19 @@ func main() {
 	stdout := flag.Bool("stdout", false, "enable logging to stdout")
 	flag.Parse()
 
-	logFile, err := os.OpenFile("server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	logDir := "logs"
+	err := os.MkdirAll(logDir, 0750)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	logPath := fmt.Sprintf("logs/eko-server-%s.log", time.Now().Format("2006-01-02_15-04-05"))
+	logPath = filepath.Join(logDir, logPath)
+	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer logFile.Close()
+	assert.AddFlush(logFile)
 
 	if *stdout {
 		log.SetOutput(io.MultiWriter(logFile, os.Stdout))
