@@ -261,7 +261,7 @@ func (m *Model) ResetBeforeSwitch() {
 		network := networks[m.networkIndex]
 		frequencyId := network.Frequencies[m.frequencyIndex].ID
 		log.Println("Saving", frequencyId)
-		state.State.FrequencyState[frequencyId] = state.Frequency{
+		state.State.FrequencyState[frequencyId] = state.FrequencyState{
 			IncompleteMessage: m.vi.String(),
 			Offset:            m.offset,
 			MaxHeight:         m.maxMessagesHeight,

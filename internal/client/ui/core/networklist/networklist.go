@@ -1,7 +1,6 @@
 package networklist
 
 import (
-	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -48,18 +47,17 @@ func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
 	return lipgloss.NewStyle().SetString(combined)
 }
 
-const TrustedIndex = -1
+const PeersIndex = -1
 
 type Model struct {
-	history []func(m *Model)
-	index   int
-	focus   bool
+	index int
+	focus bool
 }
 
 func New() Model {
 	return Model{
 		focus: false,
-		index: TrustedIndex,
+		index: PeersIndex,
 	}
 }
 
@@ -70,7 +68,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	var builder strings.Builder
 	builder.WriteString("\n")
-	if m.index == TrustedIndex {
+	if m.index == PeersIndex {
 		builder.WriteString(trustedUsersButtonSelected)
 	} else {
 		builder.WriteString(trustedUsersButton)
@@ -81,7 +79,7 @@ func (m Model) View() string {
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
 		)
-		if m.index == i {
+		if *state.NetworkId(m.index) == i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
@@ -106,18 +104,6 @@ func (m Model) View() string {
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case *packet.SwapUserNetworks:
-		// Pop first by shifting to the left
-		copy(m.history, m.history[1:])
-		m.history = m.history[:len(m.history)-1]
-	case *packet.Error:
-		if msg.PktType == packet.PacketSwapUserNetworks {
-			// Server failed, revert!
-			undo := m.history[len(m.history)-1]
-			m.history = m.history[:len(m.history)-1]
-			undo(&m)
-		}
-
 	case tea.KeyMsg:
 		if !m.focus {
 			return m, nil
@@ -139,20 +125,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.index = min(len(state.State.Networks)-1, m.index+1)
 
 		case "Q":
-			if state.State.UserID == nil || m.index == TrustedIndex {
+			if state.State.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
 
-			networks := state.State.Networks
-			network := networks[m.index]
-
-			// Remove network from the list so it's not visible
-			state.State.Networks = slices.Delete(networks, m.index, m.index+1)
-
-			// Set back to trusted bcz that's always valid
+			// Set back to peers icon bcz that's always valid
 			// Where if u were on the network u just left
 			// it'd be an issue (or if u left all networks)
-			m.index = TrustedIndex
+			m.index = PeersIndex
 
 			no := false
 			return m, gateway.Send(&packet.SetMember{
@@ -161,28 +141,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Muted:     nil,
 				Banned:    nil,
 				BanReason: nil,
-				Network:   network.ID,
+				Network:   *state.NetworkId(m.index),
 				User:      *state.State.UserID,
 			})
 
 		case "D":
-			if state.State.UserID == nil || m.index == TrustedIndex {
+			if state.State.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
 
-			networks := state.State.Networks
-			network := networks[m.index]
-
-			// Remove network from the list so it's not visible
-			state.State.Networks = slices.Delete(networks, m.index, m.index+1)
-
-			// Set back to trusted bcz that's always valid
+			// Set back to peers icon bcz that's always valid
 			// Where if u were on the network u just left
 			// it'd be an issue (or if u left all networks)
-			m.index = TrustedIndex
+			m.index = PeersIndex
 
 			return m, gateway.Send(&packet.DeleteNetwork{
-				Network: network.ID,
+				Network: *state.NetworkId(m.index),
 			})
 
 		}
@@ -199,21 +173,13 @@ func (m *Model) Blur() {
 }
 
 func (m Model) Swap(dir int) (Model, tea.Cmd) {
-	cmd := gateway.Send(&packet.SwapUserNetworks{
-		Pos1: m.index,
-		Pos2: m.index + dir,
-	})
-	tmp := state.State.Networks[m.index]
-	state.State.Networks[m.index] = state.State.Networks[m.index+dir]
-	state.State.Networks[m.index+dir] = tmp
+	tmp := state.Data.Networks[m.index]
+	state.Data.Networks[m.index] = state.Data.Networks[m.index+dir]
+	state.Data.Networks[m.index+dir] = tmp
 	m.index += dir
-	m.history = append(m.history, func(m *Model) {
-		m.index -= dir
-		tmp := state.State.Networks[m.index]
-		state.State.Networks[m.index] = state.State.Networks[m.index+dir]
-		state.State.Networks[m.index+dir] = tmp
+	return m, gateway.Send(&packet.SetUserData{
+		Data: state.JsonUserData(),
 	})
-	return m, cmd
 }
 
 func (m Model) Index() int {

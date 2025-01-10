@@ -3,15 +3,12 @@ package core
 import (
 	"crypto/ed25519"
 	"fmt"
-	"log"
-	"slices"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/google/btree"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/core/chat"
@@ -22,7 +19,6 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
-	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -186,124 +182,16 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		}
 
 	case *packet.NetworksInfo:
-		if msg.Set {
-			state.State.Networks = msg.Networks
-		} else {
-			networks := state.State.Networks
-
-			for _, newNetwork := range msg.Networks {
-				add := true
-				for i, existingNetwork := range networks {
-					if existingNetwork.ID == newNetwork.ID {
-						add = false
-						if newNetwork.Position == -1 {
-							newNetwork.Position = existingNetwork.Position
-						}
-						networks[i] = newNetwork
-						break
-					}
-				}
-				if add {
-					networks = append(networks, newNetwork)
-				}
-			}
-
-			networks = slices.DeleteFunc(networks, func(network packet.FullNetwork) bool {
-				return slices.Contains(msg.RemovedNetworks, network.ID)
-			})
-			slices.SortFunc(networks, func(a, b packet.FullNetwork) int {
-				return a.Position - b.Position
-			})
-			log.Println(networks)
-			state.State.Networks = networks
-		}
+		state.UpdateNetworks(msg)
 
 	case *packet.MembersInfo:
-		var network *packet.FullNetwork
-		for i, fullNetwork := range state.State.Networks {
-			if fullNetwork.ID == msg.Network {
-				network = &state.State.Networks[i]
-			}
-		}
-
-		members := network.Members
-		for _, updatedMember := range msg.Members {
-			add := true
-			for i, existingMember := range members {
-				if existingMember.User.ID == updatedMember.User.ID {
-					add = false
-					members[i] = updatedMember
-					break
-				}
-			}
-			if add {
-				members = append(members, updatedMember)
-			}
-		}
-
-		members = slices.DeleteFunc(members, func(member data.GetNetworkMembersRow) bool {
-			return slices.Contains(msg.RemovedMembers, member.User.ID)
-		})
-		log.Println(members)
-		network.Members = members
+		state.UpdateMembers(msg)
 
 	case *packet.FrequenciesInfo:
-		var network *packet.FullNetwork
-		for i, fullNetwork := range state.State.Networks {
-			if fullNetwork.ID == msg.Network {
-				network = &state.State.Networks[i]
-			}
-		}
-
-		frequencies := network.Frequencies
-		for _, newFrequency := range msg.Frequencies {
-			add := true
-			for i, existingFrequency := range frequencies {
-				if existingFrequency.ID == newFrequency.ID {
-					add = false
-					if newFrequency.Position == -1 {
-						newFrequency.Position = existingFrequency.Position
-					}
-					frequencies[i] = newFrequency
-					break
-				}
-			}
-			if add {
-				frequencies = append(frequencies, newFrequency)
-			}
-		}
-
-		frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
-			return slices.Contains(msg.RemovedFrequencies, frequency.ID)
-		})
-		slices.SortFunc(frequencies, func(a, b data.Frequency) int {
-			return int(a.Position - b.Position)
-		})
-		log.Println(frequencies)
-		network.Frequencies = frequencies
+		state.UpdateFrequencies(msg)
 
 	case *packet.MessagesInfo:
-		for _, id := range msg.RemovedMessages {
-			for _, btree := range state.State.Messages {
-				btree.Delete(data.Message{ID: id})
-			}
-		}
-
-		for _, message := range msg.Messages {
-			msgSource := message.FrequencyID
-			if msgSource == nil {
-				msgSource = message.ReceiverID
-			}
-			bt := state.State.Messages[*msgSource]
-			if bt == nil {
-				bt = btree.NewG(2, func(a, b data.Message) bool {
-					return a.ID < b.ID
-				})
-				state.State.Messages[*msgSource] = bt
-			}
-			bt.ReplaceOrInsert(message)
-
-		}
+		state.UpdateMessages(msg)
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -317,9 +205,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			case FocusFrequencyList:
 				if m.frequencyCreationPopup == nil {
 					index := m.networkList.Index()
-					network := state.State.Networks[index]
-					popup := frequencycreation.New(network.ID)
-					m.frequencyCreationPopup = &popup
+					networkId := state.NetworkId(index)
+					if networkId != nil {
+						popup := frequencycreation.New(*networkId)
+						m.frequencyCreationPopup = &popup
+					}
 				}
 			}
 

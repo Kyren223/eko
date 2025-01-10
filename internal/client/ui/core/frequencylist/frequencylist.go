@@ -9,6 +9,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 )
 
@@ -47,7 +48,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	if m.Network() == nil {
+	if state.NetworkId(m.networkIndex) == nil {
 		return ""
 	}
 
@@ -62,7 +63,7 @@ func (m Model) View() string {
 	builder.WriteString(nameStyle.Render(m.Network().Name))
 
 	builder.WriteString("\n")
-	for i, frequency := range m.Network().Frequencies {
+	for i, frequency := range m.Frequencies() {
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
 		if m.index == i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
@@ -120,13 +121,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.index = min(m.FrequenciesLength()-1, m.index+1)
 
 		case "x":
-			frequenciesCount := len(m.Network().Frequencies)
+			frequenciesCount := len(m.Frequencies())
 			if frequenciesCount == 1 {
 				// Don't delete the last frequency!
 				return m, nil
 			}
 			// TODO: consider adding a confirmation popup
-			frequencyId := m.Network().Frequencies[m.index].ID
+			frequencyId := m.Frequencies()[m.index].ID
 			if m.index == frequenciesCount-1 {
 				m.index--
 			}
@@ -154,15 +155,15 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 		Pos1:    m.index,
 		Pos2:    m.index + dir,
 	})
-	tmp := m.Network().Frequencies[m.index]
-	m.Network().Frequencies[m.index] = m.Network().Frequencies[m.index+dir]
-	m.Network().Frequencies[m.index+dir] = tmp
+	tmp := m.Frequencies()[m.index]
+	m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
+	m.Frequencies()[m.index+dir] = tmp
 	m.index += dir
 	m.history = append(m.history, func(m *Model) {
 		m.index -= dir
-		tmp := m.Network().Frequencies[m.index]
-		m.Network().Frequencies[m.index] = m.Network().Frequencies[m.index+dir]
-		m.Network().Frequencies[m.index+dir] = tmp
+		tmp := m.Frequencies()[m.index]
+		m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
+		m.Frequencies()[m.index+dir] = tmp
 	})
 	return m, cmd
 }
@@ -172,11 +173,12 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 		return
 	}
 
-	if 0 <= m.networkIndex && m.networkIndex < len(state.State.Networks) {
-		network := state.State.Networks[m.networkIndex]
-		if 0 <= m.index && m.index < len(network.Frequencies) {
-			frequencyId := network.Frequencies[m.index].ID
-			state.State.LastFrequency[network.ID] = frequencyId
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		if 0 <= m.index && m.index < len(frequencies) {
+			frequencyId := frequencies[m.index].ID
+			state.State.LastFrequency[*networkId] = frequencyId
 		}
 	}
 
@@ -190,26 +192,46 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 	m.index = 0
 
 	// Try restoring last ID
-	network := state.State.Networks[m.networkIndex]
-	if id, ok := state.State.LastFrequency[network.ID]; ok {
-		for i, frequency := range network.Frequencies {
-			if frequency.ID == id {
-				m.index = i
-				break
-			}
+	networkId = state.NetworkId(m.networkIndex)
+	if networkId == nil {
+		return
+	}
+	id, ok := state.State.LastFrequency[*networkId]
+	if !ok {
+		return
+	}
+	frequencies := state.State.Frequencies[*networkId]
+	for i, frequency := range frequencies {
+		if frequency.ID == id {
+			m.index = i
+			break
 		}
 	}
 }
 
 func (m Model) FrequenciesLength() int {
-	return len(m.Network().Frequencies)
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId == nil {
+		return 0
+	}
+	return len(state.State.Frequencies[*networkId])
 }
 
-func (m Model) Network() *packet.FullNetwork {
-	if m.networkIndex < 0 || m.networkIndex > len(state.State.Networks)-1 {
+func (m Model) Network() *data.Network {
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId == nil {
 		return nil
 	}
-	return &state.State.Networks[m.networkIndex]
+	network := state.State.Networks[*networkId]
+	return &network
+}
+
+func (m Model) Frequencies() []data.Frequency {
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId == nil {
+		return nil
+	}
+	return state.State.Frequencies[*networkId]
 }
 
 func (m *Model) Index() int {
