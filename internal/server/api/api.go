@@ -12,6 +12,7 @@ import (
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/session"
+	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -25,64 +26,106 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 		return &packet.Error{Error: "either receiver id or frequency id must exist"}
 	}
 
+	if len(request.Content) > packet.MaxMessageBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"message conent must not exceed %v bytes",
+			packet.MaxMessageBytes,
+		)}
+	}
+
 	content := strings.TrimSpace(request.Content)
 	if content == "" {
 		return &packet.Error{Error: "message content must not be blank"}
 	}
 
 	queries := data.New(db)
-	message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
-		ID:          sess.Manager().Node().Generate(),
-		SenderID:    sess.ID(),
-		Content:     content,
-		FrequencyID: request.FrequencyID,
-		ReceiverID:  request.ReceiverID,
-	})
-	if err != nil {
-		log.Println(sess.Addr(), "database error:", err, "in SendMessage")
-		return &ErrInternalError
+
+	if request.FrequencyID != nil {
+		frequency, err := queries.GetFrequencyById(ctx, *request.FrequencyID)
+		if err == sql.ErrNoRows {
+			return &packet.Error{Error: "frequency doesn't exist"}
+		}
+		if err != nil {
+			log.Println("database error 0:", err)
+			return &ErrInternalError
+		}
+
+		isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+		if err != nil {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		if frequency.Perms != packet.PermReadWrite && !isAdmin {
+			return &ErrPermissionDenied
+		}
+
+		message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
+			ID:          sess.Manager().Node().Generate(),
+			SenderID:    sess.ID(),
+			Content:     content,
+			FrequencyID: request.FrequencyID,
+			ReceiverID:  request.ReceiverID,
+		})
+		if err != nil {
+			log.Println(sess.Addr(), "database error:", err, "in SendMessage")
+			return &ErrInternalError
+		}
+
+		return NetworkPropagate(ctx, sess, frequency.NetworkID, &packet.MessagesInfo{
+			Messages:        []data.Message{message},
+			RemovedMessages: nil,
+		})
 	}
 
-	return &packet.MessagesInfo{
-		Messages:        []data.Message{message},
-		RemovedMessages: nil,
+	if request.ReceiverID != nil {
+		return &packet.Error{Error: "receiver messages not supported yet!"}
 	}
+
+	assert.Never("already checked in the first line for the case where both are nil")
+	return nil
 }
 
 func RequestMessages(ctx context.Context, sess *session.Session, request *packet.RequestMessages) packet.Payload {
 	queries := data.New(db)
-	var messages []data.Message
-	var err error
 
 	if request.FrequencyID != nil && request.ReceiverID == nil {
-		messages, err = queries.GetFrequencyMessages(ctx, request.FrequencyID)
-	} else if request.ReceiverID != nil && request.FrequencyID == nil {
-		messages, err = queries.GetDirectMessages(ctx, data.GetDirectMessagesParams{
-			User1: sess.ID(),
-			User2: request.ReceiverID,
-		})
-	} else {
-		return &packet.Error{Error: "either receiver id or frequency id must be specified"}
+		frequency, err := queries.GetFrequencyById(ctx, *request.FrequencyID)
+		if err == sql.ErrNoRows {
+			return &packet.Error{Error: "frequency doesn't exist"}
+		}
+		if err != nil {
+			log.Println("database error 0:", err)
+			return &ErrInternalError
+		}
+
+		isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+		if err != nil {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		if frequency.Perms == packet.PermNoAccess && !isAdmin {
+			return &ErrPermissionDenied
+		}
+
+		messages, err := queries.GetFrequencyMessages(ctx, request.FrequencyID)
+		if err != nil {
+			log.Println("database error 0:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.MessagesInfo{
+			Messages:        messages,
+			RemovedMessages: nil,
+		}
 	}
 
-	if err != nil {
-		log.Println("database error when retrieving messages:", err)
-		return &packet.Error{Error: "internal server error"}
+	if request.ReceiverID != nil && request.FrequencyID == nil {
+		return &packet.Error{Error: "receiver message requests are not implemented yet!"}
 	}
 
-	// TODO:
-	// FIXME: If an attacker knows the frequency ID of a private frequency
-	// Such in a case where they used to have access to it but no longer do
-	// Then it's possible to view all messages including current ones
-	// Add a check to make sure the user is inside the network of this
-	// Frequency, and even if it is, if the frequency is "no access" then
-	// an admin-check needs to happen, and if he's not an admin it needs to be
-	// denied
-
-	return &packet.MessagesInfo{
-		Messages:        messages,
-		RemovedMessages: nil,
-	}
+	return &packet.Error{Error: "either receiver id or frequency id must be specified"}
 }
 
 func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.PublicKey) (data.User, error) {
@@ -257,7 +300,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 
 	if len(request.Name) > packet.MaxFrequencyName {
 		return &packet.Error{Error: fmt.Sprintf(
-			"exceeded allowed frequency name length in bytes: %v",
+			"exceeded allowed frequency name length, max %v bytes",
 			packet.MaxFrequencyName,
 		)}
 	}

@@ -6,6 +6,7 @@ const (
 	DefaultFrequencyColor = "#FFFFFF"
 	MaxFrequencyName      = 32
 	MaxUserDataBytes      = 8192
+	MaxMessageBytes       = 2000
 )
 
 const (

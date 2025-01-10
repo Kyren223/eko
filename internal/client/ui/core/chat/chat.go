@@ -286,6 +286,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			m.vi.SetString(val.IncompleteMessage)
 			m.offset = val.Offset
 			m.maxMessagesHeight = val.MaxHeight
+
+			// Don't ask for messages if you already visited this frequency
+			return nil
 		}
 		return gateway.Send(&packet.RequestMessages{
 			ReceiverID:  nil,
