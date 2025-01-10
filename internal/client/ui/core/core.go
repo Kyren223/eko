@@ -3,6 +3,7 @@ package core
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -134,6 +135,7 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 		return m.timer.Stop()
 
 	case gateway.ConnectionFailed:
+		log.Println("failed to connect:", msg)
 		m.timer = newTimer(m.timeout)
 		m.updateLoadScreenContent()
 		return m.timer.Start()

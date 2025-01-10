@@ -28,7 +28,7 @@ INSERT INTO members (
 ON CONFLICT DO
 UPDATE SET
   is_member = EXCLUDED.is_member, is_admin = EXCLUDED.is_admin, is_muted = EXCLUDED.is_muted,
-  is_banned = EXCLUDED.is_banned, ban_reason = EXCLUDED.ban_reason, position = EXCLUDED.position
+  is_banned = EXCLUDED.is_banned, ban_reason = EXCLUDED.ban_reason
 WHERE user_id = EXCLUDED.user_id AND network_id = EXCLUDED.network_id
 RETURNING *;
 

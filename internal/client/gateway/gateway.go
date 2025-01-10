@@ -23,8 +23,6 @@ import (
 )
 
 var (
-	tlsConfig *tls.Config
-
 	framer  packet.PacketFramer
 	conn    net.Conn
 	writeMu sync.Mutex
@@ -37,23 +35,6 @@ type (
 	ConnectionLost        error
 	ConnectionClosed      struct{}
 )
-
-func init() {
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(certs.CertPEM) {
-		log.Fatalln("failed to append server certificate")
-	}
-
-	tlsConfig = &tls.Config{
-		RootCAs:    certPool,
-		ServerName: config.Read().ServerName,
-		MinVersion: tls.VersionTLS12,
-		// This is fine, it's always false by default
-		// The user may change the config, the name should be clear enough
-		// that this is insecure (valid use cases are for testing purposes)
-		InsecureSkipVerify: config.Read().InsecureSkipServerVerification, // #nosec 402
-	}
-}
 
 func Connect(privKey ed25519.PrivateKey, timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
@@ -76,7 +57,27 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, err
 	errChan := make(chan error, 1)
 	go func() {
 		framer = packet.NewFramer()
+
+		certPool := x509.NewCertPool()
+		if !certPool.AppendCertsFromPEM(certs.CertPEM) {
+			log.Fatalln("failed to append server certificate")
+		}
+
+		tlsConfig := &tls.Config{
+			RootCAs:    certPool,
+			ServerName: config.Read().ServerName,
+			MinVersion: tls.VersionTLS12,
+			// This is fine, it's always false by default
+			// The user may change the config, the name should be clear enough
+			// that this is insecure (valid use cases are for testing purposes)
+			InsecureSkipVerify: config.Read().InsecureDebugMode, // #nosec 402
+		}
+
 		address := config.Read().ServerName
+		if config.Read().InsecureDebugMode {
+			address = "localhost"
+		}
+
 		connection, err := tls.Dial("tcp4", address+":7223", tlsConfig)
 		if err != nil {
 			errChan <- err
