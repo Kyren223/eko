@@ -88,7 +88,6 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 }
 
 func UpdateFrequencies(info *packet.FrequenciesInfo) {
-	// TODO: check this
 	frequencies := State.Frequencies[info.Network]
 	for _, newFrequency := range info.Frequencies {
 		add := true
@@ -113,6 +112,8 @@ func UpdateFrequencies(info *packet.FrequenciesInfo) {
 	slices.SortFunc(frequencies, func(a, b data.Frequency) int {
 		return int(a.Position - b.Position)
 	})
+
+	State.Frequencies[info.Network] = frequencies
 }
 
 func UpdateMessages(info *packet.MessagesInfo) {
