@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
@@ -239,12 +240,21 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 			}
 
-		case "i":
+		case "a":
 			if m.focus == FocusNetworkList && m.networkJoinPopup == nil && m.networkCreationPopup == nil {
 				popup := networkjoin.New()
 				m.networkJoinPopup = &popup
 			} else {
 				m.updatePopups(msg)
+			}
+
+		case "i":
+			index := m.networkList.Index()
+			if m.focus == FocusNetworkList && index != networklist.PeersIndex {
+				networkId := state.NetworkId(index)
+				if networkId != nil {
+					_ = clipboard.WriteAll(networkId.String())
+				}
 			}
 
 		case "esc":
