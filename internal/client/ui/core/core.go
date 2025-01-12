@@ -208,6 +208,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if m.networkCreationPopup == nil && m.networkJoinPopup == nil {
 					popup := networkcreation.New()
 					m.networkCreationPopup = &popup
+				} else {
+					cmd := m.updatePopups(msg)
+					if cmd != nil {
+						return cmd
+					}
 				}
 			case FocusFrequencyList:
 				if m.frequencyCreationPopup == nil {
@@ -217,6 +222,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 						popup := frequencycreation.New(*networkId)
 						m.frequencyCreationPopup = &popup
 					}
+				} else {
+					cmd := m.updatePopups(msg)
+					if cmd != nil {
+						return cmd
+					}
+				}
+
+			default:
+				cmd := m.updatePopups(msg)
+				if cmd != nil {
+					return cmd
 				}
 			}
 
@@ -224,6 +240,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			if m.focus == FocusNetworkList && m.networkJoinPopup == nil && m.networkCreationPopup == nil {
 				popup := networkjoin.New()
 				m.networkJoinPopup = &popup
+			} else {
+				m.updatePopups(msg)
 			}
 
 		case "esc":
@@ -257,17 +275,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 		default:
-			if m.networkCreationPopup != nil {
-				popup, cmd := m.networkCreationPopup.Update(msg)
-				m.networkCreationPopup = &popup
-				return cmd
-			} else if m.frequencyCreationPopup != nil {
-				popup, cmd := m.frequencyCreationPopup.Update(msg)
-				m.frequencyCreationPopup = &popup
-				return cmd
-			} else if m.networkJoinPopup != nil {
-				popup, cmd := m.networkJoinPopup.Update(msg)
-				m.networkJoinPopup = &popup
+			cmd := m.updatePopups(msg)
+			if cmd != nil {
 				return cmd
 			}
 
@@ -339,4 +348,21 @@ func (m *Model) move(direction int) {
 	default:
 		assert.Never("missing switch statement field in move", "focus", m.focus)
 	}
+}
+
+func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
+	if m.networkCreationPopup != nil {
+		popup, cmd := m.networkCreationPopup.Update(msg)
+		m.networkCreationPopup = &popup
+		return cmd
+	} else if m.frequencyCreationPopup != nil {
+		popup, cmd := m.frequencyCreationPopup.Update(msg)
+		m.frequencyCreationPopup = &popup
+		return cmd
+	} else if m.networkJoinPopup != nil {
+		popup, cmd := m.networkJoinPopup.Update(msg)
+		m.networkJoinPopup = &popup
+		return cmd
+	}
+	return nil
 }
