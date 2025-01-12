@@ -619,7 +619,6 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		Users:          []data.User{user},
 		Network:        request.Network,
 	})
-	log.Println("propagated member")
 
 	// Joined
 	if !member.IsMember && newMember.IsMember {

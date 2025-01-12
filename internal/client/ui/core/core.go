@@ -193,9 +193,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	case *packet.MembersInfo:
 		state.UpdateMembers(msg)
-		log.Println("updated members")
-		log.Println(state.State.Members)
-		log.Println(state.State.Users)
 
 	case *packet.FrequenciesInfo:
 		state.UpdateFrequencies(msg)
