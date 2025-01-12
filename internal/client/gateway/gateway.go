@@ -237,6 +237,15 @@ func Send(request packet.Payload) tea.Cmd {
 	}
 }
 
+func SendAsync(request packet.Payload) {
+	go func() {
+		err := send(request)
+		if err != nil {
+			log.Println("async request send error:", err)
+		}
+	}()
+}
+
 func send(request packet.Payload) error {
 	pkt := packet.NewPacket(packet.NewMsgPackEncoder(request))
 

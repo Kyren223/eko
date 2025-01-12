@@ -241,13 +241,18 @@ func (server *server) handleConnection(conn net.Conn) {
 	}()
 
 	// Send initial packets
-	payload, err := api.GetNetworksInfo(ctx, sess)
+	payload := api.GetUserData(ctx, sess, &packet.GetUserData{})
+	dataPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, dataPacket)
+
+	payload, err = api.GetNetworksInfo(ctx, sess)
 	if err != nil {
 		return // closes the connection
 	}
 	infoPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, infoPacket)
 
+	// Infinite read loop
 	buffer := make([]byte, 512)
 	for {
 		n, err := conn.Read(buffer)

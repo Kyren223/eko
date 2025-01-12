@@ -196,9 +196,7 @@ func (m *SetUserData) Type() PacketType {
 	return PacketSetUserData
 }
 
-type GetUserData struct {
-	Data string
-}
+type GetUserData struct{}
 
 func (m *GetUserData) Type() PacketType {
 	return PacketGetUserData

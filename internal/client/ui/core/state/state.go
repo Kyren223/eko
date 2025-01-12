@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/google/btree"
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
@@ -68,7 +69,7 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 	}
 
 	for _, network := range info.Networks {
-		if _, ok := networks[network.ID]; !ok {
+		if !slices.Contains(Data.Networks, network.ID) {
 			Data.Networks = append(Data.Networks, network.ID)
 		}
 
@@ -85,6 +86,10 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 			State.Users[user.ID] = user
 		}
 	}
+
+	gateway.SendAsync(&packet.SetUserData{
+		Data: JsonUserData(),
+	})
 }
 
 func UpdateFrequencies(info *packet.FrequenciesInfo) {
@@ -182,7 +187,7 @@ func JsonUserData() string {
 	return string(bytes)
 }
 
-func FromJsonUserDat(s string) {
+func FromJsonUserData(s string) {
 	var data UserData
 	err := json.Unmarshal([]byte(s), &data)
 	if err != nil {

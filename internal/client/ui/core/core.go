@@ -132,7 +132,7 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 		state.State.UserID = (*snowflake.ID)(&msg)
 		m.connected = true
 		m.timeout = initialTimeout
-		return m.timer.Stop()
+		return tea.Batch(m.timer.Stop(), gateway.Send(&packet.GetUserData{}))
 
 	case gateway.ConnectionFailed:
 		log.Println("failed to connect:", msg)
@@ -175,13 +175,16 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		state.State.UserID = nil
 		m.connected = false
 		m.timeout = initialTimeout
-		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
+		return gateway.Connect(m.privKey, connectionTimeout)
 
 	case *packet.Error:
 		err := "new connection from another location, closing this one"
 		if msg.PktType == packet.PacketError && err == msg.Error {
 			return ui.Transition(ui.NewAuth())
 		}
+
+	case *packet.SetUserData:
+		state.FromJsonUserData(msg.Data)
 
 	case *packet.NetworksInfo:
 		state.UpdateNetworks(msg)

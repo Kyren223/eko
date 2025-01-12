@@ -669,7 +669,7 @@ func SetUserData(ctx context.Context, sess *session.Session, request *packet.Set
 		return &ErrInternalError
 	}
 
-	return &packet.GetUserData{
+	return &packet.SetUserData{
 		Data: request.Data,
 	}
 }
@@ -683,7 +683,7 @@ func GetUserData(ctx context.Context, sess *session.Session, request *packet.Get
 		return &ErrInternalError
 	}
 
-	return &packet.GetUserData{
+	return &packet.SetUserData{
 		Data: data,
 	}
 }

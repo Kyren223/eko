@@ -16,10 +16,10 @@ var (
 	sepStyle = lipgloss.NewStyle().Width(0).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
-	selectedIndicator          = "🭀\n▌\n🭛"
-	trustedUsersIcon           = IconStyle(" ", colors.Turquoise, colors.DarkerCyan)
-	trustedUsersButton         = trustedUsersIcon.Margin(0, 1, 1).String()
-	trustedUsersButtonSelected = lipgloss.JoinHorizontal(
+	selectedIndicator   = "🭀\n▌\n🭛"
+	trustedUsersIcon    = IconStyle(" ", colors.Turquoise, colors.DarkerCyan)
+	peersButton         = trustedUsersIcon.Margin(0, 1, 1).String()
+	peersButtonSelected = lipgloss.JoinHorizontal(
 		ui.Center,
 		selectedIndicator,
 		trustedUsersIcon.Margin(0, 1, 1, 0).String(),
@@ -69,18 +69,19 @@ func (m Model) View() string {
 	var builder strings.Builder
 	builder.WriteString("\n")
 	if m.index == PeersIndex {
-		builder.WriteString(trustedUsersButtonSelected)
+		builder.WriteString(peersButtonSelected)
 	} else {
-		builder.WriteString(trustedUsersButton)
+		builder.WriteString(peersButton)
 	}
 	builder.WriteString("\n")
-	for i, network := range state.State.Networks {
+	for i, networkId := range state.Data.Networks {
+		network := state.State.Networks[networkId]
+
 		icon := IconStyle(network.Icon,
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
 		)
-		networkId := state.NetworkId(m.index)
-		if networkId != nil && *networkId == i {
+		if m.index == i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
