@@ -185,7 +185,7 @@ type MembersInfo struct {
 }
 
 func (m *MembersInfo) Type() PacketType {
-	return PacketMessagesInfo
+	return PacketMembersInfo
 }
 
 type SetUserData struct {

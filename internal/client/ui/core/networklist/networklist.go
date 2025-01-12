@@ -129,12 +129,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if state.State.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
-
-			// Set back to peers icon bcz that's always valid
-			// Where if u were on the network u just left
-			// it'd be an issue (or if u left all networks)
-			m.index = PeersIndex
-
 			no := false
 			return m, gateway.Send(&packet.SetMember{
 				Member:    &no,
@@ -150,12 +144,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if state.State.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
-
-			// Set back to peers icon bcz that's always valid
-			// Where if u were on the network u just left
-			// it'd be an issue (or if u left all networks)
-			m.index = PeersIndex
-
 			return m, gateway.Send(&packet.DeleteNetwork{
 				Network: *state.NetworkId(m.index),
 			})
@@ -185,4 +173,8 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 
 func (m Model) Index() int {
 	return m.index
+}
+
+func (m *Model) SetIndex(index int) {
+	m.index = index
 }

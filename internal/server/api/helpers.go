@@ -81,6 +81,9 @@ func NetworkPropagate(
 			pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 			if ok := session.Write(context, pkt); !ok {
 				log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
+			} else {
+				log.Println(session.Addr(), "sent: ", pkt.String())
+				log.Println(sess.Addr(), "propagation to", session.Addr(), "succeeded")
 			}
 		}()
 	}

@@ -134,14 +134,14 @@ func (q *Queries) GetNetworkMembers(ctx context.Context, networkID snowflake.ID)
 	return items, nil
 }
 
-const getNetworksOfUser = `-- name: GetNetworksOfUser :many
+const getUserNetworks = `-- name: GetUserNetworks :many
 SELECT networks.id, networks.owner_id, networks.name, networks.icon, networks.bg_hex_color, networks.fg_hex_color, networks.is_public FROM networks
 JOIN members ON networks.id = members.network_id
-WHERE members.user_id = ?
+WHERE members.user_id = ? AND members.is_member = true
 `
 
-func (q *Queries) GetNetworksOfUser(ctx context.Context, userID snowflake.ID) ([]Network, error) {
-	rows, err := q.db.QueryContext(ctx, getNetworksOfUser, userID)
+func (q *Queries) GetUserNetworks(ctx context.Context, userID snowflake.ID) ([]Network, error) {
+	rows, err := q.db.QueryContext(ctx, getUserNetworks, userID)
 	if err != nil {
 		return nil, err
 	}

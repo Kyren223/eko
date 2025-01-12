@@ -185,9 +185,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	case *packet.NetworksInfo:
 		state.UpdateNetworks(msg)
+		networkId := state.NetworkId(m.networkList.Index())
+		if networkId == nil && m.networkList.Index() != networklist.PeersIndex {
+			m.networkList.SetIndex(m.networkList.Index() - 1)
+			m.frequencyList.SetNetworkIndex(m.networkList.Index())
+		}
 
 	case *packet.MembersInfo:
 		state.UpdateMembers(msg)
+		log.Println("updated members")
+		log.Println(state.State.Members)
+		log.Println(state.State.Users)
 
 	case *packet.FrequenciesInfo:
 		state.UpdateFrequencies(msg)

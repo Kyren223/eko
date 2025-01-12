@@ -10,10 +10,10 @@ WHERE network_id = ? AND is_member = true;
 SELECT * FROM members
 WHERE network_id = ? AND user_id = ?;
 
--- name: GetNetworksOfUser :many
+-- name: GetUserNetworks :many
 SELECT networks.* FROM networks
 JOIN members ON networks.id = members.network_id
-WHERE members.user_id = ?;
+WHERE members.user_id = ? AND members.is_member = true;
 
 -- name: SetMember :one
 INSERT INTO members (

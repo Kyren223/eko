@@ -50,13 +50,23 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &ErrInternalError
 		}
 
-		isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+		member, err := queries.GetMemberById(ctx, data.GetMemberByIdParams{
+			NetworkID: frequency.NetworkID,
+			UserID:    sess.ID(),
+		})
+		if err == sql.ErrNoRows {
+			return &ErrPermissionDenied // Not a member
+		}
 		if err != nil {
 			log.Println("database error 1:", err)
 			return &ErrInternalError
 		}
+		if !member.IsMember {
+			return &ErrPermissionDenied
+		}
 
-		if frequency.Perms != packet.PermReadWrite && !isAdmin {
+		if frequency.Perms != packet.PermReadWrite && !member.IsAdmin {
+			log.Println("No perms")
 			return &ErrPermissionDenied
 		}
 
@@ -99,13 +109,23 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			return &ErrInternalError
 		}
 
-		isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+		member, err := queries.GetMemberById(ctx, data.GetMemberByIdParams{
+			NetworkID: frequency.NetworkID,
+			UserID:    sess.ID(),
+		})
+		if err == sql.ErrNoRows {
+			return &ErrPermissionDenied // Not a member
+		}
 		if err != nil {
 			log.Println("database error 1:", err)
 			return &ErrInternalError
 		}
+		if !member.IsMember {
+			return &ErrPermissionDenied
+		}
 
-		if frequency.Perms == packet.PermNoAccess && !isAdmin {
+		if frequency.Perms == packet.PermNoAccess && !member.IsMember {
+			log.Println("No perms")
 			return &ErrPermissionDenied
 		}
 
@@ -247,7 +267,7 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
 
-	networks, err := qtx.GetNetworksOfUser(ctx, sess.ID())
+	networks, err := qtx.GetUserNetworks(ctx, sess.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -574,12 +594,17 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	}
 
 	if !newMember.IsMember {
-		return NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
+		NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: []snowflake.ID{newMember.UserID},
 			Members:        nil,
 			Users:          nil,
 			Network:        request.Network,
 		})
+
+		return &packet.NetworksInfo{
+			Networks:        nil,
+			RemovedNetworks: []snowflake.ID{request.Network},
+		}
 	}
 
 	user, err := queries.GetUserById(ctx, newMember.UserID)
@@ -594,6 +619,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		Users:          []data.User{user},
 		Network:        request.Network,
 	})
+	log.Println("propagated member")
 
 	// Joined
 	if !member.IsMember && newMember.IsMember {
