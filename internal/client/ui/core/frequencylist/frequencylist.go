@@ -1,6 +1,7 @@
 package frequencylist
 
 import (
+	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,9 +21,9 @@ var (
 	nameStyle = lipgloss.NewStyle().
 			Margin(0, 0, 1).Padding(1).Width(width).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
-	margin         = 2
+	xMargin        = 2
 	frequencyStyle = lipgloss.NewStyle().
-			Margin(0, margin).Padding(0, 1).Width(width - (margin * 2)).
+			Margin(0, xMargin).Padding(0, 1).Width(width - (xMargin * 2)).
 			Align(lipgloss.Left)
 	symbol = "# "
 )
@@ -30,16 +31,20 @@ var (
 type Model struct {
 	history      []func(m *Model)
 	networkIndex int
+	base         int
 	index        int
 	focus        bool
+	height       int
 }
 
 func New() Model {
 	return Model{
 		history:      []func(m *Model){},
 		networkIndex: -1,
+		base:         -1,
 		index:        -1,
 		focus:        false,
+		height:       1,
 	}
 }
 
@@ -54,23 +59,20 @@ func (m Model) View() string {
 
 	var builder strings.Builder
 
-	bg := lipgloss.Color(m.Network().BgHexColor)
-	fg := lipgloss.Color(m.Network().FgHexColor)
-	nameStyle := nameStyle.Background(bg).Foreground(fg)
-	if m.focus {
-		nameStyle = nameStyle.BorderForeground(colors.Focus)
-	}
-	builder.WriteString(nameStyle.Render(m.Network().Name))
+	builder.WriteString(m.renderNetworkName())
 
 	builder.WriteString("\n")
-	for i, frequency := range m.Frequencies() {
+	frequencies := m.Frequencies()
+	upper := min(m.base+m.height, len(frequencies))
+	frequencies = frequencies[m.base:upper]
+	for i, frequency := range frequencies {
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
-		if m.index == i {
+		if m.index == m.base+i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
 		}
 
 		frequencyName := lipgloss.NewStyle().
-			MaxWidth(width - (margin * 2) - 4).
+			MaxWidth(width - (xMargin * 2) - 4).
 			Render(frequency.Name)
 		builder.WriteString(frequencyStyle.Render(symbol + frequencyName))
 		builder.WriteString("\n")
@@ -87,6 +89,13 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if state.NetworkId(m.networkIndex) != nil {
+		// Calculate height for frequencies
+		m.height = ui.Height
+		m.height -= lipgloss.Height(m.renderNetworkName())
+		m.height -= 1
+	}
+
 	switch msg := msg.(type) {
 	case *packet.SwapFrequencies:
 		// Pop first by shifting to the left
@@ -116,9 +125,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m.Swap(1)
 			}
 		case "k":
-			m.index = max(0, m.index-1)
+			m.SetIndex(m.index - 1)
 		case "j":
-			m.index = min(m.FrequenciesLength()-1, m.index+1)
+			m.SetIndex(m.index + 1)
+		case "g":
+			m.SetIndex(0)
+		case "G":
+			m.SetIndex(m.FrequenciesLength() - 1)
+		case "ctrl+u":
+			m.SetIndex(m.index - m.height/2)
+		case "ctrl+d":
+			m.SetIndex(m.index + m.height/2)
 
 		case "x":
 			frequenciesCount := len(m.Frequencies())
@@ -129,7 +146,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// TODO: consider adding a confirmation popup
 			frequencyId := m.Frequencies()[m.index].ID
 			if m.index == frequenciesCount-1 {
-				m.index--
+				m.SetIndex(m.index - 1)
 			}
 			return m, gateway.Send(&packet.DeleteFrequency{
 				Frequency: frequencyId,
@@ -158,9 +175,9 @@ func (m Model) Swap(dir int) (Model, tea.Cmd) {
 	tmp := m.Frequencies()[m.index]
 	m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
 	m.Frequencies()[m.index+dir] = tmp
-	m.index += dir
+	m.SetIndex(m.index + dir)
 	m.history = append(m.history, func(m *Model) {
-		m.index -= dir
+		m.SetIndex(m.index - dir)
 		tmp := m.Frequencies()[m.index]
 		m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
 		m.Frequencies()[m.index+dir] = tmp
@@ -185,11 +202,12 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 	if networkIndex == -1 {
 		m.networkIndex = -1
 		m.index = -1
+		m.base = -1
 		return
 	}
 
 	m.networkIndex = networkIndex
-	m.index = 0
+	m.SetIndex(0)
 
 	// Try restoring last ID
 	networkId = state.NetworkId(m.networkIndex)
@@ -203,7 +221,7 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 	frequencies := state.State.Frequencies[*networkId]
 	for i, frequency := range frequencies {
 		if frequency.ID == id {
-			m.index = i
+			m.SetIndex(i)
 			break
 		}
 	}
@@ -236,4 +254,27 @@ func (m Model) Frequencies() []data.Frequency {
 
 func (m *Model) Index() int {
 	return m.index
+}
+
+func (m *Model) SetIndex(index int) {
+	if m.base == -1 {
+		m.base = 0
+	}
+	m.index = min(max(index, 0), m.FrequenciesLength()-1)
+	log.Println("Index:", m.index, "base:", m.base, "height", m.height)
+	if m.index < m.base {
+		m.base = m.index
+	} else if m.index >= m.base+m.height {
+		m.base = 1 + m.index - m.height
+	}
+}
+
+func (m Model) renderNetworkName() string {
+	bg := lipgloss.Color(m.Network().BgHexColor)
+	fg := lipgloss.Color(m.Network().FgHexColor)
+	nameStyle := nameStyle.Background(bg).Foreground(fg)
+	if m.focus {
+		nameStyle = nameStyle.BorderForeground(colors.Focus)
+	}
+	return nameStyle.Render(m.Network().Name)
 }
