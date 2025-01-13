@@ -255,6 +255,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if networkId != nil {
 					_ = clipboard.WriteAll(networkId.String())
 				}
+			} else {
+				m.updatePopups(msg)
 			}
 
 		case "esc":
