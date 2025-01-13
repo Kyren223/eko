@@ -1,7 +1,6 @@
 package frequencylist
 
 import (
-	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"

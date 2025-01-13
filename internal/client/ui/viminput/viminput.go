@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/config"
@@ -438,6 +439,13 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 		m.mode = VisualLineMode
 		m.vline = m.cursorLine
 		m.vcol = m.cursorColumn
+	case "ctrl+a":
+		m.mode = VisualLineMode
+		m.vline = 0
+		m.vcol = 0
+		m.SetCursorLine(len(m.lines) - 1)
+		line := m.lines[m.cursorLine]
+		m.SetCursorColumn(len(line) - 1)
 
 	case "d":
 		fallthrough
@@ -607,6 +615,22 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 		m.SetCursorColumn(m.cursorColumn - 1)
 		m.mode = NormalMode
 		return
+	}
+
+	if key.Type == tea.KeyCtrlV {
+		clipboard, err := clipboard.ReadAll()
+		if err != nil {
+			return
+		}
+		paste := m.Paste()
+		m.Yank(clipboard)
+		m.handleNormalModeKeys(tea.KeyMsg{
+			Type:  tea.KeyRunes,
+			Runes: []rune{'P'},
+			Alt:   false,
+			Paste: false,
+		})
+		m.Yank(paste)
 	}
 
 	if key.Type == tea.KeyTab || key.Type == tea.KeyShiftTab {
