@@ -124,8 +124,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			return &ErrPermissionDenied
 		}
 
-		if frequency.Perms == packet.PermNoAccess && !member.IsMember {
-			log.Println("No perms")
+		if frequency.Perms == packet.PermNoAccess && !member.IsAdmin {
 			return &ErrPermissionDenied
 		}
 
