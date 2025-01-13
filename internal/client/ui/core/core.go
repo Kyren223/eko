@@ -130,7 +130,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case gateway.ConnectionEstablished:
-		state.State.UserID = (*snowflake.ID)(&msg)
+		state.UserID = (*snowflake.ID)(&msg)
 		m.connected = true
 		m.timeout = initialTimeout
 		return tea.Batch(m.timer.Stop(), gateway.Send(&packet.GetUserData{}))
@@ -173,7 +173,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		gateway.Disconnect()
 
 	case gateway.ConnectionLost:
-		state.State.UserID = nil
+		state.UserID = nil
 		m.connected = false
 		m.timeout = initialTimeout
 		return gateway.Connect(m.privKey, connectionTimeout)
@@ -193,6 +193,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		if networkId == nil && m.networkList.Index() != networklist.PeersIndex {
 			m.networkList.SetIndex(m.networkList.Index() - 1)
 			m.frequencyList.SetNetworkIndex(m.networkList.Index())
+			m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
 		}
 
 	case *packet.MembersInfo:
@@ -200,6 +201,16 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	case *packet.FrequenciesInfo:
 		state.UpdateFrequencies(msg)
+		networkId := state.NetworkId(m.networkList.Index())
+		if networkId == nil {
+			return nil
+		}
+		index := m.frequencyList.Index()
+		length := len(state.State.Frequencies[*networkId])
+		if index >= length {
+			m.frequencyList.SetIndex(index - 1)
+			m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
+		}
 
 	case *packet.MessagesInfo:
 		state.UpdateMessages(msg)
@@ -220,12 +231,16 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 			case FocusFrequencyList:
 				if m.frequencyCreationPopup == nil {
-					index := m.networkList.Index()
-					networkId := state.NetworkId(index)
-					if networkId != nil {
-						popup := frequencycreation.New(*networkId)
-						m.frequencyCreationPopup = &popup
+					networkId := state.NetworkId(m.networkList.Index())
+					if networkId == nil {
+						return nil
 					}
+					member := state.State.Members[*networkId][*state.UserID]
+					if !member.IsAdmin {
+						return nil
+					}
+					popup := frequencycreation.New(*networkId)
+					m.frequencyCreationPopup = &popup
 				} else {
 					cmd := m.updatePopups(msg)
 					if cmd != nil {
