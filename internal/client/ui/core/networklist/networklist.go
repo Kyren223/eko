@@ -127,7 +127,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.index = min(len(state.State.Networks)-1, m.index+1)
 
 		case "Q":
-			if state.State.UserID == nil || m.index == PeersIndex {
+			if state.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
 			no := false
@@ -138,11 +138,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Banned:    nil,
 				BanReason: nil,
 				Network:   *state.NetworkId(m.index),
-				User:      *state.State.UserID,
+				User:      *state.UserID,
 			})
 
 		case "D":
-			if state.State.UserID == nil || m.index == PeersIndex {
+			if state.UserID == nil || m.index == PeersIndex {
 				return m, nil
 			}
 			return m, gateway.Send(&packet.DeleteNetwork{

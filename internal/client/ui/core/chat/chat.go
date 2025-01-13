@@ -259,6 +259,9 @@ func (m *Model) ResetBeforeSwitch() {
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
+		if len(frequencies) >= m.frequencyIndex {
+			return
+		}
 		frequencyId := frequencies[m.frequencyIndex].ID
 		log.Println("Saving", frequencyId)
 		state.State.FrequencyState[frequencyId] = state.FrequencyState{

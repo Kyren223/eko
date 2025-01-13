@@ -172,7 +172,7 @@ func (m *Model) Select() tea.Cmd {
 		Banned:    nil,
 		BanReason: nil,
 		Network:   snowflake.ID(id),
-		User:      *state.State.UserID,
+		User:      *state.UserID,
 	}
 	return gateway.Send(&request)
 }

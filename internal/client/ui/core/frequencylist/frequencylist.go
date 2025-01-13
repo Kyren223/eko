@@ -12,6 +12,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 var (
@@ -29,7 +30,6 @@ var (
 )
 
 type Model struct {
-	history      []func(m *Model)
 	networkIndex int
 	base         int
 	index        int
@@ -39,7 +39,6 @@ type Model struct {
 
 func New() Model {
 	return Model{
-		history:      []func(m *Model){},
 		networkIndex: -1,
 		base:         -1,
 		index:        -1,
@@ -98,16 +97,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case *packet.SwapFrequencies:
-		// Pop first by shifting to the left
-		copy(m.history, m.history[1:])
-		m.history = m.history[:len(m.history)-1]
-	case *packet.Error:
-		if msg.PktType == packet.PacketSwapFrequencies {
-			// Server failed, revert!
-			undo := m.history[len(m.history)-1]
-			m.history = m.history[:len(m.history)-1]
-			undo(&m)
-		}
+		tmp := m.Frequencies()[msg.Pos1]
+		m.Frequencies()[msg.Pos1] = m.Frequencies()[msg.Pos2]
+		m.Frequencies()[msg.Pos2] = tmp
+		m.Frequencies()[msg.Pos1].Position = int64(msg.Pos1)
+		m.Frequencies()[msg.Pos2].Position = int64(msg.Pos2)
 
 	case tea.KeyMsg:
 		if !m.focus {
@@ -166,22 +160,19 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m Model) Swap(dir int) (Model, tea.Cmd) {
-	cmd := gateway.Send(&packet.SwapFrequencies{
-		Network: m.Network().ID,
-		Pos1:    m.index,
-		Pos2:    m.index + dir,
-	})
-	tmp := m.Frequencies()[m.index]
-	m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
-	m.Frequencies()[m.index+dir] = tmp
+func (m Model) Swap(dir int) (model Model, cmd tea.Cmd) {
+	cmd = nil
+	networkId := state.NetworkId(m.networkIndex)
+	assert.NotNil(networkId, "if frequency can swap it must mean the network id is valid")
+	member := state.State.Members[*networkId][*state.UserID]
+	if member.IsAdmin {
+		cmd = gateway.Send(&packet.SwapFrequencies{
+			Network: m.Network().ID,
+			Pos1:    m.index,
+			Pos2:    m.index + dir,
+		})
+	}
 	m.SetIndex(m.index + dir)
-	m.history = append(m.history, func(m *Model) {
-		m.SetIndex(m.index - dir)
-		tmp := m.Frequencies()[m.index]
-		m.Frequencies()[m.index] = m.Frequencies()[m.index+dir]
-		m.Frequencies()[m.index+dir] = tmp
-	})
 	return m, cmd
 }
 
@@ -261,7 +252,6 @@ func (m *Model) SetIndex(index int) {
 		m.base = 0
 	}
 	m.index = min(max(index, 0), m.FrequenciesLength()-1)
-	log.Println("Index:", m.index, "base:", m.base, "height", m.height)
 	if m.index < m.base {
 		m.base = m.index
 	} else if m.index >= m.base+m.height {

@@ -19,8 +19,6 @@ type FrequencyState struct {
 }
 
 type state struct {
-	UserID *snowflake.ID
-
 	// Key is either a frequency or receiver
 	FrequencyState map[snowflake.ID]FrequencyState // key is frequency id
 	LastFrequency  map[snowflake.ID]snowflake.ID   // key is network id
@@ -33,7 +31,6 @@ type state struct {
 }
 
 var State state = state{
-	UserID:         nil,
 	FrequencyState: map[snowflake.ID]FrequencyState{},
 	LastFrequency:  map[snowflake.ID]snowflake.ID{},
 	Messages:       map[snowflake.ID]*btree.BTreeG[data.Message]{},
@@ -50,6 +47,8 @@ type UserData struct {
 var Data UserData = UserData{
 	Networks: []snowflake.ID{},
 }
+
+var UserID *snowflake.ID = nil
 
 func UpdateNetworks(info *packet.NetworksInfo) {
 	networks := State.Networks
@@ -94,29 +93,23 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 
 func UpdateFrequencies(info *packet.FrequenciesInfo) {
 	frequencies := State.Frequencies[info.Network]
-	for _, newFrequency := range info.Frequencies {
-		add := true
-		for i, existingFrequency := range frequencies {
-			if existingFrequency.ID == newFrequency.ID {
-				add = false
-				if newFrequency.Position == -1 {
-					newFrequency.Position = existingFrequency.Position
-				}
-				frequencies[i] = newFrequency
-				break
-			}
-		}
-		if add {
-			frequencies = append(frequencies, newFrequency)
-		}
-	}
 
 	frequencies = slices.DeleteFunc(frequencies, func(frequency data.Frequency) bool {
 		return slices.Contains(info.RemovedFrequencies, frequency.ID)
 	})
-	slices.SortFunc(frequencies, func(a, b data.Frequency) int {
-		return int(a.Position - b.Position)
-	})
+	for i, frequency := range frequencies {
+		frequency.Position = int64(i)
+		frequencies[i] = frequency
+	}
+
+	for _, newFrequency := range info.Frequencies {
+		position := int(newFrequency.Position)
+		if len(frequencies) == position {
+			frequencies = append(frequencies, newFrequency)
+		} else if position < len(frequencies) {
+			frequencies[position] = newFrequency
+		}
+	}
 
 	State.Frequencies[info.Network] = frequencies
 }
@@ -154,7 +147,7 @@ func UpdateMembers(info *packet.MembersInfo) {
 	for _, removedMember := range info.RemovedMembers {
 		delete(State.Members[info.Network], removedMember)
 
-		if removedMember != *State.UserID {
+		if removedMember != *UserID {
 			continue
 		}
 		delete(State.Networks, info.Network)
