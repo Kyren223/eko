@@ -329,7 +329,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: err}
 	}
 
-	if request.Perms < 0 || request.Perms > packet.PermMax {
+	if request.Perms < 0 || request.Perms >= packet.PermMax {
 		return &packet.Error{Error: fmt.Sprintf(
 			"exceeded allowed perms value: 0 <= perms < %v", packet.PermMax,
 		)}
@@ -347,11 +347,11 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &ErrInternalError
 	}
 
-	return &packet.FrequenciesInfo{
+	return NetworkPropagate(ctx, sess, request.Network, &packet.FrequenciesInfo{
 		RemovedFrequencies: nil,
 		Frequencies:        []data.Frequency{frequency},
 		Network:            request.Network,
-	}
+	})
 }
 
 func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet.SwapFrequencies) packet.Payload {
@@ -379,11 +379,11 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 		return &ErrInternalError
 	}
 
-	return &packet.SwapFrequencies{
+	return NetworkPropagate(ctx, sess, request.Network, &packet.SwapFrequencies{
 		Network: request.Network,
 		Pos1:    request.Pos1,
 		Pos2:    request.Pos2,
-	}
+	})
 }
 
 func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet.DeleteFrequency) packet.Payload {
@@ -402,7 +402,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 	// Authentication
 	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
 	if err == sql.ErrNoRows {
-		return &packet.Error{Error: "either user or network don't exist"}
+		return &ErrPermissionDenied // User not in network
 	}
 	if err != nil {
 		log.Println("database error 2:", err)
@@ -428,11 +428,11 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &ErrInternalError
 	}
 
-	return &packet.FrequenciesInfo{
+	return NetworkPropagate(ctx, sess, frequency.NetworkID, &packet.FrequenciesInfo{
 		RemovedFrequencies: []snowflake.ID{frequency.ID},
 		Frequencies:        nil,
 		Network:            frequency.NetworkID,
-	}
+	})
 }
 
 func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.DeleteNetwork) packet.Payload {
