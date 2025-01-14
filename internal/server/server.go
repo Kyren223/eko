@@ -361,6 +361,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	case *packet.SendMessage:
 		response = timeout(20*time.Millisecond, api.SendMessage, ctx, sess, request)
+	case *packet.DeleteMessage:
+		response = timeout(5*time.Millisecond, api.DeleteMessage, ctx, sess, request)
 	case *packet.RequestMessages:
 		response = timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
 

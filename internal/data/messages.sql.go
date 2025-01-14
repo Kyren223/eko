@@ -163,3 +163,22 @@ func (q *Queries) GetFrequencyMessages(ctx context.Context, frequencyID *snowfla
 	}
 	return items, nil
 }
+
+const getMessageById = `-- name: GetMessageById :one
+SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+WHERE id = ?
+`
+
+func (q *Queries) GetMessageById(ctx context.Context, id snowflake.ID) (Message, error) {
+	row := q.db.QueryRowContext(ctx, getMessageById, id)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.SenderID,
+		&i.Content,
+		&i.Edited,
+		&i.FrequencyID,
+		&i.ReceiverID,
+	)
+	return i, err
+}

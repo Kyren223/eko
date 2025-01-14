@@ -19,6 +19,7 @@ import (
 var (
 	ErrInternalError    = packet.Error{Error: "internal server error"}
 	ErrPermissionDenied = packet.Error{Error: "permission denied"}
+	ErrNotImplemented   = packet.Error{Error: "not implemented yet"}
 )
 
 func SendMessage(ctx context.Context, sess *session.Session, request *packet.SendMessage) packet.Payload {
@@ -147,7 +148,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	if request.ReceiverID != nil && request.FrequencyID == nil {
-		return &packet.Error{Error: "receiver message requests are not implemented yet!"}
+		return &ErrNotImplemented
 	}
 
 	return &packet.Error{Error: "either receiver id or frequency id must be specified"}
@@ -825,4 +826,68 @@ func UpdateFrequency(ctx context.Context, sess *session.Session, request *packet
 		Frequencies:        []data.Frequency{frequency},
 		Network:            frequency.NetworkID,
 	})
+}
+
+func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.DeleteMessage) packet.Payload {
+	queries := data.New(db)
+
+	message, err := queries.GetMessageById(ctx, request.Message)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "message doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	if message.FrequencyID != nil {
+		frequency, err := queries.GetFrequencyById(ctx, *message.FrequencyID)
+		if err != nil {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		network, err := queries.GetNetworkById(ctx, frequency.NetworkID)
+		if err != nil {
+			log.Println("database error 2:", err)
+			return &ErrInternalError
+		}
+
+		isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+		if err != nil {
+			log.Println("database error 3:", err)
+			return &ErrInternalError
+		}
+
+		isSelf := message.SenderID == sess.ID()
+		isAdmin := isSessAdmin && message.SenderID != network.OwnerID
+		isOwner := network.OwnerID == sess.ID()
+		if !isSelf && !isOwner && !isAdmin {
+			return &ErrPermissionDenied
+		}
+
+		err = queries.DeleteMessage(ctx, message.ID)
+		if err != nil {
+			log.Println("database error 4:", err)
+			return &ErrInternalError
+		}
+
+		return NetworkPropagateWithFilter(ctx, sess, frequency.NetworkID, &packet.MessagesInfo{
+			Messages:        nil,
+			RemovedMessages: []snowflake.ID{message.ID},
+		}, func(userId snowflake.ID) (pass bool) {
+			if frequency.Perms != packet.PermNoAccess {
+				return true
+			}
+			isAdmin, _ := IsNetworkAdmin(ctx, queries, userId, frequency.NetworkID)
+			return isAdmin
+		})
+	}
+
+	if message.ReceiverID != nil {
+		return &ErrNotImplemented
+	}
+
+	assert.Never("unreachable")
+	return nil
 }

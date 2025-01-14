@@ -67,8 +67,9 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	offset int
-	index  int
+	offset          int
+	index           int
+	selectedMessage *snowflake.ID
 
 	messagesHeight    int
 	maxMessagesHeight int
@@ -112,6 +113,7 @@ func (m *Model) Prerender() {
 	// if m.messagesCache == nil || messagesHeight != m.messagesHeight {
 	// 	// Re-render
 	// }
+	m.selectedMessage = nil
 	messages := m.renderMessages(messagesHeight)
 	m.messagesCache = &messages
 	m.messagesHeight = messagesHeight
@@ -154,6 +156,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		key := msg.String()
@@ -175,16 +179,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// Also for the first time a user scrolls there will be a visual
 			// glitch that doesn't show the top message being selected
 			m.Scroll(10000) // Large numbers can slow this!!!!
-		case "G":
-			fallthrough
 		case "enter":
+			m.locked = true
+			m.vi.SetMode(viminput.InsertMode)
+			fallthrough
+		case "G":
 			m.offset = SnapToBottom
 			m.index = -1
+
+		case "x", "X", "d", "D":
+			if m.selectedMessage != nil {
+				log.Println("deleting message:", m.selectedMessage)
+				cmd = gateway.Send(&packet.DeleteMessage{
+					Message: *m.selectedMessage,
+				})
+			}
 		}
 	}
 
 	m.Prerender()
-	return m, nil
+	return m, cmd
 }
 
 func (m *Model) Focus() {
@@ -527,6 +541,8 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	*remaining-- // For the header
 
 	if selectedIndex != -1 {
+		m.selectedMessage = &group[selectedIndex].ID
+
 		if selectedIndex == len(group)-1 {
 			buf = m.renderHeader(group[selectedIndex], true)
 		} else {

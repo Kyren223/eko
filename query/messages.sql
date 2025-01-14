@@ -1,3 +1,7 @@
+-- name: GetMessageById :one
+SELECT * FROM messages
+WHERE id = ?;
+
 -- name: GetFrequencyMessages :many
 SELECT * FROM messages
 WHERE frequency_id = ?
