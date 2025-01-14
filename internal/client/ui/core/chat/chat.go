@@ -136,8 +136,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	if m.locked {
 		if key, ok := msg.(tea.KeyMsg); ok {
-			InNormal := m.vi.Mode() == viminput.NormalMode
-			if key.String() == "q" && InNormal {
+			inNormalQ := key.String() == "q" && m.vi.Mode() == viminput.NormalMode
+			inInsertCtrlQ := key.String() == "ctrl+q" && m.vi.Mode() == viminput.InsertMode
+			if inNormalQ || inInsertCtrlQ {
 				m.locked = false
 				m.Prerender()
 				return m, nil

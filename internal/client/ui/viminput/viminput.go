@@ -631,6 +631,7 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 			Paste: false,
 		})
 		m.Yank(paste)
+		return
 	}
 
 	if key.Type == tea.KeyTab || key.Type == tea.KeyShiftTab {
