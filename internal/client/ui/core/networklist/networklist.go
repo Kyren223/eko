@@ -50,14 +50,18 @@ func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
 const PeersIndex = -1
 
 type Model struct {
-	index int
-	focus bool
+	base   int
+	index  int
+	height int
+	focus  bool
 }
 
 func New() Model {
 	return Model{
-		focus: false,
-		index: PeersIndex,
+		base:   0,
+		index:  PeersIndex,
+		height: 1,
+		focus:  false,
 	}
 }
 
@@ -74,14 +78,18 @@ func (m Model) View() string {
 		builder.WriteString(peersButton)
 	}
 	builder.WriteString("\n")
-	for i, networkId := range state.Data.Networks {
+
+	networks := state.Data.Networks
+	upper := min(m.base+m.height, len(networks))
+	networks = networks[m.base:upper]
+	for i, networkId := range networks {
 		network := state.State.Networks[networkId]
 
 		icon := IconStyle(network.Icon,
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
 		)
-		if m.index == i {
+		if m.index == m.base+i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
@@ -105,12 +113,18 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if !m.focus {
+		return m, nil
+	}
+
+	m.height = ui.Height
+	m.height -= 1 // Inital top margin
+	m.height /= 4 // 4 per icon
+	m.height -= 1 // For peers icon
+	m.SetIndex(m.index)
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if !m.focus {
-			return m, nil
-		}
-
 		key := msg.String()
 		switch key {
 		case "K":
@@ -122,9 +136,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m.Swap(1)
 			}
 		case "k":
-			m.index = max(-1, m.index-1)
+			m.SetIndex(m.index - 1)
 		case "j":
-			m.index = min(len(state.State.Networks)-1, m.index+1)
+			m.SetIndex(m.index + 1)
 
 		case "Q":
 			if state.UserID == nil || m.index == PeersIndex {
@@ -162,12 +176,12 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m Model) Swap(dir int) (Model, tea.Cmd) {
+func (m *Model) Swap(dir int) (Model, tea.Cmd) {
 	tmp := state.Data.Networks[m.index]
 	state.Data.Networks[m.index] = state.Data.Networks[m.index+dir]
 	state.Data.Networks[m.index+dir] = tmp
-	m.index += dir
-	return m, gateway.Send(&packet.SetUserData{
+	m.SetIndex(m.index + dir)
+	return *m, gateway.Send(&packet.SetUserData{
 		Data: state.JsonUserData(),
 	})
 }
@@ -177,5 +191,10 @@ func (m Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	m.index = index
+	m.index = min(max(index, PeersIndex), len(state.State.Networks)-1)
+	if m.index < m.base && m.index != PeersIndex {
+		m.base = m.index
+	} else if m.index >= m.base+m.height {
+		m.base = 1 + m.index - m.height
+	}
 }

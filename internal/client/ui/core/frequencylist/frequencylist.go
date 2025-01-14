@@ -112,6 +112,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.height = ui.Height
 		m.height -= lipgloss.Height(m.renderNetworkName())
 		m.height -= 1
+		m.SetIndex(m.index)
 	}
 
 	switch msg := msg.(type) {
@@ -179,7 +180,7 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m Model) Swap(dir int) (model Model, cmd tea.Cmd) {
+func (m *Model) Swap(dir int) (model Model, cmd tea.Cmd) {
 	cmd = nil
 	networkId := state.NetworkId(m.networkIndex)
 	assert.NotNil(networkId, "if frequency can swap it must mean the network id is valid")
@@ -192,7 +193,7 @@ func (m Model) Swap(dir int) (model Model, cmd tea.Cmd) {
 		})
 	}
 	m.SetIndex(m.index + dir)
-	return m, cmd
+	return *m, cmd
 }
 
 func (m *Model) SetNetworkIndex(networkIndex int) {
