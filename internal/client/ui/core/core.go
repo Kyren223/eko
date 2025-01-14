@@ -291,17 +291,26 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			frequencyFocus := m.focus == FocusFrequencyList
 			if !m.HasPopup() && networkFocus && index != networklist.PeersIndex {
 				networkId := state.NetworkId(index)
-				if networkId != nil {
-					popup := networkupdate.New(*networkId)
-					m.networkUpdatePopup = &popup
+				if networkId == nil {
+					return nil
 				}
+				if state.State.Networks[*networkId].OwnerID != *state.UserID {
+					return nil
+				}
+				popup := networkupdate.New(*networkId)
+				m.networkUpdatePopup = &popup
 			} else if !m.HasPopup() && frequencyFocus {
 				networkId := state.NetworkId(index)
-				if networkId != nil {
-					index := m.frequencyList.Index()
-					popup := frequencyupdate.New(*networkId, index)
-					m.frequencyUpdatePopup = &popup
+				if networkId == nil {
+					return nil
 				}
+				member := state.State.Members[*networkId][*state.UserID]
+				if !member.IsAdmin {
+					return nil
+				}
+				index := m.frequencyList.Index()
+				popup := frequencyupdate.New(*networkId, index)
+				m.frequencyUpdatePopup = &popup
 			} else {
 				cmd := m.updatePopups(msg)
 				if cmd != nil {
