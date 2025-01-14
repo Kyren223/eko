@@ -45,15 +45,16 @@ func IsNetworkAdmin(ctx context.Context, queries *data.Queries, userId, networkI
 	return isAdmin, nil
 }
 
-func NetworkPropagate(
+func NetworkPropagateWithFilter(
 	ctx context.Context, sess *session.Session,
 	network snowflake.ID, payload packet.Payload,
+	filter func(userId snowflake.ID) (pass bool),
 ) packet.Payload {
 	var sessions []snowflake.ID
 	sess.Manager().UseSessions(func(s map[snowflake.ID]*session.Session) {
 		sessions = make([]snowflake.ID, 0, len(s)-1)
 		for key := range s {
-			if key != sess.ID() {
+			if key != sess.ID() && filter(key) {
 				sessions = append(sessions, key)
 			}
 		}
@@ -86,6 +87,15 @@ func NetworkPropagate(
 	}
 
 	return payload
+}
+
+func NetworkPropagate(
+	ctx context.Context, sess *session.Session,
+	network snowflake.ID, payload packet.Payload,
+) packet.Payload {
+	return NetworkPropagateWithFilter(ctx, sess, network, payload, func(userId snowflake.ID) bool {
+		return true
+	})
 }
 
 func SplitMembersAndUsers(membersAndUsers []data.GetNetworkMembersRow) ([]data.Member, []data.User) {

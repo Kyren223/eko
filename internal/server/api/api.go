@@ -82,9 +82,15 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &ErrInternalError
 		}
 
-		return NetworkPropagate(ctx, sess, frequency.NetworkID, &packet.MessagesInfo{
+		return NetworkPropagateWithFilter(ctx, sess, frequency.NetworkID, &packet.MessagesInfo{
 			Messages:        []data.Message{message},
 			RemovedMessages: nil,
+		}, func(userId snowflake.ID) (pass bool) {
+			if frequency.Perms != packet.PermNoAccess {
+				return true
+			}
+			isAdmin, _ := IsNetworkAdmin(ctx, queries, userId, frequency.NetworkID)
+			return isAdmin
 		})
 	}
 
