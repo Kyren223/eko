@@ -110,3 +110,43 @@ func (q *Queries) TransferNetwork(ctx context.Context, arg TransferNetworkParams
 	)
 	return i, err
 }
+
+const updateNetwork = `-- name: UpdateNetwork :one
+UPDATE networks SET
+  name = ?, icon = ?,
+  bg_hex_color = ?, fg_hex_color = ?,
+  is_public = ?
+WHERE id = ?
+RETURNING id, owner_id, name, icon, bg_hex_color, fg_hex_color, is_public
+`
+
+type UpdateNetworkParams struct {
+	Name       string
+	Icon       string
+	BgHexColor string
+	FgHexColor string
+	IsPublic   bool
+	ID         snowflake.ID
+}
+
+func (q *Queries) UpdateNetwork(ctx context.Context, arg UpdateNetworkParams) (Network, error) {
+	row := q.db.QueryRowContext(ctx, updateNetwork,
+		arg.Name,
+		arg.Icon,
+		arg.BgHexColor,
+		arg.FgHexColor,
+		arg.IsPublic,
+		arg.ID,
+	)
+	var i Network
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Name,
+		&i.Icon,
+		&i.BgHexColor,
+		&i.FgHexColor,
+		&i.IsPublic,
+	)
+	return i, err
+}

@@ -73,14 +73,19 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		}
 
 		networks[network.ID] = network.Network
+
+		if info.Partial {
+			continue
+		}
+
 		State.Frequencies[network.ID] = network.Frequencies
+
 		for _, member := range network.Members {
 			if State.Members[network.ID] == nil {
 				State.Members[network.ID] = map[snowflake.ID]data.Member{}
 			}
 			State.Members[network.ID][member.UserID] = member
 		}
-
 		for _, user := range network.Users {
 			State.Users[user.ID] = user
 		}

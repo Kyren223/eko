@@ -18,5 +18,13 @@ UPDATE networks SET
 WHERE id = ?
 RETURNING *;
 
+-- name: UpdateNetwork :one
+UPDATE networks SET
+  name = ?, icon = ?,
+  bg_hex_color = ?, fg_hex_color = ?,
+  is_public = ?
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteNetwork :exec
 DELETE FROM networks WHERE id = ?;

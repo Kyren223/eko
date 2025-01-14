@@ -166,6 +166,11 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	if name == "" {
 		return &packet.Error{Error: "server name must not be blank"}
 	}
+	if len(name) > packet.MaxNetworkNameBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"network name may not exceed %v bytes", packet.MaxNetworkNameBytes,
+		)}
+	}
 
 	if len(request.Icon) > packet.MaxIconBytes {
 		return &packet.Error{Error: fmt.Sprintf(
@@ -251,6 +256,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	return &packet.NetworksInfo{
 		Networks:        []packet.FullNetwork{fullNetwork},
 		RemovedNetworks: nil,
+		Partial:         false,
 	}
 }
 
@@ -299,6 +305,7 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	return &packet.NetworksInfo{
 		Networks:        fullNetworks,
 		RemovedNetworks: nil,
+		Partial:         false,
 	}, nil
 }
 
@@ -460,6 +467,7 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 	return NetworkPropagate(ctx, sess, network.ID, &packet.NetworksInfo{
 		Networks:        nil,
 		RemovedNetworks: []snowflake.ID{request.Network},
+		Partial:         false,
 	})
 }
 
@@ -527,6 +535,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 				Users:       users,
 			}},
 			RemovedNetworks: nil,
+			Partial:         false,
 		}
 	}
 
@@ -603,6 +612,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		return &packet.NetworksInfo{
 			Networks:        nil,
 			RemovedNetworks: []snowflake.ID{request.Network},
+			Partial:         false,
 		}
 	}
 
@@ -642,6 +652,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 				Users:       users,
 			}},
 			RemovedNetworks: nil,
+			Partial:         false,
 		}
 	}
 
@@ -685,4 +696,68 @@ func GetUserData(ctx context.Context, sess *session.Session, request *packet.Get
 	return &packet.SetUserData{
 		Data: data,
 	}
+}
+
+func UpdateNetwork(ctx context.Context, sess *session.Session, request *packet.UpdateNetwork) packet.Payload {
+	queries := data.New(db)
+
+	network, err := queries.GetNetworkById(ctx, request.Network)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "network doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	if network.OwnerID != sess.ID() {
+		return &ErrPermissionDenied
+	}
+
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		return &packet.Error{Error: "server name must not be blank"}
+	}
+	if len(name) > packet.MaxNetworkNameBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"network name may not exceed %v bytes", packet.MaxNetworkNameBytes,
+		)}
+	}
+
+	if len(request.Icon) > packet.MaxIconBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"exceeded allowed icon size in bytes: %v", packet.MaxIconBytes,
+		)}
+	}
+
+	if ok, err := isValidHexColor(request.BgHexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+	if ok, err := isValidHexColor(request.FgHexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+
+	network, err = queries.UpdateNetwork(ctx, data.UpdateNetworkParams{
+		Name:       name,
+		Icon:       request.Icon,
+		BgHexColor: request.BgHexColor,
+		FgHexColor: request.FgHexColor,
+		IsPublic:   request.IsPublic,
+		ID:         network.ID,
+	})
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
+	return NetworkPropagate(ctx, sess, network.ID, &packet.NetworksInfo{
+		Networks: []packet.FullNetwork{{
+			Network:     network,
+			Frequencies: nil,
+			Members:     nil,
+			Users:       nil,
+		}},
+		RemovedNetworks: nil,
+		Partial:         true,
+	})
 }

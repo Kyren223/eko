@@ -76,6 +76,7 @@ type FullNetwork struct {
 type NetworksInfo struct {
 	Networks        []FullNetwork
 	RemovedNetworks []snowflake.ID
+	Partial         bool
 }
 
 func (m *NetworksInfo) Type() PacketType {

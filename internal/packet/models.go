@@ -1,6 +1,7 @@
 package packet
 
 const (
+	MaxNetworkNameBytes   = 32
 	MaxIconBytes          = 16
 	DefaultFrequencyName  = "main"
 	DefaultFrequencyColor = "#FFFFFF"
