@@ -25,7 +25,11 @@ var (
 	frequencyStyle = lipgloss.NewStyle().
 			Margin(0, xMargin).Padding(0, 1).Width(width - (xMargin * 2)).
 			Align(lipgloss.Left)
-	symbol = "# "
+	symbolReadWrite     = "󰖩 "
+	symbolReadOnly      = "󱛂 "
+	symbolReadOnlyAdmin = "󰖩 "
+	symbolNoAccess      = "󱚿 "
+	symbolNoAccessAdmin = "󱛀 "
 )
 
 type Model struct {
@@ -51,9 +55,12 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	if state.NetworkId(m.networkIndex) == nil {
+	networkId := state.NetworkId(m.networkIndex)
+	if networkId == nil {
 		return ""
 	}
+
+	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
 
 	var builder strings.Builder
 
@@ -67,6 +74,19 @@ func (m Model) View() string {
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
 		if m.index == m.base+i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
+		}
+
+		symbol := ""
+		if frequency.Perms == packet.PermReadWrite {
+			symbol = symbolReadWrite
+		} else if frequency.Perms == packet.PermRead && !isAdmin {
+			symbol = symbolReadOnly
+		} else if frequency.Perms == packet.PermRead && isAdmin {
+			symbol = symbolReadOnlyAdmin
+		} else if frequency.Perms == packet.PermNoAccess && !isAdmin {
+			symbol = symbolNoAccess
+		} else if frequency.Perms == packet.PermNoAccess && isAdmin {
+			symbol = symbolNoAccessAdmin
 		}
 
 		frequencyName := lipgloss.NewStyle().
