@@ -18,6 +18,12 @@ INSERT INTO frequencies (
 )
 RETURNING *;
 
+-- name: UpdateFrequency :one
+UPDATE frequencies SET
+  name = ?, hex_color = ?, perms = ?
+WHERE id = ?
+RETURNING *;
+
 -- name: SwapFrequencies :exec
 UPDATE frequencies SET
   position = CASE

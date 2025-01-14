@@ -761,3 +761,62 @@ func UpdateNetwork(ctx context.Context, sess *session.Session, request *packet.U
 		Partial:         true,
 	})
 }
+
+func UpdateFrequency(ctx context.Context, sess *session.Session, request *packet.UpdateFrequency) packet.Payload {
+	queries := data.New(db)
+
+	frequency, err := queries.GetFrequencyById(ctx, request.Frequency)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "frequency doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	isAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "either network doesn't exist or user is not apart of this network"}
+	}
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+	if !isAdmin {
+		return &ErrPermissionDenied
+	}
+
+	if len(request.Name) > packet.MaxFrequencyName {
+		return &packet.Error{Error: fmt.Sprintf(
+			"exceeded allowed frequency name length, max %v bytes",
+			packet.MaxFrequencyName,
+		)}
+	}
+
+	if ok, err := isValidHexColor(request.HexColor); !ok {
+		return &packet.Error{Error: err}
+	}
+
+	if request.Perms < 0 || request.Perms >= packet.PermMax {
+		return &packet.Error{Error: fmt.Sprintf(
+			"exceeded allowed perms value: 0 <= perms < %v", packet.PermMax,
+		)}
+	}
+
+	frequency, err = queries.UpdateFrequency(ctx, data.UpdateFrequencyParams{
+		Name:     request.Name,
+		HexColor: request.HexColor,
+		Perms:    int64(request.Perms),
+		ID:       frequency.ID,
+	})
+	if err != nil {
+		log.Println("database error 2:", err)
+		return &ErrInternalError
+	}
+
+	return NetworkPropagate(ctx, sess, frequency.NetworkID, &packet.FrequenciesInfo{
+		RemovedFrequencies: nil,
+		Frequencies:        []data.Frequency{frequency},
+		Network:            frequency.NetworkID,
+	})
+}

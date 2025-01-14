@@ -98,7 +98,7 @@ type UpdateFrequency struct {
 	Name      string
 	HexColor  string
 	Frequency snowflake.ID
-	Perms     byte
+	Perms     int
 }
 
 func (m *UpdateFrequency) Type() PacketType {

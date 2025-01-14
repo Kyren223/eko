@@ -16,6 +16,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/chat"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencycreation"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencylist"
+	"github.com/kyren223/eko/internal/client/ui/core/frequencyupdate"
 	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
@@ -55,6 +56,7 @@ type Model struct {
 	networkUpdatePopup     *networkupdate.Model
 	networkJoinPopup       *networkjoin.Model
 	frequencyCreationPopup *frequencycreation.Model
+	frequencyUpdatePopup   *frequencyupdate.Model
 	networkList            networklist.Model
 	frequencyList          frequencylist.Model
 	chat                   chat.Model
@@ -73,6 +75,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		networkUpdatePopup:     nil,
 		networkJoinPopup:       nil,
 		frequencyCreationPopup: nil,
+		frequencyUpdatePopup:   nil,
 		networkList:            networklist.New(),
 		frequencyList:          frequencylist.New(),
 		chat:                   chat.New(70),
@@ -110,6 +113,8 @@ func (m Model) View() string {
 		popup = m.networkUpdatePopup.View()
 	} else if m.frequencyCreationPopup != nil {
 		popup = m.frequencyCreationPopup.View()
+	} else if m.frequencyUpdatePopup != nil {
+		popup = m.frequencyUpdatePopup.View()
 	} else if m.networkJoinPopup != nil {
 		popup = m.networkJoinPopup.View()
 	}
@@ -283,11 +288,19 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		case "u":
 			index := m.networkList.Index()
 			networkFocus := m.focus == FocusNetworkList
+			frequencyFocus := m.focus == FocusFrequencyList
 			if !m.HasPopup() && networkFocus && index != networklist.PeersIndex {
 				networkId := state.NetworkId(index)
 				if networkId != nil {
 					popup := networkupdate.New(*networkId)
 					m.networkUpdatePopup = &popup
+				}
+			} else if !m.HasPopup() && frequencyFocus {
+				networkId := state.NetworkId(index)
+				if networkId != nil {
+					index := m.frequencyList.Index()
+					popup := frequencyupdate.New(*networkId, index)
+					m.frequencyUpdatePopup = &popup
 				}
 			} else {
 				cmd := m.updatePopups(msg)
@@ -301,6 +314,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.networkCreationPopup = nil
 				m.networkUpdatePopup = nil
 				m.frequencyCreationPopup = nil
+				m.frequencyUpdatePopup = nil
 				m.networkJoinPopup = nil
 			}
 
@@ -321,6 +335,12 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				cmd := m.frequencyCreationPopup.Select()
 				if cmd != nil {
 					m.frequencyCreationPopup = nil
+				}
+				return cmd
+			} else if m.frequencyUpdatePopup != nil {
+				cmd := m.frequencyUpdatePopup.Select()
+				if cmd != nil {
+					m.frequencyUpdatePopup = nil
 				}
 				return cmd
 			} else if m.networkJoinPopup != nil {
@@ -417,6 +437,10 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 		popup, cmd := m.frequencyCreationPopup.Update(msg)
 		m.frequencyCreationPopup = &popup
 		return cmd
+	} else if m.frequencyUpdatePopup != nil {
+		popup, cmd := m.frequencyUpdatePopup.Update(msg)
+		m.frequencyUpdatePopup = &popup
+		return cmd
 	} else if m.networkJoinPopup != nil {
 		popup, cmd := m.networkJoinPopup.Update(msg)
 		m.networkJoinPopup = &popup
@@ -429,5 +453,6 @@ func (m *Model) HasPopup() bool {
 	return m.networkCreationPopup != nil ||
 		m.networkUpdatePopup != nil ||
 		m.frequencyCreationPopup != nil ||
+		m.frequencyUpdatePopup != nil ||
 		m.networkJoinPopup != nil
 }

@@ -134,3 +134,36 @@ func (q *Queries) SwapFrequencies(ctx context.Context, arg SwapFrequenciesParams
 	_, err := q.db.ExecContext(ctx, swapFrequencies, arg.Pos1, arg.Pos2, arg.NetworkID)
 	return err
 }
+
+const updateFrequency = `-- name: UpdateFrequency :one
+UPDATE frequencies SET
+  name = ?, hex_color = ?, perms = ?
+WHERE id = ?
+RETURNING id, network_id, name, hex_color, perms, position
+`
+
+type UpdateFrequencyParams struct {
+	Name     string
+	HexColor string
+	Perms    int64
+	ID       snowflake.ID
+}
+
+func (q *Queries) UpdateFrequency(ctx context.Context, arg UpdateFrequencyParams) (Frequency, error) {
+	row := q.db.QueryRowContext(ctx, updateFrequency,
+		arg.Name,
+		arg.HexColor,
+		arg.Perms,
+		arg.ID,
+	)
+	var i Frequency
+	err := row.Scan(
+		&i.ID,
+		&i.NetworkID,
+		&i.Name,
+		&i.HexColor,
+		&i.Perms,
+		&i.Position,
+	)
+	return i, err
+}
