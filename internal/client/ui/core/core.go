@@ -186,7 +186,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		state.UserID = nil
 		m.connected = false
 		m.timeout = initialTimeout
-		return gateway.Connect(m.privKey, connectionTimeout)
+		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
 
 	case *packet.Error:
 		err := "new connection from another location, closing this one"
