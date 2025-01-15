@@ -14,7 +14,7 @@ import (
 
 type FrequencyState struct {
 	IncompleteMessage string
-	Offset            int
+	Base              int
 	MaxHeight         int
 }
 

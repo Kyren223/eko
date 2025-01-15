@@ -56,6 +56,7 @@ const (
 	TimeGap = 7 * 60 * 1000 // 7 minutes in millis
 
 	SnapToBottom = -1
+	Unselected   = -1
 )
 
 type Model struct {
@@ -67,7 +68,7 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	offset          int
+	base            int
 	index           int
 	selectedMessage *snowflake.ID
 
@@ -92,8 +93,8 @@ func New(width int) Model {
 		networkIndex:      -1,
 		receiverIndex:     -1,
 		frequencyIndex:    -1,
-		offset:            SnapToBottom,
-		index:             -1,
+		base:              SnapToBottom,
+		index:             Unselected,
 		messagesHeight:    0,
 		maxMessagesHeight: -1,
 		messagesCache:     nil,
@@ -109,6 +110,7 @@ func (m Model) Init() tea.Cmd {
 func (m *Model) Prerender() {
 	messagebox := m.renderMessageBox()
 	messagesHeight := ui.Height - lipgloss.Height(messagebox)
+	messagesHeight -= 1 // For the extra \n at the end
 
 	// if m.messagesCache == nil || messagesHeight != m.messagesHeight {
 	// 	// Re-render
@@ -166,7 +168,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "i":
 			m.locked = true
 			m.vi.SetMode(viminput.InsertMode)
-			m.index = -1
+			m.SetIndex(Unselected)
 		case "k":
 			m.Scroll(1)
 		case "j":
@@ -179,14 +181,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// HACK: hacky way to scroll to the top
 			// Also for the first time a user scrolls there will be a visual
 			// glitch that doesn't show the top message being selected
-			m.Scroll(10000) // Large numbers can slow this!!!!
+			m.SetIndex(10000) // Large numbers can slow this!!!!
+			// TODO: maybe just remove this? going up by 1 or by half a page
+			// is probably good enough, going to the top is not really a needed
+			// thing, (discord doesn't have it) and it can be expensive to
+			// calculate the top (imagine a frequency with 100k+ messages)
+		case "G":
+			m.base = SnapToBottom
+			m.SetIndex(Unselected)
 		case "enter":
 			m.locked = true
 			m.vi.SetMode(viminput.InsertMode)
-			fallthrough
-		case "G":
-			m.offset = SnapToBottom
-			m.index = -1
+			m.base = SnapToBottom
+			m.SetIndex(Unselected)
 
 		case "x", "X", "d", "D":
 			if m.selectedMessage != nil {
@@ -209,7 +216,7 @@ func (m *Model) Focus() {
 
 func (m *Model) Blur() {
 	m.focus = false
-	m.index = -1
+	m.SetIndex(Unselected)
 	m.vi.Blur()
 }
 
@@ -227,7 +234,7 @@ func (m *Model) sendMessage() tea.Cmd {
 	}
 
 	m.vi.Reset()
-	m.offset = SnapToBottom
+	m.base = SnapToBottom
 
 	var receiverId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
@@ -281,13 +288,13 @@ func (m *Model) ResetBeforeSwitch() {
 		log.Println("Saving", frequencyId)
 		state.State.FrequencyState[frequencyId] = state.FrequencyState{
 			IncompleteMessage: m.vi.String(),
-			Offset:            m.offset,
+			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
 		}
 		m.vi.Reset()
-		m.offset = SnapToBottom
+		m.base = SnapToBottom
 		m.maxMessagesHeight = -1
-		m.index = -1
+		m.SetIndex(Unselected)
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
@@ -302,7 +309,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		log.Println("Restoring", frequencyId)
 		if val, ok := msgs[frequencyId]; ok {
 			m.vi.SetString(val.IncompleteMessage)
-			m.offset = val.Offset
+			m.base = val.Base
+			m.SetIndex(Unselected)
 			m.maxMessagesHeight = val.MaxHeight
 
 			// Don't ask for messages if you already visited this frequency
@@ -403,12 +411,14 @@ func (m *Model) renderMessages(screenHeight int) string {
 	}
 
 	if btree == nil {
-		return NoMessages.Width(m.width).Height(screenHeight-1).String() + "\n"
+		return NoMessages.Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
 	height := screenHeight
-	if m.offset != SnapToBottom {
-		height = m.offset
+	if m.base != SnapToBottom {
+		height = m.base + 1
+		// bcz base is an index (0 to n) but we want total
+		// we need to add one so it's a height
 	}
 	remainingHeight := height
 
@@ -443,9 +453,10 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 		if remainingHeight > 0 {
 			m.maxMessagesHeight = height - remainingHeight
-			if m.offset != SnapToBottom {
-				m.offset = min(m.offset, m.maxMessagesHeight+1)
-				m.index = min(m.index, m.offset-2)
+			// FIX:
+			if m.base != SnapToBottom {
+				m.base = min(m.base, m.maxMessagesHeight+1)
+				m.SetIndex(min(m.index, m.base-2))
 			}
 		}
 	}
@@ -463,7 +474,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 	result := builder.String()
 
-	if m.offset == SnapToBottom {
+	if m.base == SnapToBottom {
 		// Truncate any excess and show only the bottom
 		newlines := 0
 		index := -1
@@ -471,39 +482,59 @@ func (m *Model) renderMessages(screenHeight int) string {
 			if result[i] == '\n' {
 				newlines++
 			}
-			if newlines == height {
+			// The reason for this +1 is bcz height gives the newline of the
+			// first line, so we go an extra one to get the newline BEFORE
+			// the first line and then we trim to result[index+1:]
+			// which prints the first char of the first line onwards
+			if newlines == height+1 {
 				index = i
 				break
 			}
 		}
-		if index != -1 {
-			return result[index+1:]
-		}
+		// If index wasn't found, then -1+1 will be 0
+		// which is the desired value
+		return result[index+1:]
 	} else {
 		// Show from the offset up to offset+height
 		newlines := 0
-		offsetIndex := -1
+		baseIndex := -1
 		upToIndex := -1
 		for i := len(result) - 1; i >= 0; i-- {
 			if result[i] == '\n' {
 				newlines++
 			}
-			if newlines == m.offset && offsetIndex == -1 {
-				offsetIndex = i
+			// The reason for this +2 is bcz base needs to be adjusted to
+			// a height rather than an index and after the adjustment,
+			// base gives the newline of the first line we want,
+			// so we go an extra +1 to get the newline BEFORE
+			// the first line and then we trim to result[baseIndex+1:...]
+			// which prints the first char of the first line onwards
+			if newlines == m.base+2 && baseIndex == -1 {
+				baseIndex = i
 			}
-			if newlines == m.offset-screenHeight+1 && upToIndex == -1 {
+			// The first +1 is for adjusting the height and the 2nd +1
+			// is for the same reason as the previous comment
+			if newlines == m.base-screenHeight+1+1 && upToIndex == -1 {
 				upToIndex = i
 			}
-			if offsetIndex != -1 && upToIndex != -1 {
+			if baseIndex != -1 && upToIndex != -1 {
 				break
 			}
 		}
-		if offsetIndex != -1 && upToIndex != -1 {
-			return result[offsetIndex+1 : upToIndex+1]
+		if upToIndex != -1 {
+			// If baseIndex wasn't found, then -1+1 will be 0
+			// which is the desired value
+			return result[baseIndex+1 : upToIndex+1]
 		}
+		assert.Never("unreachable",
+			"base", m.base,
+			"index", m.index,
+			"baseIndex", baseIndex,
+			"upToIndex", upToIndex,
+			"messageHeight", m.messagesHeight,
+		)
+		return ""
 	}
-
-	return result
 }
 
 func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height int) string {
@@ -620,48 +651,47 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 }
 
 func (m *Model) Scroll(amount int) {
-	if m.index == -1 {
-		if m.offset != SnapToBottom {
-			m.index = m.offset - m.messagesHeight
-			amount--
-		} else if amount > 0 {
-			m.index = 1 // Skip bottom blank line
-			amount--
+	index := m.index
+	if index == Unselected {
+		log.Println("unselected, base:", m.base, "height", m.messagesHeight)
+		if m.base != SnapToBottom {
+			index = m.base - m.messagesHeight
+		}
+		// TODO: should this happen only if u r at "snap to bottom"?
+		// Bcz otherwise there is no gurantee that the bottom most line
+		// is blank
+		if amount > 0 {
+			amount++ // Skip the blank line at the bottom
 		}
 	}
+	m.SetIndex(index + amount)
+	if m.index == Unselected {
+		m.base = SnapToBottom
+	}
+}
 
-	m.index = max(-1, m.index+amount)
+func (m *Model) SetIndex(index int) {
+	// TODO: set an upper bound to avoid the crashes when index is too high
+	m.index = max(Unselected, index)
 
-	if amount > 0 {
-		// Scrolling up
-		if m.offset == SnapToBottom && m.maxMessagesHeight != -1 {
-			m.index = min(m.index, m.maxMessagesHeight-1)
-			return
-		}
+	if m.index == Unselected {
+		return
+	}
 
-		maxHeight := m.offset
-		if m.offset == SnapToBottom {
-			maxHeight = m.messagesHeight
-		}
-		if m.index >= maxHeight-1 {
-			m.offset = m.index + 2
-			if m.maxMessagesHeight != -1 && m.offset > m.maxMessagesHeight {
-				m.offset = min(m.offset, m.maxMessagesHeight+1)
-				m.index = min(m.index, m.offset-2)
-			}
-		}
-	} else {
-		// Scrolling down
-		if m.offset != SnapToBottom {
-			diff := m.offset - m.messagesHeight - m.index
-			if diff > 0 {
-				m.offset -= diff
-			}
-		}
+	upperBound := m.base
+	if m.base == SnapToBottom {
+		upperBound = m.messagesHeight
+	}
+	if m.index >= upperBound {
+		m.base = m.index
+	}
+
+	if m.index <= upperBound-m.messagesHeight {
+		m.base = m.index + m.messagesHeight - 1
 	}
 
 	// If at bottom snap to it
 	if m.index <= 1 {
-		m.offset = SnapToBottom
+		m.base = SnapToBottom
 	}
 }
