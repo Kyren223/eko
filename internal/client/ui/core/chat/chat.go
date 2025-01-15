@@ -47,6 +47,8 @@ var (
 			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
 			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
 			SetString("This frequency has no messages, start transmiting!")
+
+	SelectedGap = lipgloss.NewStyle().Background(colors.BackgroundDim)
 )
 
 const (
@@ -559,8 +561,13 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		buf = append(buf, '\n')
 	}
 
-	buf = append(buf, '\n') // Gap between each message group
-	*remaining--            // For gap
+	// Gap between each message group
+	if m.index == height-*remaining {
+		gap := SelectedGap.Width(m.width).String()
+		buf = append(buf, gap...)
+	}
+	buf = append(buf, '\n')
+	*remaining--
 
 	selectedIndex := -1
 	for i, h := range heights {
@@ -657,11 +664,7 @@ func (m *Model) Scroll(amount int) {
 		log.Println("unselected, base:", m.base, "height", m.messagesHeight)
 		if m.base != SnapToBottom {
 			index = m.base - m.messagesHeight
-		}
-		// TODO: should this happen only if u r at "snap to bottom"?
-		// Bcz otherwise there is no gurantee that the bottom most line
-		// is blank
-		if amount > 0 {
+		} else if amount > 0 {
 			amount++ // Skip the blank line at the bottom
 		}
 	}
@@ -697,5 +700,9 @@ func (m *Model) SetIndex(index int) {
 	// If at bottom snap to it
 	if m.index <= 1 {
 		m.base = SnapToBottom
+	}
+
+	if m.index == 0 {
+		m.index = Unselected
 	}
 }
