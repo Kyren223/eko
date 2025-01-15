@@ -178,14 +178,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "ctrl+d":
 			m.Scroll(-m.messagesHeight / 2)
 		case "g":
-			// HACK: hacky way to scroll to the top
-			// Also for the first time a user scrolls there will be a visual
-			// glitch that doesn't show the top message being selected
-			m.SetIndex(10000) // Large numbers can slow this!!!!
-			// TODO: maybe just remove this? going up by 1 or by half a page
-			// is probably good enough, going to the top is not really a needed
-			// thing, (discord doesn't have it) and it can be expensive to
-			// calculate the top (imagine a frequency with 100k+ messages)
+			if m.maxMessagesHeight != -1 {
+				m.SetIndex(m.maxMessagesHeight)
+			}
 		case "G":
 			m.base = SnapToBottom
 			m.SetIndex(Unselected)
@@ -315,11 +310,17 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 
 			// Don't ask for messages if you already visited this frequency
 			return nil
+		} else {
+			m.vi.Reset()
+			m.base = SnapToBottom
+			m.SetIndex(Unselected)
+			m.maxMessagesHeight = -1
+
+			return gateway.Send(&packet.RequestMessages{
+				ReceiverID:  nil,
+				FrequencyID: &frequencyId,
+			})
 		}
-		return gateway.Send(&packet.RequestMessages{
-			ReceiverID:  nil,
-			FrequencyID: &frequencyId,
-		})
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
@@ -425,7 +426,10 @@ func (m *Model) renderMessages(screenHeight int) string {
 	renderedGroups := []string{}
 	group := []data.Message{}
 
+	last := snowflake.ID(0)
 	btree.Descend(func(message data.Message) bool {
+		last = message.ID
+
 		if len(group) == 0 {
 			group = append(group, message)
 			return true
@@ -450,15 +454,12 @@ func (m *Model) renderMessages(screenHeight int) string {
 	if remainingHeight > 0 && len(group) != 0 {
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 		renderedGroups = append(renderedGroups, renderedGroup)
+	}
 
-		if remainingHeight > 0 {
-			m.maxMessagesHeight = height - remainingHeight
-			// FIX:
-			if m.base != SnapToBottom {
-				m.base = min(m.base, m.maxMessagesHeight+1)
-				m.SetIndex(min(m.index, m.base-2))
-			}
-		}
+	first, ok := btree.Min()
+	if ok && last == first.ID {
+		m.maxMessagesHeight = height - remainingHeight
+		m.SetIndex(m.index)
 	}
 
 	var builder strings.Builder
@@ -671,8 +672,11 @@ func (m *Model) Scroll(amount int) {
 }
 
 func (m *Model) SetIndex(index int) {
-	// TODO: set an upper bound to avoid the crashes when index is too high
-	m.index = max(Unselected, index)
+	maxHeight := index
+	if m.maxMessagesHeight != -1 {
+		maxHeight = m.maxMessagesHeight - 1
+	}
+	m.index = min(max(index, Unselected), maxHeight)
 
 	if m.index == Unselected {
 		return
