@@ -61,6 +61,14 @@ var (
 	SendMessagePlaceholder = "Send a message..."
 	ReadOnlyPlaceholder    = "You do not have permissions to send messages in this frequency"
 	MutedPlaceholder       = "You have been muted by a server adminstrator"
+
+	EditedIndicator = lipgloss.NewStyle().
+			Foreground(colors.LightGray).SetString(" (edited)").String()
+	EditedIndicatorNL = lipgloss.NewStyle().
+				Foreground(colors.LightGray).SetString("\n(edited)").String()
+	SelectedEditedIndicatorNL = lipgloss.NewStyle().
+					Foreground(colors.LightGray).Background(colors.BackgroundDim).
+					SetString("\n(edited)").String()
 )
 
 const (
@@ -293,7 +301,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case "e":
-			if m.selectedMessage != nil {
+			if m.selectedMessage != nil && m.selectedMessage.SenderID == *state.UserID {
 				log.Println("editing message:", m.selectedMessage)
 				m.editingMessage = m.selectedMessage
 
@@ -653,8 +661,19 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	messageStyle := lipgloss.NewStyle().Width(m.width).
 		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
 	for i := len(group) - 1; i >= 0; i-- {
-		content := messageStyle.Render(group[i].Content)
+		rawContent := group[i].Content
+		content := messageStyle.Render(rawContent)
 		heights[i] = lipgloss.Height(content)
+		if group[i].Edited {
+			before := heights[i]
+			content = messageStyle.Render(rawContent + EditedIndicator)
+			heights[i] = lipgloss.Height(content)
+			if before != heights[i] {
+				content = messageStyle.Render(rawContent + EditedIndicatorNL)
+				heights[i] = lipgloss.Height(content)
+			}
+		}
+
 		checkpoints[i] = len(buf)
 
 		buf = append(buf, content...)
@@ -689,14 +708,36 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			buf = buf[:checkpoints[selectedIndex]] // Revert
 		}
 
-		content := group[selectedIndex].Content
-		content = messageStyle.Background(colors.BackgroundDim).Render(content)
+		style := messageStyle.Background(colors.BackgroundDim)
+		rawContent := group[selectedIndex].Content
+		content := style.Render(rawContent)
+		if group[selectedIndex].Edited {
+			before := lipgloss.Height(content)
+			content = style.Render(rawContent + EditedIndicator)
+			after := lipgloss.Height(content)
+			if before != after {
+				content = style.Render(rawContent + SelectedEditedIndicatorNL)
+			}
+		}
+
 		buf = append(buf, content...)
 		buf = append(buf, '\n')
 
 		// Redraw rest
 		for i := selectedIndex - 1; i >= 0; i-- {
-			content := messageStyle.Render(group[i].Content)
+			rawContent := group[i].Content
+			content := messageStyle.Render(rawContent)
+			heights[i] = lipgloss.Height(content)
+			if group[i].Edited {
+				before := heights[i]
+				content = messageStyle.Render(rawContent + EditedIndicator)
+				heights[i] = lipgloss.Height(content)
+				if before != heights[i] {
+					content = messageStyle.Render(rawContent + EditedIndicatorNL)
+					heights[i] = lipgloss.Height(content)
+				}
+			}
+
 			buf = append(buf, content...)
 			buf = append(buf, '\n')
 		}
