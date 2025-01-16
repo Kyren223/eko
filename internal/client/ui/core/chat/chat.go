@@ -26,6 +26,7 @@ var (
 	focusStyle    = lipgloss.NewStyle().Foreground(colors.Focus)
 	readOnlyStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 	mutedStyle    = lipgloss.NewStyle().Foreground(colors.Red)
+	editStyle     = lipgloss.NewStyle().Foreground(colors.Gold)
 
 	ViBlurredBorder = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder(), true, true, false).
@@ -33,6 +34,7 @@ var (
 	ViFocusedBorder  = ViBlurredBorder.BorderForeground(colors.Focus)
 	ViReadOnlyBorder = ViBlurredBorder.BorderForeground(colors.Gray)
 	ViMutedBorder    = ViBlurredBorder.BorderForeground(colors.Red)
+	ViEditBorder     = ViBlurredBorder.BorderForeground(colors.Gold)
 
 	VimModeStyle = lipgloss.NewStyle().Bold(true)
 
@@ -84,7 +86,8 @@ type Model struct {
 
 	base            int
 	index           int
-	selectedMessage *snowflake.ID
+	selectedMessage *data.Message
+	editingMessage  *data.Message
 
 	messagesHeight    int
 	maxMessagesHeight int
@@ -107,16 +110,22 @@ func New(width int) Model {
 		vi:                vi,
 		focus:             false,
 		locked:            false,
+		hasReadAccess:     false,
+		hasWriteAccess:    false,
 		networkIndex:      -1,
 		receiverIndex:     -1,
 		frequencyIndex:    -1,
 		base:              SnapToBottom,
 		index:             Unselected,
+		selectedMessage:   nil,
+		editingMessage:    nil,
 		messagesHeight:    0,
 		maxMessagesHeight: -1,
 		messagesCache:     nil,
 		prerender:         "",
 		width:             width,
+		style:             blurStyle,
+		borderStyle:       ViBlurredBorder,
 	}
 }
 
@@ -174,6 +183,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.borderStyle = ViFocusedBorder
 			m.style = focusStyle
 			m.vi.SetInactive(false)
+			if m.editingMessage != nil {
+				m.borderStyle = ViEditBorder
+				m.style = editStyle
+			}
 		} else {
 			m.vi.Placeholder = SendMessagePlaceholder
 			m.borderStyle = ViBlurredBorder
@@ -193,14 +206,38 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if key, ok := msg.(tea.KeyMsg); ok {
 			inNormalQ := key.String() == "q" && m.vi.Mode() == viminput.NormalMode
 			inInsertCtrlQ := key.String() == "ctrl+q" && m.vi.Mode() == viminput.InsertMode
+
 			if inNormalQ || inInsertCtrlQ {
 				m.locked = false
+
+				if m.editingMessage != nil {
+					m.editingMessage = nil
+					m.borderStyle = ViBlurredBorder
+					m.style = blurStyle
+					m.vi.Reset()
+					m.vi, _ = m.vi.Update(msg)
+				}
+
 				m.Prerender()
 				return m, nil
 			}
 
 			if key.Type == tea.KeyEnter {
-				cmd := m.sendMessage()
+				var cmd tea.Cmd
+
+				if m.editingMessage != nil {
+					cmd = m.editMessage()
+					m.locked = false
+					m.editingMessage = nil
+
+					m.borderStyle = ViBlurredBorder
+					m.style = blurStyle
+					m.vi.Reset()
+					m.vi, _ = m.vi.Update(msg)
+				} else {
+					cmd = m.sendMessage()
+				}
+
 				m.Prerender()
 				return m, cmd
 			}
@@ -251,8 +288,25 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.selectedMessage != nil {
 				log.Println("deleting message:", m.selectedMessage)
 				cmd = gateway.Send(&packet.DeleteMessage{
-					Message: *m.selectedMessage,
+					Message: m.selectedMessage.ID,
 				})
+			}
+
+		case "e":
+			if m.selectedMessage != nil {
+				log.Println("editing message:", m.selectedMessage)
+				m.editingMessage = m.selectedMessage
+
+				m.vi.Reset()
+				m.vi.SetString(m.selectedMessage.Content)
+
+				m.locked = true
+				m.vi.SetMode(viminput.InsertMode)
+				m.vi.SetCursorLine(len(m.vi.Lines()) - 1)
+				m.vi.SetCursorColumn(len(m.vi.Lines()[m.vi.CursorLine()]))
+
+				m.borderStyle = ViEditBorder
+				m.style = editStyle
 			}
 		}
 	}
@@ -627,7 +681,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	*remaining-- // For the header
 
 	if selectedIndex != -1 {
-		m.selectedMessage = &group[selectedIndex].ID
+		m.selectedMessage = &group[selectedIndex]
 
 		if selectedIndex == len(group)-1 {
 			buf = m.renderHeader(group[selectedIndex], true)
@@ -751,4 +805,19 @@ func (m *Model) SetIndex(index int) {
 	if m.index == 0 {
 		m.index = Unselected
 	}
+}
+
+func (m *Model) editMessage() tea.Cmd {
+	message := m.vi.String()
+	if len(message) > MaxCharCount {
+		return nil
+	}
+	if len(strings.TrimSpace(message)) == 0 {
+		return nil
+	}
+
+	return gateway.Send(&packet.EditMessage{
+		Message: m.editingMessage.ID,
+		Content: message,
+	})
 }

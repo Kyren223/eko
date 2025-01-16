@@ -891,3 +891,71 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 	assert.Never("unreachable")
 	return nil
 }
+
+func EditMessage(ctx context.Context, sess *session.Session, request *packet.EditMessage) packet.Payload {
+	if len(request.Content) > packet.MaxMessageBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"message conent must not exceed %v bytes",
+			packet.MaxMessageBytes,
+		)}
+	}
+
+	content := strings.TrimSpace(request.Content)
+	if content == "" {
+		return &packet.Error{Error: "message content must not be blank"}
+	}
+
+	queries := data.New(db)
+
+	message, err := queries.GetMessageById(ctx, request.Message)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "message doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	if message.FrequencyID != nil {
+		frequency, err := queries.GetFrequencyById(ctx, *message.FrequencyID)
+		if err != nil {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		// Note: it is possible to edit your messages in any frequency
+		// regardless if you are in the network or if you have access to
+		// the frequency, as long as you know the message ID
+		// This should be fine but may be changed later to be more strict
+		if message.SenderID != sess.ID() {
+			return &ErrPermissionDenied
+		}
+
+		editedMessage, err := queries.EditMessage(ctx, data.EditMessageParams{
+			Content: content,
+			ID:      message.ID,
+		})
+		if err != nil {
+			log.Println("database error 4:", err)
+			return &ErrInternalError
+		}
+
+		return NetworkPropagateWithFilter(ctx, sess, frequency.NetworkID, &packet.MessagesInfo{
+			Messages:        []data.Message{editedMessage},
+			RemovedMessages: nil,
+		}, func(userId snowflake.ID) (pass bool) {
+			if frequency.Perms != packet.PermNoAccess {
+				return true
+			}
+			isAdmin, _ := IsNetworkAdmin(ctx, queries, userId, frequency.NetworkID)
+			return isAdmin
+		})
+	}
+
+	if message.ReceiverID != nil {
+		return &ErrNotImplemented
+	}
+
+	assert.Never("unreachable")
+	return nil
+}

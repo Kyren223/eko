@@ -2104,3 +2104,15 @@ func (m *Model) SetInactive(inactive bool) {
 func (m *Model) Inactive() bool {
 	return m.inactive
 }
+
+func (m *Model) Lines() [][]rune {
+	return m.lines
+}
+
+func (m *Model) CursorLine() int {
+	return m.cursorLine
+}
+
+func (m *Model) CursorColumn() int {
+	return m.cursorColumn
+}

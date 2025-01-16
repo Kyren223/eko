@@ -229,6 +229,8 @@ func Send(request packet.Payload) tea.Cmd {
 		err := send(request)
 		if err != nil {
 			log.Println("request send error:", err)
+		} else {
+			log.Println("request sent successfully:", request)
 		}
 		return RequestSentMsg{
 			request: request,
