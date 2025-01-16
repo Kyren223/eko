@@ -22,12 +22,17 @@ import (
 )
 
 var (
-	focusStyle = lipgloss.NewStyle().Foreground(colors.Focus)
+	blurStyle     = lipgloss.NewStyle().Foreground(colors.White)
+	focusStyle    = lipgloss.NewStyle().Foreground(colors.Focus)
+	readOnlyStyle = lipgloss.NewStyle().Foreground(colors.Gray)
+	mutedStyle    = lipgloss.NewStyle().Foreground(colors.Red)
 
 	ViBlurredBorder = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder(), true, true, false).
 			Padding(0, 1)
-	ViFocusedBorder = ViBlurredBorder.BorderForeground(colors.Focus)
+	ViFocusedBorder  = ViBlurredBorder.BorderForeground(colors.Focus)
+	ViReadOnlyBorder = ViBlurredBorder.BorderForeground(colors.Gray)
+	ViMutedBorder    = ViBlurredBorder.BorderForeground(colors.Red)
 
 	VimModeStyle = lipgloss.NewStyle().Bold(true)
 
@@ -47,8 +52,13 @@ var (
 			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
 			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
 			SetString("This frequency has no messages, start transmiting!")
+	NoAccess = NoMessages.SetString("You do not have permissions to see messages in this frequency")
 
 	SelectedGap = lipgloss.NewStyle().Background(colors.BackgroundDim)
+
+	SendMessagePlaceholder = "Send a message..."
+	ReadOnlyPlaceholder    = "You do not have permissions to send messages in this frequency"
+	MutedPlaceholder       = "You have been muted by a server adminstrator"
 )
 
 const (
@@ -66,6 +76,8 @@ type Model struct {
 	focus  bool
 	locked bool
 
+	hasReadAccess  bool
+	hasWriteAccess bool
 	networkIndex   int
 	receiverIndex  int
 	frequencyIndex int
@@ -80,12 +92,15 @@ type Model struct {
 	prerender         string
 
 	width int
+
+	style       lipgloss.Style
+	borderStyle lipgloss.Style
 }
 
 func New(width int) Model {
 	viWidth := width - PaddingCount*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
 	vi := viminput.New(viWidth, ui.Height/2)
-	vi.Placeholder = "Send a message..."
+	vi.Placeholder = SendMessagePlaceholder
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
 	return Model{
@@ -133,6 +148,42 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// TODO: properly invalidate cache
 	m.messagesCache = nil
 
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequency := frequencies[m.frequencyIndex]
+		member := state.State.Members[*networkId][*state.UserID]
+
+		m.hasReadAccess = frequency.Perms != packet.PermNoAccess || member.IsAdmin
+		m.hasWriteAccess = !member.IsMuted && (frequency.Perms == packet.PermReadWrite || member.IsAdmin)
+
+		if member.IsMuted {
+			m.vi.Placeholder = MutedPlaceholder
+			m.borderStyle = ViMutedBorder
+			m.style = mutedStyle
+			m.vi.SetInactive(true)
+			m.locked = false
+		} else if frequency.Perms != packet.PermReadWrite && !member.IsAdmin {
+			m.vi.Placeholder = ReadOnlyPlaceholder
+			m.borderStyle = ViReadOnlyBorder
+			m.style = readOnlyStyle
+			m.vi.SetInactive(true)
+			m.locked = false
+		} else if m.locked {
+			m.vi.Placeholder = SendMessagePlaceholder
+			m.borderStyle = ViFocusedBorder
+			m.style = focusStyle
+			m.vi.SetInactive(false)
+		} else {
+			m.vi.Placeholder = SendMessagePlaceholder
+			m.borderStyle = ViBlurredBorder
+			m.style = blurStyle
+			m.vi.SetInactive(false)
+		}
+	} else if m.receiverIndex != -1 {
+		// TODO: receiver
+	}
+
 	if !m.focus {
 		m.Prerender()
 		return m, nil
@@ -168,9 +219,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		key := msg.String()
 		switch key {
 		case "i":
-			m.locked = true
-			m.vi.SetMode(viminput.InsertMode)
-			m.SetIndex(Unselected)
+			if !m.vi.Inactive() {
+				m.locked = true
+				m.vi.SetMode(viminput.InsertMode)
+				m.SetIndex(Unselected)
+			}
 		case "k":
 			m.Scroll(1)
 		case "j":
@@ -187,10 +240,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.base = SnapToBottom
 			m.SetIndex(Unselected)
 		case "enter":
-			m.locked = true
-			m.vi.SetMode(viminput.InsertMode)
-			m.base = SnapToBottom
-			m.SetIndex(Unselected)
+			if !m.vi.Inactive() {
+				m.locked = true
+				m.vi.SetMode(viminput.InsertMode)
+				m.base = SnapToBottom
+				m.SetIndex(Unselected)
+			}
 
 		case "x", "X", "d", "D":
 			if m.selectedMessage != nil {
@@ -275,6 +330,11 @@ func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 }
 
 func (m *Model) ResetBeforeSwitch() {
+	m.vi.Reset()
+	m.base = SnapToBottom
+	m.SetIndex(Unselected)
+	m.maxMessagesHeight = -1
+
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
@@ -288,10 +348,6 @@ func (m *Model) ResetBeforeSwitch() {
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
 		}
-		m.vi.Reset()
-		m.base = SnapToBottom
-		m.maxMessagesHeight = -1
-		m.SetIndex(Unselected)
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
@@ -302,9 +358,10 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
-		frequencyId := frequencies[m.frequencyIndex].ID
-		log.Println("Restoring", frequencyId)
-		if val, ok := msgs[frequencyId]; ok {
+		frequency := frequencies[m.frequencyIndex]
+		log.Println("Restoring", frequency.ID)
+
+		if val, ok := msgs[frequency.ID]; ok {
 			m.vi.SetString(val.IncompleteMessage)
 			m.base = val.Base
 			m.SetIndex(Unselected)
@@ -312,17 +369,11 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 
 			// Don't ask for messages if you already visited this frequency
 			return nil
-		} else {
-			m.vi.Reset()
-			m.base = SnapToBottom
-			m.SetIndex(Unselected)
-			m.maxMessagesHeight = -1
-
-			return gateway.Send(&packet.RequestMessages{
-				ReceiverID:  nil,
-				FrequencyID: &frequencyId,
-			})
 		}
+		return gateway.Send(&packet.RequestMessages{
+			ReceiverID:  nil,
+			FrequencyID: &frequency.ID,
+		})
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
@@ -333,25 +384,16 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 func (m *Model) renderMessageBox() string {
 	var builder strings.Builder
 
-	input := m.vi.View()
-	if m.locked {
-		input = ViFocusedBorder.Render(input)
-	} else {
-		input = ViBlurredBorder.Render(input)
-	}
+	input := m.borderStyle.Render(m.vi.View())
 	builder.WriteString(input)
 	builder.WriteByte('\n')
 
-	style := lipgloss.NewStyle()
-	if m.locked {
-		style = focusStyle
-	}
 	width := lipgloss.Width(input)
 
-	leftAngle := style.Render("")
-	rightAngle := style.Render("")
+	leftAngle := m.style.Render("")
+	rightAngle := m.style.Render("")
 
-	builder.WriteString(style.Render(LeftCorner))
+	builder.WriteString(m.style.Render(LeftCorner))
 	width -= lipgloss.Width(LeftCorner)
 
 	builder.WriteString(leftAngle)
@@ -390,12 +432,12 @@ func (m *Model) renderMessageBox() string {
 
 	bottomCount := width / lipgloss.Width(Border.Bottom)
 	bottom := strings.Repeat(Border.Bottom, bottomCount)
-	builder.WriteString(style.Render(bottom))
+	builder.WriteString(m.style.Render(bottom))
 
 	builder.WriteString(leftAngle)
 	builder.WriteString(countStr)
 	builder.WriteString(rightAngle)
-	builder.WriteString(style.Render(RightCorner))
+	builder.WriteString(m.style.Render(RightCorner))
 
 	result := builder.String()
 
@@ -411,6 +453,10 @@ func (m *Model) renderMessages(screenHeight int) string {
 		btree = state.State.Messages[frequencyId]
 	} else {
 		// TODO: implement support for receiver id
+	}
+
+	if !m.hasReadAccess {
+		return NoAccess.Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
 	if btree == nil {
