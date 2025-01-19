@@ -77,7 +77,7 @@ ___] | |__] | \|    | | \|`)
 	focusedRememberChecked   = focusedStyle.Render(blurredRememberChecked)
 	focusedRememberUnchecked = focusedStyle.Render(blurredRememberUnchecked)
 
-	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(0.5)
+	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(lipgloss.Center)
 )
 
 func init() {

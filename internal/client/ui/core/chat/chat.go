@@ -71,6 +71,11 @@ var (
 					SetString("\n(edited)").String()
 
 	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
+
+	FrequencyNameStyle = lipgloss.NewStyle().
+				Background(colors.BackgroundDim).
+				AlignHorizontal(lipgloss.Center).
+				Border(lipgloss.ThickBorder(), false, false, true)
 )
 
 const (
@@ -142,9 +147,13 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m *Model) Prerender() {
+	frequencyName := m.renderFrequencyName()
+	frequencyHeight := lipgloss.Height(frequencyName)
+
 	messagebox := m.renderMessageBox()
-	messagesHeight := ui.Height - lipgloss.Height(messagebox)
-	messagesHeight -= 1 // For the extra \n at the end
+	messageBoxHeight := lipgloss.Height(messagebox)
+
+	messagesHeight := ui.Height - messageBoxHeight - frequencyHeight
 
 	// if m.messagesCache == nil || messagesHeight != m.messagesHeight {
 	// 	// Re-render
@@ -154,7 +163,7 @@ func (m *Model) Prerender() {
 	m.messagesCache = &messages
 	m.messagesHeight = messagesHeight
 
-	m.prerender = *m.messagesCache + messagebox
+	m.prerender = frequencyName + *m.messagesCache + messagebox
 }
 
 func (m Model) View() string {
@@ -869,4 +878,17 @@ func (m *Model) editMessage() tea.Cmd {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
+}
+
+func (m *Model) renderFrequencyName() string {
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex == -1 || networkId == nil {
+		return ""
+	}
+
+	frequency := state.State.Frequencies[*networkId][m.frequencyIndex]
+	color := lipgloss.Color(frequency.HexColor)
+
+	return FrequencyNameStyle.Width(m.width).Foreground(color).
+		Render(frequency.Name) + "\n"
 }
