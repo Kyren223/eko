@@ -889,6 +889,11 @@ func (m *Model) renderFrequencyName() string {
 	frequency := state.State.Frequencies[*networkId][m.frequencyIndex]
 	color := lipgloss.Color(frequency.HexColor)
 
-	return FrequencyNameStyle.Width(m.width).Foreground(color).
-		Render(frequency.Name) + "\n"
+	frequencyNameStyle := FrequencyNameStyle.
+		Width(m.width).Foreground(color)
+	if m.focus {
+		frequencyNameStyle = frequencyNameStyle.BorderForeground(colors.Focus)
+	}
+
+	return frequencyNameStyle.Render(frequency.Name) + "\n"
 }
