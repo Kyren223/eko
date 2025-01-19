@@ -305,7 +305,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.updatePopups(msg)
 			}
 
-		case "u":
+		case "e":
 			index := m.networkList.Index()
 			networkFocus := m.focus == FocusNetworkList
 			frequencyFocus := m.focus == FocusFrequencyList
