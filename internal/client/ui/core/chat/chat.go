@@ -69,6 +69,8 @@ var (
 	SelectedEditedIndicatorNL = lipgloss.NewStyle().
 					Foreground(colors.LightGray).Background(colors.BackgroundDim).
 					SetString("\n(edited)").String()
+
+	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
 )
 
 const (
@@ -108,10 +110,8 @@ type Model struct {
 	borderStyle lipgloss.Style
 }
 
-func New(width int) Model {
-	viWidth := width - PaddingCount*2 - lipgloss.Width(LeftCorner) - lipgloss.Width(RightCorner)
-	vi := viminput.New(viWidth, ui.Height/2)
-	vi.Placeholder = SendMessagePlaceholder
+func New() Model {
+	vi := viminput.New()
 	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
 	return Model{
@@ -131,7 +131,7 @@ func New(width int) Model {
 		maxMessagesHeight: -1,
 		messagesCache:     nil,
 		prerender:         "",
-		width:             width,
+		width:             -1,
 		style:             blurStyle,
 		borderStyle:       ViBlurredBorder,
 	}
@@ -164,6 +164,10 @@ func (m Model) View() string {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// TODO: properly invalidate cache
 	m.messagesCache = nil
+
+	viWidth := m.width - WidthWithoutVi
+	m.vi.SetWidth(viWidth)
+	m.vi.SetMaxHeight(ui.Height / 2)
 
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
@@ -861,4 +865,8 @@ func (m *Model) editMessage() tea.Cmd {
 		Message: m.editingMessage.ID,
 		Content: message,
 	})
+}
+
+func (m *Model) SetWidth(width int) {
+	m.width = width
 }

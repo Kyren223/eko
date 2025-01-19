@@ -72,7 +72,7 @@ type Model struct {
 	offset    int
 }
 
-func New(width, maxHeight int) Model {
+func New() Model {
 	return Model{
 		PlaceholderStyle: lipgloss.NewStyle(),
 		PromptStyle:      lipgloss.NewStyle(),
@@ -97,9 +97,9 @@ func New(width, maxHeight int) Model {
 		amod:             false,
 		inactive:         false,
 		focus:            false,
-		width:            width,
+		width:            -1,
 		height:           1,
-		maxHeight:        maxHeight,
+		maxHeight:        -1,
 		offset:           0,
 	}
 }
@@ -332,16 +332,9 @@ func (m *Model) SetWidth(width int) {
 	m.width = width
 }
 
-func (m Model) Width() int {
-	return m.width
-}
-
-func (m *Model) SetHeight(height int) {
-	m.height = height
-}
-
-func (m Model) Height() int {
-	return m.height
+func (m *Model) SetMaxHeight(maxHeight int) {
+	m.maxHeight = maxHeight
+	m.height = min(m.height, m.maxHeight)
 }
 
 func (m *Model) Focus() {

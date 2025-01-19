@@ -15,16 +15,17 @@ import (
 )
 
 var (
-	width    = 24
 	sepStyle = lipgloss.NewStyle().Width(0).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
+
 	nameStyle = lipgloss.NewStyle().
-			Margin(0, 0, 1).Padding(1).Width(width).Align(lipgloss.Center).
+			Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
-	xMargin        = 2
+
+	margin         = 2
 	frequencyStyle = lipgloss.NewStyle().
-			Margin(0, xMargin).Padding(0, 1).Width(width - (xMargin * 2)).
-			Align(lipgloss.Left)
+			Margin(0, margin).Padding(0, 1).Align(lipgloss.Left)
+
 	symbolReadWrite     = "󰖩 "
 	symbolReadOnly      = "󱛂 "
 	symbolReadOnlyAdmin = "󰖩 "
@@ -37,6 +38,7 @@ type Model struct {
 	base         int
 	index        int
 	focus        bool
+	width        int
 	height       int
 }
 
@@ -46,6 +48,7 @@ func New() Model {
 		base:         -1,
 		index:        -1,
 		focus:        false,
+		width:        -1,
 		height:       1,
 	}
 }
@@ -59,6 +62,8 @@ func (m Model) View() string {
 	if networkId == nil {
 		return ""
 	}
+
+	frequencyStyle := frequencyStyle.Width(m.width - (margin * 2))
 
 	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
 
@@ -90,7 +95,7 @@ func (m Model) View() string {
 		}
 
 		frequencyName := lipgloss.NewStyle().
-			MaxWidth(width - (xMargin * 2) - 4).
+			MaxWidth(m.width - (margin * 2) - 4).
 			Render(frequency.Name)
 		builder.WriteString(frequencyStyle.Render(symbol + frequencyName))
 		builder.WriteString("\n")
@@ -282,9 +287,13 @@ func (m *Model) SetIndex(index int) {
 func (m Model) renderNetworkName() string {
 	bg := lipgloss.Color(m.Network().BgHexColor)
 	fg := lipgloss.Color(m.Network().FgHexColor)
-	nameStyle := nameStyle.Background(bg).Foreground(fg)
+	nameStyle := nameStyle.Background(bg).Foreground(fg).Width(m.width)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
 	return nameStyle.Render(m.Network().Name)
+}
+
+func (m *Model) SetWidth(width int) {
+	m.width = width
 }

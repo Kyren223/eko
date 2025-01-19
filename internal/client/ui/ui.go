@@ -15,13 +15,18 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
-const DEBUG = true
+const (
+	DEBUG = true
 
-var Center lipgloss.Position = 0.499
+	MinWidth = 85
+	Center   = 0.499
+)
 
-var Width int
-var Height int
-var Program *tea.Program
+var (
+	Width   int
+	Height  int
+	Program *tea.Program
+)
 
 var NewAuth func() tea.Model
 

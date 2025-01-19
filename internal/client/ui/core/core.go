@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -34,6 +35,12 @@ var (
 	connectionTimeout  = 5 * time.Second
 	initialTimeout     = 3750 * time.Millisecond
 	timerInterval      = 50 * time.Millisecond
+)
+
+const (
+	NetworkWidth      = 9
+	SidebarPercentage = 0.20
+	MinSidebarWidth   = 16
 )
 
 const (
@@ -78,7 +85,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		frequencyUpdatePopup:   nil,
 		networkList:            networklist.New(),
 		frequencyList:          frequencylist.New(),
-		chat:                   chat.New(70),
+		chat:                   chat.New(),
 		focus:                  FocusNetworkList,
 	}
 	m.move(0) // Update focus
@@ -98,7 +105,7 @@ func (m Model) View() string {
 	networkList := m.networkList.View()
 	frequencyList := m.frequencyList.View()
 	chat := m.chat.View()
-	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat)
+	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat, frequencyList)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
@@ -178,6 +185,19 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
+	totalWidth := max(ui.Width, ui.MinWidth)
+	totalWidth -= NetworkWidth
+	sidebarWidth := int(math.Round(float64(totalWidth) * SidebarPercentage))
+	sidebarWidth = max(sidebarWidth, MinSidebarWidth)
+	chatWidth := totalWidth - (2 * (sidebarWidth + 1))
+
+	log.Println("Widths:", ui.Width)
+	log.Println("sidebarWidth:", sidebarWidth)
+	log.Println("chatWidth:", chatWidth)
+
+	m.frequencyList.SetWidth(sidebarWidth)
+	m.chat.SetWidth(chatWidth)
+
 	switch msg := msg.(type) {
 	case ui.QuitMsg:
 		gateway.Disconnect()
