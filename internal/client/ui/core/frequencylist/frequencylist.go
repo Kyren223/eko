@@ -23,14 +23,20 @@ var (
 			Border(lipgloss.ThickBorder(), false, false, true)
 
 	margin         = 2
+	padding        = 1
 	frequencyStyle = lipgloss.NewStyle().
-			Margin(0, margin).Padding(0, 1).Align(lipgloss.Left)
+			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
 	symbolReadWrite     = "󰖩 "
 	symbolReadOnly      = "󱛂 "
 	symbolReadOnlyAdmin = "󰖩 "
 	symbolNoAccess      = "󱚿 "
 	symbolNoAccessAdmin = "󱛀 "
+	symbolWidth         = 2
+
+	widthWithoutFrequency = ((margin + padding) * 2) + symbolWidth
+
+	ellipsis = "…"
 )
 
 type Model struct {
@@ -64,6 +70,7 @@ func (m Model) View() string {
 	}
 
 	frequencyStyle := frequencyStyle.Width(m.width - (margin * 2))
+	maxFrequencyWidth := m.width - widthWithoutFrequency
 
 	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
 
@@ -94,9 +101,17 @@ func (m Model) View() string {
 			symbol = symbolNoAccessAdmin
 		}
 
-		frequencyName := lipgloss.NewStyle().
-			MaxWidth(m.width - (margin * 2) - 4).
-			Render(frequency.Name)
+		frequencyName := ""
+		if lipgloss.Width(frequency.Name) <= maxFrequencyWidth {
+			frequencyName = lipgloss.NewStyle().
+				MaxWidth(maxFrequencyWidth).
+				Render(frequency.Name)
+		} else {
+			frequencyName = lipgloss.NewStyle().
+				MaxWidth(maxFrequencyWidth-1).
+				Render(frequency.Name) + ellipsis
+		}
+
 		builder.WriteString(frequencyStyle.Render(symbol + frequencyName))
 		builder.WriteString("\n")
 	}
