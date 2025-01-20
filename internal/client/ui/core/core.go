@@ -18,6 +18,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/frequencycreation"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencylist"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencyupdate"
+	"github.com/kyren223/eko/internal/client/ui/core/memberlist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkcreation"
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
@@ -45,8 +46,9 @@ const (
 
 const (
 	FocusNetworkList = iota
-	FocusFrequencyList
+	FocusLeftSidebar
 	FocusChat
+	FocusRightSidebar
 	FocusMax
 )
 
@@ -66,6 +68,7 @@ type Model struct {
 	frequencyUpdatePopup   *frequencyupdate.Model
 	networkList            networklist.Model
 	frequencyList          frequencylist.Model
+	memberList             memberlist.Model
 	chat                   chat.Model
 	focus                  int
 }
@@ -85,6 +88,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		frequencyUpdatePopup:   nil,
 		networkList:            networklist.New(),
 		frequencyList:          frequencylist.New(),
+		memberList:             memberlist.New(),
 		chat:                   chat.New(),
 		focus:                  FocusNetworkList,
 	}
@@ -105,7 +109,8 @@ func (m Model) View() string {
 	networkList := m.networkList.View()
 	frequencyList := m.frequencyList.View()
 	chat := m.chat.View()
-	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat, frequencyList)
+	memberList := m.memberList.View()
+	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat, memberList)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
@@ -196,6 +201,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	log.Println("chatWidth:", chatWidth)
 
 	m.frequencyList.SetWidth(sidebarWidth)
+	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
 
 	switch msg := msg.(type) {
@@ -223,6 +229,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		if networkId == nil && m.networkList.Index() != networklist.PeersIndex {
 			m.networkList.SetIndex(m.networkList.Index() - 1)
 			m.frequencyList.SetNetworkIndex(m.networkList.Index())
+			m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
 			m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
 		}
 
@@ -239,6 +246,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		length := len(state.State.Frequencies[*networkId])
 		if index >= length {
 			m.frequencyList.SetIndex(index - 1)
+			m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
 			m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
 		}
 
@@ -259,7 +267,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 						return cmd
 					}
 				}
-			case FocusFrequencyList:
+			case FocusLeftSidebar:
 				if !m.HasPopup() {
 					networkId := state.NetworkId(m.networkList.Index())
 					if networkId == nil {
@@ -308,7 +316,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		case "e":
 			index := m.networkList.Index()
 			networkFocus := m.focus == FocusNetworkList
-			frequencyFocus := m.focus == FocusFrequencyList
+			frequencyFocus := m.focus == FocusLeftSidebar
 			if !m.HasPopup() && networkFocus && index != networklist.PeersIndex {
 				networkId := state.NetworkId(index)
 				if networkId == nil {
@@ -414,6 +422,10 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.frequencyList, cmd = m.frequencyList.Update(msg)
 	cmds = append(cmds, cmd)
 
+	m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
+	m.memberList, cmd = m.memberList.Update(msg)
+	cmds = append(cmds, cmd)
+
 	cmd = m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
 	cmds = append(cmds, cmd)
 	m.chat, cmd = m.chat.Update(msg)
@@ -438,16 +450,25 @@ func (m *Model) move(direction int) {
 	switch m.focus {
 	case FocusNetworkList:
 		m.frequencyList.Blur()
+		m.memberList.Blur()
 		m.chat.Blur()
 		m.networkList.Focus()
-	case FocusFrequencyList:
+	case FocusLeftSidebar:
 		m.networkList.Blur()
+		m.memberList.Blur()
 		m.chat.Blur()
 		m.frequencyList.Focus()
 	case FocusChat:
 		m.networkList.Blur()
+		m.memberList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Focus()
+	case FocusRightSidebar:
+		m.networkList.Blur()
+		m.memberList.Blur()
+		m.frequencyList.Blur()
+		m.chat.Blur()
+		m.memberList.Focus()
 	default:
 		assert.Never("missing switch statement field in move", "focus", m.focus)
 	}

@@ -38,10 +38,6 @@ var (
 
 	VimModeStyle = lipgloss.NewStyle().Bold(true)
 
-	NormalMemberStyle = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
-	AdminMemberStyle  = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
-	OwnerMemberStyle  = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
-
 	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray).SetString("")
 
 	PaddingCount = 1
@@ -771,11 +767,11 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		member := members[message.SenderID]
 		user := state.State.Users[message.SenderID]
 
-		senderStyle := NormalMemberStyle
+		senderStyle := ui.NormalMemberStyle
 		if ownerId == member.UserID {
-			senderStyle = OwnerMemberStyle
+			senderStyle = ui.OwnerMemberStyle
 		} else if member.IsAdmin {
-			senderStyle = AdminMemberStyle
+			senderStyle = ui.AdminMemberStyle
 		}
 
 		sender := senderStyle.Render(user.Name)

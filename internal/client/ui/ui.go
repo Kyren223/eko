@@ -12,6 +12,7 @@ import (
 	"github.com/muesli/ansi"
 	"github.com/muesli/reflow/truncate"
 
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -26,6 +27,10 @@ var (
 	Width   int
 	Height  int
 	Program *tea.Program
+
+	NormalMemberStyle = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
+	AdminMemberStyle  = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
+	OwnerMemberStyle  = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
 )
 
 var NewAuth func() tea.Model
