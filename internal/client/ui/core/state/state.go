@@ -91,8 +91,10 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		}
 	}
 
+	data := JsonUserData()
 	gateway.SendAsync(&packet.SetUserData{
-		Data: JsonUserData(),
+		Data: &data,
+		User: nil,
 	})
 }
 

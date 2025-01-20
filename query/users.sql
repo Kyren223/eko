@@ -4,7 +4,7 @@ WHERE id = ? AND is_deleted = false;
 
 -- name: GetUserByPublicKey :one
 SELECT * FROM users
-WHERE public_key = ? AND is_deleted = false;
+WHERE public_key = ?;
 
 -- name: CreateUser :one
 INSERT INTO users (
@@ -29,6 +29,12 @@ ON CONFLICT DO
 UPDATE SET
   user_id = EXCLUDED.user_id, data = EXCLUDED.data
 WHERE user_id = EXCLUDED.user_id
+RETURNING *;
+
+-- name: UpdateUser :one
+UPDATE users SET
+  name = ?, description = ?, is_public_dm = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: GetUserData :one

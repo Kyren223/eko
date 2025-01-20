@@ -190,7 +190,8 @@ func (m *MembersInfo) Type() PacketType {
 }
 
 type SetUserData struct {
-	Data string
+	Data *string
+	User *data.User
 }
 
 func (m *SetUserData) Type() PacketType {

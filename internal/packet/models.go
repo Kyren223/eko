@@ -8,6 +8,8 @@ const (
 	MaxFrequencyName      = 32
 	MaxUserDataBytes      = 8192
 	MaxMessageBytes       = 2000
+	MaxUsernameBytes = 32
+	MaxUserDescriptionBytes = 200
 )
 
 const (

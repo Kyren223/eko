@@ -181,8 +181,11 @@ func (m *Model) Swap(dir int) (Model, tea.Cmd) {
 	state.Data.Networks[m.index] = state.Data.Networks[m.index+dir]
 	state.Data.Networks[m.index+dir] = tmp
 	m.SetIndex(m.index + dir)
+
+	data := state.JsonUserData()
 	return *m, gateway.Send(&packet.SetUserData{
-		Data: state.JsonUserData(),
+		Data: &data,
+		User: nil,
 	})
 }
 

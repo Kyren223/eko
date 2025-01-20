@@ -24,6 +24,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkupdate"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
+	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
@@ -61,6 +62,7 @@ type Model struct {
 	timeout   time.Duration
 	connected bool
 
+	userSettingsPopup      *usersettings.Model
 	networkCreationPopup   *networkcreation.Model
 	networkUpdatePopup     *networkupdate.Model
 	networkJoinPopup       *networkjoin.Model
@@ -81,6 +83,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		timer:                  newTimer(initialTimeout),
 		timeout:                initialTimeout,
 		connected:              false,
+		userSettingsPopup:      nil,
 		networkCreationPopup:   nil,
 		networkUpdatePopup:     nil,
 		networkJoinPopup:       nil,
@@ -119,7 +122,9 @@ func (m Model) View() string {
 	)
 
 	var popup string
-	if m.networkCreationPopup != nil {
+	if m.userSettingsPopup != nil {
+		popup = m.userSettingsPopup.View()
+	} else if m.networkCreationPopup != nil {
 		popup = m.networkCreationPopup.View()
 	} else if m.networkUpdatePopup != nil {
 		popup = m.networkUpdatePopup.View()
@@ -221,7 +226,12 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		}
 
 	case *packet.SetUserData:
-		state.FromJsonUserData(msg.Data)
+		if msg.User != nil {
+			state.State.Users[msg.User.ID] = *msg.User
+		}
+		if msg.Data != nil {
+			state.FromJsonUserData(*msg.Data)
+		}
 
 	case *packet.NetworksInfo:
 		state.UpdateNetworks(msg)
@@ -346,8 +356,21 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 			}
 
+		// user/profile/options/settings
+		case "u", "p", "o", "s":
+			if !m.HasPopup() && m.focus == FocusNetworkList {
+				popup := usersettings.New()
+				m.userSettingsPopup = &popup
+			} else if m.HasPopup() {
+				cmd := m.updatePopups(msg)
+				if cmd != nil {
+					return cmd
+				}
+			}
+
 		case "esc":
 			if m.HasPopup() {
+				m.userSettingsPopup = nil
 				m.networkCreationPopup = nil
 				m.networkUpdatePopup = nil
 				m.frequencyCreationPopup = nil
@@ -356,7 +379,13 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 		case "enter":
-			if m.networkCreationPopup != nil {
+			if m.userSettingsPopup != nil {
+				cmd := m.userSettingsPopup.Select()
+				if cmd != nil {
+					m.userSettingsPopup = nil
+				}
+				return cmd
+			} else if m.networkCreationPopup != nil {
 				cmd := m.networkCreationPopup.Select()
 				if cmd != nil {
 					m.networkCreationPopup = nil
@@ -475,7 +504,11 @@ func (m *Model) move(direction int) {
 }
 
 func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
-	if m.networkCreationPopup != nil {
+	if m.userSettingsPopup != nil {
+		popup, cmd := m.userSettingsPopup.Update(msg)
+		m.userSettingsPopup = &popup
+		return cmd
+	} else if m.networkCreationPopup != nil {
 		popup, cmd := m.networkCreationPopup.Update(msg)
 		m.networkCreationPopup = &popup
 		return cmd
@@ -500,7 +533,8 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) HasPopup() bool {
-	return m.networkCreationPopup != nil ||
+	return m.userSettingsPopup != nil ||
+		m.networkCreationPopup != nil ||
 		m.networkUpdatePopup != nil ||
 		m.frequencyCreationPopup != nil ||
 		m.frequencyUpdatePopup != nil ||

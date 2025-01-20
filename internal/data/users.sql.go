@@ -73,7 +73,7 @@ func (q *Queries) GetUserById(ctx context.Context, id snowflake.ID) (User, error
 
 const getUserByPublicKey = `-- name: GetUserByPublicKey :one
 SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
-WHERE public_key = ? AND is_deleted = false
+WHERE public_key = ?
 `
 
 func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.PublicKey) (User, error) {
@@ -124,5 +124,38 @@ func (q *Queries) SetUserData(ctx context.Context, arg SetUserDataParams) (UserD
 	row := q.db.QueryRowContext(ctx, setUserData, arg.UserID, arg.Data)
 	var i UserData
 	err := row.Scan(&i.UserID, &i.Data)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET
+  name = ?, description = ?, is_public_dm = ?
+WHERE id = ?
+RETURNING id, name, public_key, description, is_public_dm, is_deleted
+`
+
+type UpdateUserParams struct {
+	Name        string
+	Description string
+	IsPublicDM  bool
+	ID          snowflake.ID
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.Name,
+		arg.Description,
+		arg.IsPublicDM,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Description,
+		&i.IsPublicDM,
+		&i.IsDeleted,
+	)
 	return i, err
 }

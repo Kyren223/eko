@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -165,6 +166,11 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 			PublicKey: pubKey,
 		})
 	}
+
+	if user.IsDeleted {
+		err = errors.New("public key is already taken by a deleted user")
+	}
+
 	return user, err
 }
 
@@ -670,38 +676,81 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 func SetUserData(ctx context.Context, sess *session.Session, request *packet.SetUserData) packet.Payload {
 	queries := data.New(db)
 
-	if len(request.Data) > packet.MaxUserDataBytes {
-		return &packet.Error{
-			Error: "data bytes may not exceed " +
-				strconv.FormatInt(packet.MaxUserDataBytes, 10) + " bytes",
+	if request.Data != nil {
+		if len(*request.Data) > packet.MaxUserDataBytes {
+			return &packet.Error{Error: fmt.Sprintf(
+				"data bytes may not exceed %v bytes",
+				packet.MaxUserDataBytes,
+			)}
+		}
+
+		_, err := queries.SetUserData(ctx, data.SetUserDataParams{
+			UserID: sess.ID(),
+			Data:   *request.Data,
+		})
+		if err != nil {
+			log.Println("database error 0:", err)
+			return &ErrInternalError
 		}
 	}
 
-	_, err := queries.SetUserData(ctx, data.SetUserDataParams{
-		UserID: sess.ID(),
-		Data:   request.Data,
-	})
-	if err != nil {
-		log.Println("database error:", err)
-		return &ErrInternalError
+	var userPtr *data.User = nil
+	if request.User != nil {
+
+		name := request.User.Name
+		if len(name) > packet.MaxUsernameBytes {
+			return &packet.Error{Error: fmt.Sprintf(
+				"username bytes may not exceed %v bytes",
+				packet.MaxUsernameBytes,
+			)}
+		}
+
+		description := request.User.Description
+		if len(name) > packet.MaxUserDescriptionBytes {
+			return &packet.Error{Error: fmt.Sprintf(
+				"user description bytes may not exceed %v bytes",
+				packet.MaxUserDescriptionBytes,
+			)}
+		}
+
+		user, err := queries.UpdateUser(ctx, data.UpdateUserParams{
+			Name:        name,
+			Description: description,
+			IsPublicDM:  request.User.IsPublicDM,
+			ID:          sess.ID(),
+		})
+		if err != nil {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		userPtr = &user
 	}
 
 	return &packet.SetUserData{
 		Data: request.Data,
+		User: userPtr,
 	}
 }
 
 func GetUserData(ctx context.Context, sess *session.Session, request *packet.GetUserData) packet.Payload {
 	queries := data.New(db)
 
+	user, err := queries.GetUserById(ctx, sess.ID())
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
 	data, err := queries.GetUserData(ctx, sess.ID())
 	if err != nil {
-		log.Println("database error:", err)
+		log.Println("database error 1:", err)
 		return &ErrInternalError
 	}
 
 	return &packet.SetUserData{
-		Data: data,
+		Data: &data,
+		User: &user,
 	}
 }
 
