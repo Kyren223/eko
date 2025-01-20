@@ -26,6 +26,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -160,7 +161,23 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 		state.UserID = (*snowflake.ID)(&msg)
 		m.connected = true
 		m.timeout = initialTimeout
-		return tea.Batch(m.timer.Stop(), gateway.Send(&packet.GetUserData{}))
+
+		requestUserData := gateway.Send(&packet.GetUserData{})
+
+		var setName tea.Cmd
+		if m.name != "" {
+			setName = gateway.Send(&packet.SetUserData{
+				Data: nil,
+				User: &data.User{
+					Name:        m.name,
+					Description: "",
+					IsPublicDM:  true,
+				},
+			})
+			m.name = ""
+		}
+
+		return tea.Batch(m.timer.Stop(), requestUserData, setName)
 
 	case gateway.ConnectionFailed:
 		log.Println("failed to connect:", msg)
