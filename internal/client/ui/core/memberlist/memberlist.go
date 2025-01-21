@@ -184,6 +184,68 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   *state.NetworkId(m.networkIndex),
 				User:      member.UserID,
 			})
+		case "M":
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			if member.IsMuted {
+				return m, nil
+			}
+
+			if !m.MembersMap()[*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			yes := true
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     nil,
+				Muted:     &yes,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "U":
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			if !member.IsMuted {
+				return m, nil
+			}
+
+			if !m.MembersMap()[*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     nil,
+				Muted:     &no,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
 		case "B":
 			// TODO: ban
 

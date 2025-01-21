@@ -72,6 +72,9 @@ var (
 				Background(colors.BackgroundDim).
 				AlignHorizontal(lipgloss.Center).
 				Border(lipgloss.ThickBorder(), false, false, true)
+
+	MutedSymbol = lipgloss.NewStyle().
+			Foreground(colors.Red).Render(" 󱡣")
 )
 
 const (
@@ -200,6 +203,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.borderStyle = ViFocusedBorder
 			m.style = focusStyle
 			m.vi.SetInactive(false)
+			m.vi.Focus()
 			if m.editingMessage != nil {
 				m.borderStyle = ViEditBorder
 				m.style = editStyle
@@ -353,6 +357,76 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Member:    &no,
 				Admin:     nil,
 				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "M":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			if member.IsMuted {
+				return m, nil
+			}
+
+			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			yes := true
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     nil,
+				Muted:     &yes,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "U":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			if !member.IsMuted {
+				return m, nil
+			}
+
+			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     nil,
+				Muted:     &no,
 				Banned:    nil,
 				BanReason: nil,
 				Network:   *state.NetworkId(m.networkIndex),
@@ -872,6 +946,11 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 
 		sender := senderStyle.Render(user.Name)
 		buf = append(buf, sender...)
+
+		if member.IsMuted {
+			buf = append(buf, []byte(MutedSymbol)...)
+		}
+
 	} else if m.receiverIndex != -1 {
 		// TODO: receiver
 	}
