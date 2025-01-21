@@ -51,7 +51,7 @@ type Model struct {
 func New() Model {
 	return Model{
 		networkIndex: -1,
-		base:         -1,
+		base:         0,
 		index:        -1,
 		focus:        false,
 		width:        -1,
@@ -233,7 +233,7 @@ func (m *Model) SetNetworkIndex(networkIndex int) {
 	if networkIndex == -1 {
 		m.networkIndex = -1
 		m.index = -1
-		m.base = -1
+		m.base = 0
 		return
 	}
 
@@ -288,9 +288,6 @@ func (m *Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	if m.base == -1 {
-		m.base = 0
-	}
 	m.index = min(max(index, 0), m.FrequenciesLength()-1)
 	if m.index < m.base {
 		m.base = m.index

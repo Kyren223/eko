@@ -262,6 +262,14 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	case *packet.MembersInfo:
 		state.UpdateMembers(msg)
+		networkId := state.NetworkId(m.networkList.Index())
+		if networkId != nil {
+			members := state.State.Members[*networkId]
+			index := m.memberList.Index()
+			if index >= len(members) {
+				m.memberList.SetIndex(m.memberList.Index())
+			}
+		}
 
 	case *packet.FrequenciesInfo:
 		state.UpdateFrequencies(msg)

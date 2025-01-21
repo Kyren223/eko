@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
@@ -80,34 +81,7 @@ func (m Model) View() string {
 	builder.WriteString(m.renderHeader())
 	builder.WriteString("\n")
 
-	membersMap := m.Members()
-	members := make([]data.Member, 0, len(membersMap))
-	for _, member := range membersMap {
-		members = append(members, member)
-	}
-	slices.SortFunc(members, func(a, b data.Member) int {
-		if a.UserID == ownerId {
-			return -1
-		} else if b.UserID == ownerId {
-			return 1
-		}
-
-		if a.IsAdmin && !b.IsAdmin {
-			return -1
-		} else if !a.IsAdmin && b.IsAdmin {
-			return 1
-		}
-
-		aName, bName := m.Users()[a.UserID].Name, m.Users()[b.UserID].Name
-		if aName == bName {
-			return int(a.UserID.Time()) - int(b.UserID.Time())
-		} else if aName < bName {
-			return -1
-		} else {
-			return 1
-		}
-	})
-
+	members := m.Members()
 	upper := min(m.base+m.height, len(members))
 	members = members[m.base:upper]
 
@@ -185,6 +159,36 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		// Admin
 		case "x", "K":
 			// TODO: kick
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			if !m.MembersMap()[*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			if member.UserID == network.OwnerID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    &no,
+				Admin:     nil,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
 		case "b":
 			// TODO: ban
 
@@ -225,7 +229,7 @@ func (m *Model) SetNetworkAndFrequency(networkIndex, frequencyIndex int) {
 	}
 	m.networkIndex = networkIndex
 
-	if m.frequencyIndex != -1 {
+	if m.frequencyIndex != -1 && m.frequencyIndex < len(m.Frequencies()) {
 		fromFrequency := m.Frequencies()[m.frequencyIndex]
 		toFrequency := m.Frequencies()[frequencyIndex]
 
@@ -241,7 +245,7 @@ func (m *Model) SetNetworkAndFrequency(networkIndex, frequencyIndex int) {
 	m.frequencyIndex = frequencyIndex
 }
 
-func (m Model) MembersLength() int {
+func (m *Model) MembersLength() int {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil {
 		return 0
@@ -249,7 +253,7 @@ func (m Model) MembersLength() int {
 	return len(state.State.Members[*networkId])
 }
 
-func (m Model) Network() *data.Network {
+func (m *Model) Network() *data.Network {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil {
 		return nil
@@ -258,7 +262,7 @@ func (m Model) Network() *data.Network {
 	return &network
 }
 
-func (m Model) Frequencies() []data.Frequency {
+func (m *Model) Frequencies() []data.Frequency {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil {
 		return nil
@@ -266,7 +270,41 @@ func (m Model) Frequencies() []data.Frequency {
 	return state.State.Frequencies[*networkId]
 }
 
-func (m Model) Members() map[snowflake.ID]data.Member {
+func (m *Model) Members() []data.Member {
+	networkId := state.NetworkId(m.networkIndex)
+	ownerId := state.State.Networks[*networkId].OwnerID
+	membersMap := m.MembersMap()
+	members := make([]data.Member, 0, len(membersMap))
+	for _, member := range membersMap {
+		members = append(members, member)
+	}
+	slices.SortFunc(members, func(a, b data.Member) int {
+		if a.UserID == ownerId {
+			return -1
+		} else if b.UserID == ownerId {
+			return 1
+		}
+
+		if a.IsAdmin && !b.IsAdmin {
+			return -1
+		} else if !a.IsAdmin && b.IsAdmin {
+			return 1
+		}
+
+		aName, bName := m.Users()[a.UserID].Name, m.Users()[b.UserID].Name
+		if aName == bName {
+			return int(a.UserID.Time()) - int(b.UserID.Time())
+		} else if aName < bName {
+			return -1
+		} else {
+			return 1
+		}
+	})
+
+	return members
+}
+
+func (m *Model) MembersMap() map[snowflake.ID]data.Member {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil {
 		return nil
@@ -274,7 +312,7 @@ func (m Model) Members() map[snowflake.ID]data.Member {
 	return state.State.Members[*networkId]
 }
 
-func (m Model) Users() map[snowflake.ID]data.User {
+func (m *Model) Users() map[snowflake.ID]data.User {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil {
 		return nil
