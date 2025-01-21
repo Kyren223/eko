@@ -557,6 +557,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		return &ErrInternalError
 	}
 
+	isSessOwner := sess.ID() == network.OwnerID
 	isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
 	if err != nil {
 		log.Println("database error 7:", err)
@@ -571,7 +572,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 	if request.Member != nil && !IsBanned {
 		isLeave := !*request.Member && request.User == sess.ID()
-		isKick := !*request.Member && isSessAdmin
+		isKick := !*request.Member && isSessAdmin && (!isAdmin || isSessOwner)
 		if request.User != network.OwnerID && (isLeave || isKick) {
 			isMember = false
 			isAdmin = false // Important for security
@@ -581,19 +582,17 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			isMember = true
 		}
 	} else if request.Admin != nil {
-		if network.OwnerID == sess.ID() && request.User != sess.ID() {
+		if isSessOwner && request.User != sess.ID() {
 			isAdmin = *request.Admin
 		}
 	} else if request.Muted != nil {
 		notSelf := request.User != sess.ID()
-		notOwner := request.User != network.OwnerID
-		if isSessAdmin && notSelf && notOwner {
+		if isSessAdmin && notSelf && (!isAdmin || isSessOwner) {
 			isMuted = *request.Muted
 		}
 	} else if request.Banned != nil {
 		notSelf := request.User != sess.ID()
-		notOwner := request.User != network.OwnerID
-		if isSessAdmin && notSelf && notOwner {
+		if isSessAdmin && notSelf && (!isAdmin || isSessOwner) {
 			IsBanned = *request.Banned
 			banReason = request.BanReason
 			isAdmin = false // Important for security
