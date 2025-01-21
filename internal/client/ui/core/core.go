@@ -511,7 +511,6 @@ func (m *Model) move(direction int) {
 		m.chat.Focus()
 	case FocusRightSidebar:
 		m.networkList.Blur()
-		m.memberList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Blur()
 		m.memberList.Focus()

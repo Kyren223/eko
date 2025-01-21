@@ -57,7 +57,7 @@ func New() Model {
 		index:          -1,
 		focus:          false,
 		width:          -1,
-		height:         1,
+		height:         -1,
 	}
 }
 
@@ -204,7 +204,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m *Model) Focus() {
 	m.focus = true
-	m.SetIndex(0)
+	if m.index == -1 {
+		m.SetIndex(0)
+	}
 }
 
 func (m *Model) Blur() {
