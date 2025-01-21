@@ -301,7 +301,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.SetIndex(Unselected)
 			}
 
-		case "x", "X", "d", "D":
+		case "x", "d":
 			if m.selectedMessage != nil {
 				log.Println("deleting message:", m.selectedMessage)
 				cmd = gateway.Send(&packet.DeleteMessage{
@@ -325,6 +325,67 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.borderStyle = ViEditBorder
 				m.style = editStyle
 			}
+
+		// Owner
+		case "D":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			// Can't demote yourself
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if !member.IsAdmin || network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     &no,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "P":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			// Can't promote yourself
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin || network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			yes := true
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     &yes,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "T":
+			// TODO: transfer ownership
+
 		}
 	}
 

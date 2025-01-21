@@ -158,7 +158,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		// Admin
 		case "x", "K":
-			// TODO: kick
 			networkId := state.NetworkId(m.networkIndex)
 			network := state.State.Networks[*networkId]
 			member := m.Members()[m.index]
@@ -194,9 +193,53 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		// Owner
 		case "D":
-			// TODO: demote (remove admin)
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			// Can't demote yourself
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if !member.IsAdmin || network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     &no,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
 		case "P":
-			// TODO: promote (add admin)
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			// Can't promote yourself
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin || network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			yes := true
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     &yes,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
 		case "T":
 			// TODO: transfer ownership
 
