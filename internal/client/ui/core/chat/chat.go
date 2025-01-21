@@ -326,6 +326,41 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.style = editStyle
 			}
 
+		// Admin
+		case "K":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    &no,
+				Admin:     nil,
+				Muted:     nil,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+		case "B":
+			// TODO: ban
+
 		// Owner
 		case "D":
 			if m.selectedMessage == nil {

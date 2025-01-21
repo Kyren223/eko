@@ -174,10 +174,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 
-			if member.UserID == network.OwnerID {
-				return m, nil
-			}
-
 			no := false
 			return m, gateway.Send(&packet.SetMember{
 				Member:    &no,
@@ -188,7 +184,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   *state.NetworkId(m.networkIndex),
 				User:      member.UserID,
 			})
-		case "b":
+		case "B":
 			// TODO: ban
 
 		// Owner
