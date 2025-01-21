@@ -615,17 +615,26 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	}
 
 	if !newMember.IsMember {
-		NetworkPropagate(ctx, sess, request.Network, &packet.MembersInfo{
+		membersInfoPayload := NetworkPropagateWithFilter(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: []snowflake.ID{newMember.UserID},
 			Members:        nil,
 			Users:          nil,
 			Network:        request.Network,
+		}, func(userId snowflake.ID) (pass bool) {
+			return userId != newMember.UserID
 		})
 
-		return &packet.NetworksInfo{
+		networksInfoPayload := &packet.NetworksInfo{
 			Networks:        nil,
 			RemovedNetworks: []snowflake.ID{request.Network},
 			Partial:         false,
+		}
+
+		if newMember.UserID == sess.ID() {
+			return networksInfoPayload
+		} else {
+			UserPropagate(ctx, sess, newMember.UserID, networksInfoPayload)
+			return membersInfoPayload
 		}
 	}
 
