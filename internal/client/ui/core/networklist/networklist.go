@@ -13,39 +13,20 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).
+	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDimmer).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	selectedIndicator   = "🭀\n▌\n🭛"
-	trustedUsersIcon    = IconStyle(" ", colors.Turquoise, colors.DarkerCyan)
-	peersButton         = trustedUsersIcon.Margin(0, 1, 1).String()
+	peersIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
+	peersButton         = peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
 	peersButtonSelected = lipgloss.JoinHorizontal(
 		ui.Center,
 		selectedIndicator,
-		trustedUsersIcon.Margin(0, 1, 1, 0).String(),
+		peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
 	)
+
+	backgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDimmer)
 )
-
-/*
-🭊🭂██🭍🬿
-██████
-🭥🭓██🭞🭚
-
-🭠🭘  🭣🭕
-
-🭏🬽  🭈🭄
-*/
-
-func IconStyle(icon string, fg, bg lipgloss.Color) lipgloss.Style {
-	bgStyle := lipgloss.NewStyle().Background(bg).Foreground(colors.Background)
-	top := bgStyle.Render("🭠🭘  🭣🭕")
-	middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
-		Background(bg).Foreground(fg).Render(icon)
-	bgStyle2 := lipgloss.NewStyle().Foreground(bg)
-	bottom := bgStyle2.Render("🭥🭓██🭞🭚")
-	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
-	return lipgloss.NewStyle().SetString(combined)
-}
 
 const PeersIndex = -1
 
@@ -85,18 +66,19 @@ func (m Model) View() string {
 	for i, networkId := range networks {
 		network := state.State.Networks[networkId]
 
-		icon := IconStyle(network.Icon,
+		icon := ui.IconStyle(network.Icon,
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
+			colors.BackgroundDimmer,
 		)
 		if m.index == m.base+i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
-				icon.Margin(0, 1, 1, 0).String(),
+				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
 			))
 		} else {
-			builder.WriteString(icon.Margin(0, 1, 1).String())
+			builder.WriteString(icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String())
 		}
 		builder.WriteString("\n")
 	}
@@ -109,7 +91,7 @@ func (m Model) View() string {
 	}
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
 
-	return result
+	return backgroundStyle.Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

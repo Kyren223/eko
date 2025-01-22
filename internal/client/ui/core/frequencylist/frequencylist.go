@@ -42,6 +42,8 @@ var (
 	widthWithoutFrequency = ((margin + padding) * 2) + symbolWidth
 
 	ellipsis = "…"
+
+	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 )
 
 type Model struct {
@@ -75,6 +77,7 @@ func (m Model) View() string {
 	}
 
 	frequencyStyle := frequencyStyle.Width(m.width - (margin * 2))
+	backgroundStyle := BackgroundStyle.Width(m.width)
 	maxFrequencyWidth := m.width - widthWithoutFrequency
 
 	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
@@ -117,7 +120,8 @@ func (m Model) View() string {
 				Render(frequency.Name) + ellipsis
 		}
 
-		builder.WriteString(frequencyStyle.Render(symbol + frequencyName))
+		frequency := frequencyStyle.Render(symbol + frequencyName)
+		builder.WriteString(backgroundStyle.Render(frequency))
 		builder.WriteString("\n")
 	}
 
@@ -128,7 +132,7 @@ func (m Model) View() string {
 	}
 	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
 
-	return result
+	return BackgroundStyle.Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

@@ -70,7 +70,7 @@ var (
 	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
 
 	FrequencyNameStyle = lipgloss.NewStyle().
-				Background(colors.BackgroundDim).
+				Background(colors.Background).
 				AlignHorizontal(lipgloss.Center).
 				Border(lipgloss.ThickBorder(), false, false, true)
 

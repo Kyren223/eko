@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).
+	sepStyle = lipgloss.NewStyle().Width(0).Background(colors.BackgroundDim).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
-	headerStyle = lipgloss.NewStyle().
+	headerStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
 			Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
 
@@ -39,6 +39,8 @@ var (
 	widthWithoutMember = ((margin + padding) * 2) + symbolWidth
 
 	ellipsis = "…"
+
+	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 )
 
 type Model struct {
@@ -74,6 +76,7 @@ func (m Model) View() string {
 	}
 
 	memberStyle := memberStyle.Width(m.width - (margin * 2))
+	backgroundStyle := BackgroundStyle.Width(m.width)
 	maxMemberWidth := m.width - widthWithoutMember
 	ownerId := state.State.Networks[*networkId].OwnerID
 
@@ -130,11 +133,11 @@ func (m Model) View() string {
 				Render(memberName) + ellipsis
 		}
 
-		builder.WriteString(memberStyle.Render(memberName))
+		builder.WriteString(backgroundStyle.Render(memberStyle.Render(memberName)))
 		builder.WriteString("\n")
 	}
 
-	sidebar := builder.String()
+	sidebar := BackgroundStyle.Height(ui.Height).Render(builder.String())
 	sep := sepStyle.Height(ui.Height)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)

@@ -14,7 +14,7 @@ var (
 	Blue               = lipgloss.Color("#0029f5")
 	DarkCyan           = lipgloss.Color("#007E8A")
 	DarkerCyan         = lipgloss.Color("#005d66")
-	DarkerMidnightBlue = lipgloss.Color("#161622")
+	DarkerMidnightBlue = lipgloss.Color("#0e0e16")
 	DarkMidnightBlue   = lipgloss.Color("#181825")
 	MidnightBlue       = lipgloss.Color("#1E1E2E")
 	LightMidnightBlue  = lipgloss.Color("#3c3c5d")
@@ -31,6 +31,7 @@ var (
 	Background          = MidnightBlue
 	BackgroundHighlight = LightMidnightBlue
 	BackgroundDim       = DarkMidnightBlue
+	BackgroundDimmer    = DarkerMidnightBlue
 	Error               = Red
 	Focus               = LightBlue
 )

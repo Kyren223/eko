@@ -196,3 +196,24 @@ func getLines(s string) (lines []string, widest int) {
 func clamp(v, lower, upper int) int {
 	return min(max(v, lower), upper)
 }
+
+/*
+🭊🭂██🭍🬿
+██████
+🭥🭓██🭞🭚
+
+🭠🭘  🭣🭕
+
+🭏🬽  🭈🭄
+*/
+
+func IconStyle(icon string, iconFg, iconBg, bg lipgloss.Color) lipgloss.Style {
+	bgStyle := lipgloss.NewStyle().Background(iconBg).Foreground(bg)
+	top := bgStyle.Render("🭠🭘  🭣🭕")
+	middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
+		Background(iconBg).Foreground(iconFg).Render(icon)
+	bgStyle2 := lipgloss.NewStyle().Foreground(iconBg)
+	bottom := bgStyle2.Render("🭥🭓██🭞🭚")
+	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
+	return lipgloss.NewStyle().SetString(combined)
+}
