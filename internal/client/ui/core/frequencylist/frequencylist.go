@@ -1,8 +1,10 @@
 package frequencylist
 
 import (
+	"strconv"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
@@ -19,7 +21,10 @@ var (
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	nameStyle = lipgloss.NewStyle().
-			Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
+			Padding(1).Align(lipgloss.Center).
+			Border(lipgloss.ThickBorder(), false, false, true)
+	networkIdStyle = lipgloss.NewStyle().
+			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
 
 	margin         = 2
@@ -186,6 +191,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Frequency: frequencyId,
 			})
 
+		case "i":
+			_ = clipboard.WriteAll(strconv.FormatInt(int64(m.Network().ID), 10))
+
 		}
 	}
 
@@ -303,7 +311,16 @@ func (m Model) renderNetworkName() string {
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
-	return nameStyle.Render(m.Network().Name)
+	networkName := nameStyle.Render(m.Network().Name)
+
+	networkIdStyle := networkIdStyle.Width(m.width)
+	if m.focus {
+		networkIdStyle = networkIdStyle.BorderForeground(colors.Focus)
+	}
+	id := "Invite Code\n" + strconv.FormatInt(int64(m.Network().ID), 10)
+	networkId := networkIdStyle.Render(id)
+
+	return lipgloss.JoinVertical(0, networkName, networkId)
 }
 
 func (m *Model) SetWidth(width int) {

@@ -959,7 +959,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 			buf = append(buf, ui.UntrustedSymbol...)
 		}
 
-		senderStyle := lipgloss.NewStyle()
+		var senderStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
 				senderStyle = ui.TrustedOwnerMemberStyle

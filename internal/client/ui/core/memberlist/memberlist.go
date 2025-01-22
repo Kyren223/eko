@@ -96,7 +96,7 @@ func (m Model) View() string {
 		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
-		userStyle := lipgloss.NewStyle()
+		var userStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
 				userStyle = ui.TrustedOwnerMemberStyle
