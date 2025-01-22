@@ -26,7 +26,7 @@ var (
 
 	margin      = 2
 	padding     = 1
-	memberStyle = lipgloss.NewStyle().
+	memberStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
 	symbolReadWrite     = "󰖩 "
@@ -128,9 +128,11 @@ func (m Model) View() string {
 				MaxWidth(maxMemberWidth).
 				Render(memberName)
 		} else {
+			ellipsisStyle := lipgloss.NewStyle().
+				Background(memberStyle.GetBackground()).Foreground(userStyle.GetForeground())
 			memberName = lipgloss.NewStyle().
 				MaxWidth(maxMemberWidth-1).
-				Render(memberName) + ellipsis
+				Render(memberName) + ellipsisStyle.Render(ellipsis)
 		}
 
 		builder.WriteString(backgroundStyle.Render(memberStyle.Render(memberName)))
