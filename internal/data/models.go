@@ -56,7 +56,7 @@ type Network struct {
 type TrustedUser struct {
 	TrustingUserID   snowflake.ID
 	TrustedUserID    snowflake.ID
-	TrustedPublicKey []byte
+	TrustedPublicKey ed25519.PublicKey
 }
 
 type User struct {

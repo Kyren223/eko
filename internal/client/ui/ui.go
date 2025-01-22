@@ -28,9 +28,13 @@ var (
 	Height  int
 	Program *tea.Program
 
-	NormalMemberStyle = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
-	AdminMemberStyle  = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
-	OwnerMemberStyle  = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
+	NormalMemberStyle        = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
+	AdminMemberStyle         = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
+	OwnerMemberStyle         = AdminMemberStyle.Foreground(colors.Gold).SetString("󱟜")
+	TrustedNormalMemberStyle = NormalMemberStyle.SetString("󰢏")
+	TrustedAdminMemberStyle  = AdminMemberStyle.SetString("󱄻")
+	TrustedOwnerMemberStyle  = OwnerMemberStyle.SetString("󱢼")
+	UntrustedSymbol           = lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸")
 )
 
 var NewAuth func() tea.Model

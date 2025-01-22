@@ -11,6 +11,8 @@ sql:
         overrides:
           - column: "users.public_key"
             go_type: "crypto/ed25519.PublicKey"
+          - column: "trusted_users.trusted_public_key"
+            go_type: "crypto/ed25519.PublicKey"
           - column: "messages.receiver_id"
             go_type: "*github.com/kyren223/eko/pkg/snowflake.ID"
           - column: "messages.frequency_id"

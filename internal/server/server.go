@@ -242,15 +242,25 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	// Send initial packets
 	payload := api.GetUserData(ctx, sess, &packet.GetUserData{})
-	dataPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, dataPacket)
+	if payload == &api.ErrInternalError {
+		return // closes the connection
+	}
+	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, pkt)
+
+	payload = api.GetUserTrusteds(ctx, sess)
+	if payload == &api.ErrInternalError {
+		return // closes the connection
+	}
+	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, pkt)
 
 	payload, err = api.GetNetworksInfo(ctx, sess)
 	if err != nil {
 		return // closes the connection
 	}
-	infoPacket := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, infoPacket)
+	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, pkt)
 
 	// Infinite read loop
 	buffer := make([]byte, 512)
@@ -370,6 +380,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	case *packet.SetMember:
 		response = timeout(50*time.Millisecond, api.SetMember, ctx, sess, request)
+
+	case *packet.TrustUser:
+		response = timeout(10*time.Millisecond, api.TrustUser, ctx, sess, request)
 
 	default:
 		response = &packet.Error{Error: "use of disallowed packet type for request"}

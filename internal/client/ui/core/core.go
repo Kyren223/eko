@@ -288,6 +288,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	case *packet.MessagesInfo:
 		state.UpdateMessages(msg)
 
+	case *packet.TrustInfo:
+		state.UpdateTrusteds(msg)
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n":

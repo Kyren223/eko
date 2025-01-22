@@ -1,6 +1,7 @@
 package state
 
 import (
+	"crypto/ed25519"
 	"encoding/json"
 	"slices"
 
@@ -28,6 +29,7 @@ type state struct {
 	Frequencies map[snowflake.ID][]data.Frequency             // key is network id
 	Members     map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
 	Users       map[snowflake.ID]data.User                    // key is user id
+	Trusteds    map[snowflake.ID]ed25519.PublicKey            // key is user id
 }
 
 var State state = state{
@@ -38,6 +40,7 @@ var State state = state{
 	Frequencies:    map[snowflake.ID][]data.Frequency{},
 	Members:        map[snowflake.ID]map[snowflake.ID]data.Member{},
 	Users:          map[snowflake.ID]data.User{},
+	Trusteds:       map[snowflake.ID]ed25519.PublicKey{},
 }
 
 type UserData struct {
@@ -194,4 +197,14 @@ func FromJsonUserData(s string) {
 		return
 	}
 	Data = data
+}
+
+func UpdateTrusteds(info *packet.TrustInfo) {
+	for _, removed := range info.RemovedTrusteds {
+		delete(State.Trusteds, removed)
+	}
+
+	for i, trusted := range info.Trusteds {
+		State.Trusteds[trusted] = info.TrustedPublicKeys[i]
+	}
 }

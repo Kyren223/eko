@@ -1,6 +1,8 @@
 package packet
 
 import (
+	"crypto/ed25519"
+
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
@@ -202,4 +204,23 @@ type GetUserData struct{}
 
 func (m *GetUserData) Type() PacketType {
 	return PacketGetUserData
+}
+
+type TrustUser struct {
+	User  snowflake.ID
+	Trust bool
+}
+
+func (m *TrustUser) Type() PacketType {
+	return PacketTrustUser
+}
+
+type TrustInfo struct {
+	Trusteds          []snowflake.ID
+	TrustedPublicKeys []ed25519.PublicKey
+	RemovedTrusteds   []snowflake.ID
+}
+
+func (m *TrustInfo) Type() PacketType {
+	return PacketTrustInfo
 }

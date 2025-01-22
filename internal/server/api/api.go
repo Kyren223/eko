@@ -1016,3 +1016,100 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 	assert.Never("unreachable")
 	return nil
 }
+
+func TrustUser(ctx context.Context, sess *session.Session, request *packet.TrustUser) packet.Payload {
+	if sess.ID() == request.User {
+		return &packet.Error{Error: "you cannot trust yourself"}
+	}
+
+	queries := data.New(db)
+
+	user, err := queries.GetUserById(ctx, request.User)
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "requested user doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	if request.Trust {
+		publicKey, err := queries.GetTrustedPublicKey(ctx, data.GetTrustedPublicKeyParams{
+			TrustingUserID: sess.ID(),
+			TrustedUserID:  user.ID,
+		})
+		if err == nil {
+			return &packet.TrustInfo{
+				Trusteds:          []snowflake.ID{user.ID},
+				TrustedPublicKeys: []ed25519.PublicKey{publicKey},
+				RemovedTrusteds:   nil,
+			}
+		}
+		if err != nil && err != sql.ErrNoRows {
+			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		err = queries.TrustUser(ctx, data.TrustUserParams{
+			TrustingUserID:   sess.ID(),
+			TrustedUserID:    user.ID,
+			TrustedPublicKey: user.PublicKey,
+		})
+		if err != nil && err != sql.ErrNoRows {
+			log.Println("database error 2:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.TrustInfo{
+			Trusteds:          []snowflake.ID{user.ID},
+			TrustedPublicKeys: []ed25519.PublicKey{user.PublicKey},
+			RemovedTrusteds:   nil,
+		}
+	} else {
+		err = queries.UntrustUser(ctx, data.UntrustUserParams{
+			TrustingUserID: sess.ID(),
+			TrustedUserID:  user.ID,
+		})
+		if err == sql.ErrNoRows {
+			return &packet.TrustInfo{
+				Trusteds:          nil,
+				TrustedPublicKeys: nil,
+				RemovedTrusteds:   []snowflake.ID{user.ID},
+			}
+		}
+		if err != nil {
+			log.Println("database error 3:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.TrustInfo{
+			Trusteds:          nil,
+			TrustedPublicKeys: nil,
+			RemovedTrusteds:   []snowflake.ID{user.ID},
+		}
+	}
+}
+
+func GetUserTrusteds(ctx context.Context, sess *session.Session) packet.Payload {
+	queries := data.New(db)
+
+	trustedRows, err := queries.GetUserTrusteds(ctx, sess.ID())
+	if err != nil && err != sql.ErrNoRows {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	trusteds := make([]snowflake.ID, 0, len(trustedRows))
+	trustedPublicKeys := make([]ed25519.PublicKey, 0, len(trustedRows))
+
+	for _, row := range trustedRows {
+		trusteds = append(trusteds, row.TrustedUserID)
+		trustedPublicKeys = append(trustedPublicKeys, row.TrustedPublicKey)
+	}
+
+	return &packet.TrustInfo{
+		Trusteds:          trusteds,
+		TrustedPublicKeys: trustedPublicKeys,
+		RemovedTrusteds:   nil,
+	}
+}

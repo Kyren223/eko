@@ -76,6 +76,9 @@ const (
 	PacketSetMember
 	PacketMembersInfo
 
+	PacketTrustUser
+	PacketTrustInfo
+
 	PacketMax
 )
 
@@ -233,6 +236,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &SetMember{}
 	case PacketMembersInfo:
 		payload = &MembersInfo{}
+
+	case PacketTrustUser:
+		payload = &TrustUser{}
+	case PacketTrustInfo:
+		payload = &TrustInfo{}
 
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())

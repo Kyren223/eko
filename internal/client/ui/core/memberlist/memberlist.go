@@ -1,6 +1,7 @@
 package memberlist
 
 import (
+	"bytes"
 	"slices"
 	"strings"
 
@@ -91,14 +92,33 @@ func (m Model) View() string {
 			memberStyle = memberStyle.Background(colors.BackgroundHighlight)
 		}
 
-		userStyle := ui.NormalMemberStyle
-		if ownerId == member.UserID {
-			userStyle = ui.OwnerMemberStyle
-		} else if member.IsAdmin {
-			userStyle = ui.AdminMemberStyle
+		user := state.State.Users[member.UserID]
+		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
+
+		userStyle := lipgloss.NewStyle()
+		if isTrusted && keysMatch {
+			if ownerId == member.UserID {
+				userStyle = ui.TrustedOwnerMemberStyle
+			} else if member.IsAdmin {
+				userStyle = ui.TrustedAdminMemberStyle
+			} else {
+				userStyle = ui.TrustedNormalMemberStyle
+			}
+		} else {
+			if ownerId == member.UserID {
+				userStyle = ui.OwnerMemberStyle
+			} else if member.IsAdmin {
+				userStyle = ui.AdminMemberStyle
+			} else {
+				userStyle = ui.NormalMemberStyle
+			}
 		}
 		memberName := m.Users()[member.UserID].Name
 		memberName = userStyle.Render(memberName)
+		if isTrusted && !keysMatch {
+			memberName = ui.UntrustedSymbol + memberName
+		}
 
 		if lipgloss.Width(memberName) <= maxMemberWidth {
 			memberName = lipgloss.NewStyle().
@@ -155,6 +175,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case "p":
 			// TODO: profile
+
+		// Normal
+		case "T":
+			member := m.Members()[m.index]
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			_, isTrusting := state.State.Trusteds[member.UserID]
+
+			return m, gateway.Send(&packet.TrustUser{
+				User:  member.UserID,
+				Trust: !isTrusting,
+			})
 
 		// Admin
 		case "x", "K":
@@ -298,8 +333,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   *state.NetworkId(m.networkIndex),
 				User:      member.UserID,
 			})
-		case "T":
-			// TODO: transfer ownership
 
 		}
 	}

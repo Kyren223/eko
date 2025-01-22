@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"log"
 	"strconv"
 	"strings"
@@ -330,6 +331,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.style = editStyle
 			}
 
+		case "T":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			senderId := m.selectedMessage.SenderID
+
+			if senderId == *state.UserID {
+				return m, nil
+			}
+
+			_, isTrusting := state.State.Trusteds[senderId]
+
+			return m, gateway.Send(&packet.TrustUser{
+				User:  senderId,
+				Trust: !isTrusting,
+			})
+
 		// Admin
 		case "K":
 			if m.selectedMessage == nil {
@@ -492,8 +510,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   *state.NetworkId(m.networkIndex),
 				User:      member.UserID,
 			})
-		case "T":
-			// TODO: transfer ownership
 
 		}
 	}
@@ -936,12 +952,30 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		members := state.State.Members[*networkId]
 		member := members[message.SenderID]
 		user := state.State.Users[message.SenderID]
+		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
-		senderStyle := ui.NormalMemberStyle
-		if ownerId == member.UserID {
-			senderStyle = ui.OwnerMemberStyle
-		} else if member.IsAdmin {
-			senderStyle = ui.AdminMemberStyle
+		if isTrusted && !keysMatch {
+			buf = append(buf, ui.UntrustedSymbol...)
+		}
+
+		senderStyle := lipgloss.NewStyle()
+		if isTrusted && keysMatch {
+			if ownerId == member.UserID {
+				senderStyle = ui.TrustedOwnerMemberStyle
+			} else if member.IsAdmin {
+				senderStyle = ui.TrustedAdminMemberStyle
+			} else {
+				senderStyle = ui.TrustedNormalMemberStyle
+			}
+		} else {
+			if ownerId == member.UserID {
+				senderStyle = ui.OwnerMemberStyle
+			} else if member.IsAdmin {
+				senderStyle = ui.AdminMemberStyle
+			} else {
+				senderStyle = ui.NormalMemberStyle
+			}
 		}
 
 		sender := senderStyle.Render(user.Name)
