@@ -29,13 +29,7 @@ var (
 	memberStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
-	symbolReadWrite     = "󰖩 "
-	symbolReadOnly      = "󱛂 "
-	symbolReadOnlyAdmin = "󰖩 "
-	symbolNoAccess      = "󱚿 "
-	symbolNoAccessAdmin = "󱛀 "
-	symbolWidth         = 2
-
+	symbolWidth        = 2
 	widthWithoutMember = ((margin + padding) * 2) + symbolWidth
 
 	ellipsis = "…"

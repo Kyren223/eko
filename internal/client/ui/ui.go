@@ -34,7 +34,7 @@ var (
 	TrustedNormalMemberStyle = NormalMemberStyle.SetString("󰢏")
 	TrustedAdminMemberStyle  = AdminMemberStyle.SetString("󱄻")
 	TrustedOwnerMemberStyle  = OwnerMemberStyle.SetString("󱢼")
-	UntrustedSymbol           = lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸")
+	UntrustedSymbol          = lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸")
 )
 
 var NewAuth func() tea.Model
