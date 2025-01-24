@@ -62,7 +62,7 @@ type Model struct {
 
 func New() Model {
 	name := field.New(width)
-	name.Header = "Network ID"
+	name.Header = "Network Invite Code"
 	name.HeaderStyle = headerStyle
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
