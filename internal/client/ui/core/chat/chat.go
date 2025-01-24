@@ -1102,3 +1102,7 @@ func (m *Model) renderFrequencyName() string {
 
 	return frequencyNameStyle.Render(frequency.Name) + "\n"
 }
+
+func (m *Model) Mode() int {
+	return m.vi.Mode()
+}

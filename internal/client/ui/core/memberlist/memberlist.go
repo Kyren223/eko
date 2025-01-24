@@ -191,7 +191,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			})
 
 		// Admin
-		case "x", "K":
+		case "K":
 			networkId := state.NetworkId(m.networkIndex)
 			network := state.State.Networks[*networkId]
 			member := m.Members()[m.index]

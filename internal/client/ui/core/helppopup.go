@@ -1,0 +1,245 @@
+package core
+
+import (
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/colors"
+)
+
+var (
+	style = lipgloss.NewStyle().
+		MaxWidth(ui.MinWidth).
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 2).
+		Align(lipgloss.Center, lipgloss.Center)
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(colors.Focus).
+			Border(lipgloss.ThickBorder(), false, false, true).
+			Padding(0, 4, 1).MarginBottom(1).
+			Align(lipgloss.Center, lipgloss.Center)
+
+	keyStyle = lipgloss.NewStyle().
+			Padding(0, 1).
+			Background(colors.DarkPurple).Foreground(colors.White)
+
+	descriptionStyle = lipgloss.NewStyle()
+
+	toggleHint = lipgloss.NewStyle().Foreground(colors.Gold).
+			Render("-- Press space to toggle between global/local keybindings --")
+)
+
+const (
+	HelpNetworkList = iota
+	HelpFrequencyList
+	HelpChat
+	HelpMemberList
+	HelpGlobal
+	HelpVim
+	HelpMax
+)
+
+type Keymap struct {
+	key         string
+	description string
+}
+
+type HelpPopup struct {
+	help   int
+	global bool
+}
+
+func NewHelpPopup(help int) *HelpPopup {
+	return &HelpPopup{
+		help:   help,
+		global: false,
+	}
+}
+
+func (m HelpPopup) Init() tea.Cmd {
+	return nil
+}
+
+func (m HelpPopup) View() string {
+	if m.global {
+		m.help = HelpGlobal
+	}
+
+	title := titleStyle.Render(m.Title()+" Keybindings Cheatsheet") + "\n"
+
+	keymapLists := [][]Keymap{}
+	switch m.help {
+	case HelpNetworkList:
+		keymapLists = m.HelpNetworkList()
+	case HelpFrequencyList:
+		keymapLists = m.HelpFrequencyList()
+	case HelpChat:
+		keymapLists = m.HelpChat()
+	case HelpMemberList:
+		keymapLists = m.HelpMemberList()
+	case HelpGlobal:
+		keymapLists = m.HelpGlobal()
+	case HelpVim:
+		keymapLists = m.HelpVim()
+	}
+
+	helps := []string{}
+
+	for i, keymaps := range keymapLists {
+		var builder strings.Builder
+
+		for _, keymap := range keymaps {
+			builder.WriteString(keyStyle.Render(keymap.key))
+			builder.WriteString(" ")
+			builder.WriteString(descriptionStyle.Render(keymap.description))
+			builder.WriteString("\n\n")
+		}
+
+		// help := lipgloss.NewStyle().Align(lipgloss.Left).Render()
+		helps = append(helps, builder.String())
+
+		if i != len(keymapLists)-1 {
+			helps = append(helps, "  ") // separator
+		}
+	}
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, helps...) + "\n"
+
+	return style.Render(title + content + toggleHint)
+}
+
+func (m HelpPopup) Update(msg tea.Msg) (HelpPopup, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeySpace {
+			m.global = !m.global
+		}
+	}
+
+	return m, nil
+}
+
+func (m HelpPopup) Title() string {
+	switch m.help {
+	case HelpNetworkList:
+		return "Network"
+	case HelpFrequencyList:
+		return "Frequency"
+	case HelpChat:
+		return "Chat"
+	case HelpMemberList:
+		return "Member"
+	case HelpGlobal:
+		return "Global"
+	case HelpVim:
+		return "VIM"
+	}
+	return "Unknown"
+}
+
+func (m HelpPopup) HelpGlobal() [][]Keymap {
+	return [][]Keymap{{
+		{"ctrl+c", "Exit eko"},
+		{"H", "Move focus to the right"},
+		{"L", "Move focus to the left"},
+		{"u", "Edit your user profile"},
+		{"?", "Show a help popup"},
+	}, {
+		{"esc", "Close popup"},
+		{"tab", "cycle to the next option"},
+		{"shift+tab", "cycle to the previous option"},
+		{"enter", "confirm the selected option"},
+	}}
+}
+
+func (m HelpPopup) HelpNetworkList() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up a network"},
+		{"j", "Move down a network"},
+		{"K", "Move the selected network up"},
+		{"J", "Move the selected network down"},
+		{"Q", "Leave the selected network"},
+	}, {
+		{"n", "Create a new network"},
+		{"e", "Edit the selected network"},
+		{"a", "Join a new network from an invite code"},
+		{"i", "Copy the selected network's invite code"},
+		{"D", "Delete the selected network"},
+	}}
+}
+
+func (m HelpPopup) HelpFrequencyList() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up a frequency"},
+		{"j", "Move down a frequency"},
+		{"ctrl+u", "Move half a page up"},
+		{"ctrl+d", "Move half a page down"},
+		{"g", "Move to the first frequency"},
+		{"G", "Move to the last frequency"},
+	}, {
+		{"n", "Create a new frequency"},
+		{"e", "Edit the selected frequency"},
+		{"x", "Delete the selected frequency"},
+		{"K", "Move the selected frequency up"},
+		{"J", "Move the selected frequency down"},
+		{"i", "Copy the network's invite code"},
+	}}
+}
+
+func (m HelpPopup) HelpChat() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up a message"},
+		{"j", "Move down a message"},
+		{"ctrl+u", "Move half a page up"},
+		{"ctrl+d", "Move half a page down"},
+		{"G", "Snap to the bottom message"},
+		{"i", "Start typing a message"},
+		{"enter", "Snap to bottom and type"},
+		{"ctrl+q", "Exit typing mode"},
+	}, {
+		{"x", "Delete selected message"},
+		{"e", "Edit selected message"},
+
+		{"K", "Kick message sender"},
+		{"M", "Mute message sender"},
+		{"U", "Unmute message sender"},
+		{"B", "Ban message sender"}, // TODO: implement
+		{"P", "Promote sender to admin"},
+		{"D", "Demote sender from admin"},
+	}}
+}
+
+func (m HelpPopup) HelpMemberList() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up by one"},
+		{"j", "Move down by one"},
+		{"ctrl+u", "Move half a page up"},
+		{"ctrl+d", "Move half a page down"},
+		{"g", "Move to the top"},
+		{"G", "Move to the bottom"},
+
+		{"p", "View member profile"},
+		{"T", "Trust/untrust member"},
+	}, {
+		{"K", "Kick selected member"},
+		{"M", "Mute selected member"},
+		{"U", "Unmute selected member"},
+		{"B", "Ban selected member"},    // TODO: implement
+		{"b", "Switch to banlist view"}, // TODO: implement
+		{"P", "Promote member to admin"},
+		{"D", "Demote member from admin"},
+		{"ctrl+t", "Transfer ownership"}, // TODO: implement
+	}}
+}
+
+func (m HelpPopup) HelpVim() [][]Keymap {
+	return [][]Keymap{{
+		{"esc", "Go into normal mode from insert mode"},
+		{"q", "Exit typing from normal mode"},
+		{"ctrl+q", "Exit typing from insert mode"},
+		{"Other", "The rest of the vim keys work as usual"},
+	}, {}}
+}

@@ -26,6 +26,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/client/ui/viminput"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
@@ -63,6 +64,7 @@ type Model struct {
 	timeout   time.Duration
 	connected bool
 
+	helpPopup              *HelpPopup
 	userSettingsPopup      *usersettings.Model
 	networkCreationPopup   *networkcreation.Model
 	networkUpdatePopup     *networkupdate.Model
@@ -84,6 +86,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		timer:                  newTimer(initialTimeout),
 		timeout:                initialTimeout,
 		connected:              false,
+		helpPopup:              nil,
 		userSettingsPopup:      nil,
 		networkCreationPopup:   nil,
 		networkUpdatePopup:     nil,
@@ -123,7 +126,9 @@ func (m Model) View() string {
 	)
 
 	var popup string
-	if m.userSettingsPopup != nil {
+	if m.helpPopup != nil {
+		popup = m.helpPopup.View()
+	} else if m.userSettingsPopup != nil {
 		popup = m.userSettingsPopup.View()
 	} else if m.networkCreationPopup != nil {
 		popup = m.networkCreationPopup.View()
@@ -299,11 +304,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if !m.HasPopup() {
 					popup := networkcreation.New()
 					m.networkCreationPopup = &popup
-				} else {
-					cmd := m.updatePopups(msg)
-					if cmd != nil {
-						return cmd
-					}
+					return nil
 				}
 			case FocusLeftSidebar:
 				if !m.HasPopup() {
@@ -317,17 +318,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					}
 					popup := frequencycreation.New(*networkId)
 					m.frequencyCreationPopup = &popup
-				} else {
-					cmd := m.updatePopups(msg)
-					if cmd != nil {
-						return cmd
-					}
-				}
-
-			default:
-				cmd := m.updatePopups(msg)
-				if cmd != nil {
-					return cmd
+					return nil
 				}
 			}
 
@@ -335,8 +326,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			if m.focus == FocusNetworkList && !m.HasPopup() {
 				popup := networkjoin.New()
 				m.networkJoinPopup = &popup
-			} else {
-				m.updatePopups(msg)
+				return nil
 			}
 
 		case "i":
@@ -347,8 +337,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if networkId != nil {
 					_ = clipboard.WriteAll(networkId.String())
 				}
-			} else {
-				m.updatePopups(msg)
+				return nil
 			}
 
 		case "e":
@@ -377,27 +366,41 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				index := m.frequencyList.Index()
 				popup := frequencyupdate.New(*networkId, index)
 				m.frequencyUpdatePopup = &popup
-			} else {
-				cmd := m.updatePopups(msg)
-				if cmd != nil {
-					return cmd
-				}
+				return nil
 			}
 
-		// user/profile/options/settings
-		case "u", "p", "o", "s":
-			if !m.HasPopup() && m.focus == FocusNetworkList {
+		// user
+		case "u":
+			isChatLocked := m.focus == FocusChat && m.chat.Locked()
+			if !m.HasPopup() && !isChatLocked {
 				popup := usersettings.New()
 				m.userSettingsPopup = &popup
-			} else if m.HasPopup() {
-				cmd := m.updatePopups(msg)
-				if cmd != nil {
-					return cmd
+				return nil
+			}
+
+		case "?":
+			normalMode := m.chat.Mode() == viminput.NormalMode
+			if !m.HasPopup() && (m.focus != FocusChat || !m.chat.Locked() || normalMode) {
+				switch m.focus {
+				case FocusNetworkList:
+					m.helpPopup = NewHelpPopup(HelpNetworkList)
+				case FocusLeftSidebar:
+					m.helpPopup = NewHelpPopup(HelpFrequencyList)
+				case FocusChat:
+					if m.chat.Locked() {
+						m.helpPopup = NewHelpPopup(HelpVim)
+					} else {
+						m.helpPopup = NewHelpPopup(HelpChat)
+					}
+				case FocusRightSidebar:
+					m.helpPopup = NewHelpPopup(HelpMemberList)
 				}
+				return nil
 			}
 
 		case "esc":
 			if m.HasPopup() {
+				m.helpPopup = nil
 				m.userSettingsPopup = nil
 				m.networkCreationPopup = nil
 				m.networkUpdatePopup = nil
@@ -407,7 +410,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 		case "enter":
-			if m.userSettingsPopup != nil {
+			if m.helpPopup != nil {
+				m.helpPopup = nil
+			} else if m.userSettingsPopup != nil {
 				cmd := m.userSettingsPopup.Select()
 				if cmd != nil {
 					m.userSettingsPopup = nil
@@ -446,12 +451,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 		default:
-			cmd := m.updatePopups(msg)
-			if cmd != nil {
-				return cmd
-			}
+			isChatLocked := m.focus == FocusChat && m.chat.Locked()
+			if !m.HasPopup() && !isChatLocked {
 
-			if m.focus != FocusChat || !m.chat.Locked() {
 				left := msg.String() == "H"
 				right := msg.String() == "L"
 				direction := 0
@@ -466,7 +468,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	}
 
 	if m.HasPopup() {
-		return nil
+		cmd := m.updatePopups(msg)
+		return cmd
 	}
 
 	var cmds []tea.Cmd
@@ -531,7 +534,11 @@ func (m *Model) move(direction int) {
 }
 
 func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
-	if m.userSettingsPopup != nil {
+	if m.helpPopup != nil {
+		popup, cmd := m.helpPopup.Update(msg)
+		m.helpPopup = &popup
+		return cmd
+	} else if m.userSettingsPopup != nil {
 		popup, cmd := m.userSettingsPopup.Update(msg)
 		m.userSettingsPopup = &popup
 		return cmd
@@ -560,7 +567,8 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) HasPopup() bool {
-	return m.userSettingsPopup != nil ||
+	return m.helpPopup != nil ||
+		m.userSettingsPopup != nil ||
 		m.networkCreationPopup != nil ||
 		m.networkUpdatePopup != nil ||
 		m.frequencyCreationPopup != nil ||
