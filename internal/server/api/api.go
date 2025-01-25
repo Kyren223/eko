@@ -767,6 +767,13 @@ func GetUserData(ctx context.Context, sess *session.Session, request *packet.Get
 	}
 
 	data, err := queries.GetUserData(ctx, sess.ID())
+	if err == sql.ErrNoRows {
+		data := ""
+		return &packet.SetUserData{
+			Data: &data,
+			User: &user,
+		}
+	}
 	if err != nil {
 		log.Println("database error 1:", err)
 		return &ErrInternalError

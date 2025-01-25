@@ -94,6 +94,12 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		}
 	}
 
+	// Remove any unrecognized networks
+	Data.Networks = slices.DeleteFunc(Data.Networks, func(id snowflake.ID) bool {
+		_, ok := State.Networks[id]
+		return !ok
+	})
+
 	data := JsonUserData()
 	gateway.SendAsync(&packet.SetUserData{
 		Data: &data,
