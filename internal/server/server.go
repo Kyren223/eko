@@ -378,6 +378,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	case *packet.RequestMessages:
 		response = timeout(50*time.Millisecond, api.RequestMessages, ctx, sess, request)
 
+	case *packet.GetBannedMembers:
+		response = timeout(10*time.Millisecond, api.GetBannedMembers, ctx, sess, request)
 	case *packet.SetMember:
 		response = timeout(50*time.Millisecond, api.SetMember, ctx, sess, request)
 

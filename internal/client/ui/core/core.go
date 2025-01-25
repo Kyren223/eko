@@ -117,10 +117,10 @@ func (m Model) View() string {
 	}
 
 	networkList := m.networkList.View()
-	frequencyList := m.frequencyList.View()
+	leftSidebar := m.frequencyList.View()
 	chat := m.chat.View()
-	memberList := m.memberList.View()
-	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, frequencyList, chat, memberList)
+	rightSidebar := m.memberList.View()
+	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, leftSidebar, chat, rightSidebar)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
@@ -228,9 +228,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	sidebarWidth = max(sidebarWidth, MinSidebarWidth)
 	chatWidth := totalWidth - (2 * (sidebarWidth + 1))
 
-	log.Println("Widths:", ui.Width)
-	log.Println("sidebarWidth:", sidebarWidth)
-	log.Println("chatWidth:", chatWidth)
+	// log.Println("Widths:", ui.Width)
+	// log.Println("sidebarWidth:", sidebarWidth)
+	// log.Println("chatWidth:", chatWidth)
 
 	m.frequencyList.SetWidth(sidebarWidth)
 	m.memberList.SetWidth(sidebarWidth)

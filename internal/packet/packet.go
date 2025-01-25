@@ -233,6 +233,8 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	case PacketMessagesInfo:
 		payload = &MessagesInfo{}
 
+	case PacketGetBannedMembers:
+		payload = &GetBannedMembers{}
 	case PacketSetMember:
 		payload = &SetMember{}
 	case PacketMembersInfo:

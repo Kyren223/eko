@@ -10,6 +10,7 @@ import (
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
+	"github.com/kyren223/eko/internal/client/ui/core/banlist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
@@ -45,6 +46,8 @@ type Model struct {
 	focus          bool
 	width          int
 	height         int
+
+	banlist *banlist.Model
 }
 
 func New() Model {
@@ -56,6 +59,7 @@ func New() Model {
 		focus:          false,
 		width:          -1,
 		height:         -1,
+		banlist:        nil,
 	}
 }
 
@@ -67,6 +71,10 @@ func (m Model) View() string {
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId == nil || m.frequencyIndex == -1 {
 		return ""
+	}
+
+	if m.banlist != nil {
+		return m.banlist.View()
 	}
 
 	memberStyle := memberStyle.Width(m.width - (margin * 2))
@@ -144,12 +152,34 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if state.NetworkId(m.networkIndex) != nil {
-		// Calculate height for frequencies
-		m.height = ui.Height
-		m.height -= lipgloss.Height(m.renderHeader())
-		m.height -= 1
+	if state.NetworkId(m.networkIndex) == nil {
+		return m, nil
 	}
+
+	if key, ok := msg.(tea.KeyMsg); ok {
+		if key.String() == "b" {
+			if m.banlist == nil {
+				banlist := banlist.New(m.Network().ID)
+				m.banlist = &banlist
+				m.banlist.SetWidth(m.width)
+				return m, m.banlist.Init()
+			} else {
+				m.banlist = nil
+				return m, nil
+			}
+		}
+	}
+
+	if m.banlist != nil {
+		banlist, cmd := m.banlist.Update(msg)
+		m.banlist = &banlist
+		return m, cmd
+	}
+
+	// Calculate height for members
+	m.height = ui.Height
+	m.height -= lipgloss.Height(m.renderHeader())
+	m.height -= 1
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -281,7 +311,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "B":
-			// TODO: ban
 			networkId := state.NetworkId(m.networkIndex)
 			network := state.State.Networks[*networkId]
 			member := m.Members()[m.index]
@@ -305,8 +334,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 			return m, cmd
-		case "b":
-			// TODO: switch to ban list
 
 		// Owner
 		case "D":
@@ -375,6 +402,8 @@ func (m *Model) Blur() {
 	m.focus = false
 	m.index = -1
 	m.base = 0
+
+	m.banlist = nil
 }
 
 func (m *Model) SetNetworkAndFrequency(networkIndex, frequencyIndex int) {
@@ -408,7 +437,7 @@ func (m *Model) MembersLength() int {
 	if networkId == nil {
 		return 0
 	}
-	return len(state.State.Members[*networkId])
+	return len(m.Members())
 }
 
 func (m *Model) Network() *data.Network {
@@ -434,7 +463,9 @@ func (m *Model) Members() []data.Member {
 	membersMap := m.MembersMap()
 	members := make([]data.Member, 0, len(membersMap))
 	for _, member := range membersMap {
-		members = append(members, member)
+		if member.IsMember {
+			members = append(members, member)
+		}
 	}
 	slices.SortFunc(members, func(a, b data.Member) int {
 		if a.UserID == ownerId {
@@ -501,4 +532,11 @@ func (m Model) renderHeader() string {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
+	if m.banlist != nil {
+		m.banlist.SetWidth(width)
+	}
+}
+
+func (m *Model) IsBanList() bool {
+	return m.banlist != nil
 }

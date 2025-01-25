@@ -629,7 +629,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		return &ErrInternalError
 	}
 
-	if !newMember.IsMember {
+	if !newMember.IsMember && member.IsMember {
 		membersInfoPayload := NetworkPropagateWithFilter(ctx, sess, request.Network, &packet.MembersInfo{
 			RemovedMembers: []snowflake.ID{newMember.UserID},
 			Members:        nil,
@@ -693,7 +693,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		}
 	}
 
-	// Normal case, was already in the server
+	// Normal case, isMember wasn't changed
 	return payload
 }
 
