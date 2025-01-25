@@ -91,7 +91,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		ui.Width, ui.Height = msg.Width, msg.Height
-		return m, nil
 
 	case ui.ModelTransition:
 		log.Println("Transition model from", reflect.TypeOf(m.model).String(), "to", reflect.TypeOf(msg.Model).String())
