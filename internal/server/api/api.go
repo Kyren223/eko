@@ -596,6 +596,9 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			IsBanned = *request.Banned
 			banReason = request.BanReason
 			isAdmin = false // Important for security
+			if IsBanned {
+				isMember = false // kick if user got banned
+			}
 		}
 	}
 
