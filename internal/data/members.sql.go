@@ -56,6 +56,58 @@ func (q *Queries) FilterUsersInNetwork(ctx context.Context, arg FilterUsersInNet
 	return items, nil
 }
 
+const getBannedMembers = `-- name: GetBannedMembers :many
+SELECT
+  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
+  members.user_id, members.network_id, members.joined_at, members.is_member, members.is_admin, members.is_muted, members.is_banned, members.ban_reason
+FROM members
+JOIN users ON users.id = members.user_id
+WHERE network_id = ? AND is_banned = true
+`
+
+type GetBannedMembersRow struct {
+	User   User
+	Member Member
+}
+
+func (q *Queries) GetBannedMembers(ctx context.Context, networkID snowflake.ID) ([]GetBannedMembersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getBannedMembers, networkID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBannedMembersRow
+	for rows.Next() {
+		var i GetBannedMembersRow
+		if err := rows.Scan(
+			&i.User.ID,
+			&i.User.Name,
+			&i.User.PublicKey,
+			&i.User.Description,
+			&i.User.IsPublicDM,
+			&i.User.IsDeleted,
+			&i.Member.UserID,
+			&i.Member.NetworkID,
+			&i.Member.JoinedAt,
+			&i.Member.IsMember,
+			&i.Member.IsAdmin,
+			&i.Member.IsMuted,
+			&i.Member.IsBanned,
+			&i.Member.BanReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMemberById = `-- name: GetMemberById :one
 SELECT user_id, network_id, joined_at, is_member, is_admin, is_muted, is_banned, ban_reason FROM members
 WHERE network_id = ? AND user_id = ?

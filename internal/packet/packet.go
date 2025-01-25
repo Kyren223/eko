@@ -73,6 +73,7 @@ const (
 	PacketRequestMessages
 	PacketMessagesInfo
 
+	PacketGetBannedMembers
 	PacketSetMember
 	PacketMembersInfo
 

@@ -6,6 +6,14 @@ FROM members
 JOIN users ON users.id = members.user_id
 WHERE network_id = ? AND is_member = true;
 
+-- name: GetBannedMembers :many
+SELECT
+  sqlc.embed(users),
+  sqlc.embed(members)
+FROM members
+JOIN users ON users.id = members.user_id
+WHERE network_id = ? AND is_banned = true;
+
 -- name: GetMemberById :one
 SELECT * FROM members
 WHERE network_id = ? AND user_id = ?;

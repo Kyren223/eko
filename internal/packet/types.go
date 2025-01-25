@@ -224,3 +224,11 @@ type TrustInfo struct {
 func (m *TrustInfo) Type() PacketType {
 	return PacketTrustInfo
 }
+
+type GetBannedMembers struct {
+	Network snowflake.ID
+}
+
+func (m *GetBannedMembers) Type() PacketType {
+	return PacketGetBannedMembers
+}

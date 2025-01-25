@@ -21,6 +21,8 @@ var (
 	ErrInternalError    = packet.Error{Error: "internal server error"}
 	ErrPermissionDenied = packet.Error{Error: "permission denied"}
 	ErrNotImplemented   = packet.Error{Error: "not implemented yet"}
+
+	DefaultBanReason = ""
 )
 
 func SendMessage(ctx context.Context, sess *session.Session, request *packet.SendMessage) packet.Payload {
@@ -567,10 +569,10 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	isMember := member.IsMember
 	isAdmin := member.IsAdmin
 	isMuted := member.IsMuted
-	IsBanned := member.IsBanned
+	isBanned := member.IsBanned
 	banReason := member.BanReason
 
-	if request.Member != nil && !IsBanned {
+	if request.Member != nil && !isBanned {
 		isLeave := !*request.Member && request.User == sess.ID()
 		isKick := !*request.Member && isSessAdmin && (!isAdmin || isSessOwner)
 		if request.User != network.OwnerID && (isLeave || isKick) {
@@ -593,11 +595,16 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	} else if request.Banned != nil {
 		notSelf := request.User != sess.ID()
 		if isSessAdmin && notSelf && (!isAdmin || isSessOwner) {
-			IsBanned = *request.Banned
-			banReason = request.BanReason
-			isAdmin = false // Important for security
-			if IsBanned {
+			isBanned = *request.Banned
+			if isBanned {
 				isMember = false // kick if user got banned
+				banReason = request.BanReason
+				isAdmin = false // Important for security
+				if banReason == nil {
+					banReason = &DefaultBanReason
+				}
+			} else {
+				banReason = nil
 			}
 		}
 	}
@@ -608,7 +615,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		IsMember:  isMember,
 		IsAdmin:   isAdmin,
 		IsMuted:   isMuted,
-		IsBanned:  IsBanned,
+		IsBanned:  isBanned,
 		BanReason: banReason,
 	})
 	if err != nil {
@@ -1114,5 +1121,44 @@ func GetUserTrusteds(ctx context.Context, sess *session.Session) packet.Payload 
 		Trusteds:          trusteds,
 		TrustedPublicKeys: trustedPublicKeys,
 		RemovedTrusteds:   nil,
+	}
+}
+
+func GetBannedMembers(ctx context.Context, sess *session.Session, request *packet.GetBannedMembers) packet.Payload {
+	queries := data.New(db)
+
+	member, err := queries.GetMemberById(ctx, data.GetMemberByIdParams{
+		NetworkID: request.Network,
+		UserID:    sess.ID(),
+	})
+	if err == sql.ErrNoRows {
+		return &packet.Error{Error: "network doesn't exist"}
+	}
+	if err != nil {
+		log.Println("database error 0:", err)
+		return &ErrInternalError
+	}
+
+	if !member.IsAdmin {
+		return &ErrPermissionDenied
+	}
+
+	bannedMembersRow, err := queries.GetBannedMembers(ctx, request.Network)
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+	members := make([]data.Member, 0, len(bannedMembersRow))
+	users := make([]data.User, 0, len(bannedMembersRow))
+	for _, memberAndUser := range bannedMembersRow {
+		members = append(members, memberAndUser.Member)
+		users = append(users, memberAndUser.User)
+	}
+
+	return &packet.MembersInfo{
+		RemovedMembers: nil,
+		Members:        members,
+		Users:          users,
+		Network:        request.Network,
 	}
 }
