@@ -282,6 +282,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			})
 		case "B":
 			// TODO: ban
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			member := m.Members()[m.index]
+
+			if !m.MembersMap()[*state.UserID].IsAdmin {
+				return m, nil
+			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			cmd := func() tea.Msg {
+				return ui.BanPopupMsg{
+					Network: *state.NetworkId(m.networkIndex),
+					User:    member.UserID,
+				}
+			}
+			return m, cmd
+		case "b":
+			// TODO: switch to ban list
 
 		// Owner
 		case "D":

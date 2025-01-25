@@ -14,6 +14,7 @@ import (
 
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 const (
@@ -50,6 +51,11 @@ func Transition(model tea.Model) tea.Cmd {
 }
 
 type QuitMsg struct{}
+
+type BanPopupMsg struct {
+	Network snowflake.ID
+	User snowflake.ID
+}
 
 func AddBorderHeader(header string, headerOffset int, style lipgloss.Style, render string) string {
 	b := style.GetBorderStyle()

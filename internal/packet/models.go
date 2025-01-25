@@ -10,6 +10,7 @@ const (
 	MaxMessageBytes         = 2000
 	MaxUsernameBytes        = 32
 	MaxUserDescriptionBytes = 200
+	MaxBanReasonBytes       = 64
 )
 
 const (

@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/core/banreason"
 	"github.com/kyren223/eko/internal/client/ui/core/chat"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencycreation"
 	"github.com/kyren223/eko/internal/client/ui/core/frequencylist"
@@ -71,6 +72,7 @@ type Model struct {
 	networkJoinPopup       *networkjoin.Model
 	frequencyCreationPopup *frequencycreation.Model
 	frequencyUpdatePopup   *frequencyupdate.Model
+	banReasonPopup         *banreason.Model
 	networkList            networklist.Model
 	frequencyList          frequencylist.Model
 	memberList             memberlist.Model
@@ -93,6 +95,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		networkJoinPopup:       nil,
 		frequencyCreationPopup: nil,
 		frequencyUpdatePopup:   nil,
+		banReasonPopup:         nil,
 		networkList:            networklist.New(),
 		frequencyList:          frequencylist.New(),
 		memberList:             memberlist.New(),
@@ -140,6 +143,8 @@ func (m Model) View() string {
 		popup = m.frequencyUpdatePopup.View()
 	} else if m.networkJoinPopup != nil {
 		popup = m.networkJoinPopup.View()
+	} else if m.banReasonPopup != nil {
+		popup = m.banReasonPopup.View()
 	}
 	if popup != "" {
 		x := (ui.Width - lipgloss.Width(popup)) / 2
@@ -296,6 +301,10 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	case *packet.TrustInfo:
 		state.UpdateTrusteds(msg)
 
+	case ui.BanPopupMsg:
+		popup := banreason.New(msg.User, msg.Network)
+		m.banReasonPopup = &popup
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n":
@@ -407,6 +416,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.frequencyCreationPopup = nil
 				m.frequencyUpdatePopup = nil
 				m.networkJoinPopup = nil
+				m.banReasonPopup = nil
 			}
 
 		case "enter":
@@ -448,12 +458,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					m.networkJoinPopup = nil
 				}
 				return cmd
+			} else if m.banReasonPopup != nil {
+				cmd := m.banReasonPopup.Select()
+				if cmd != nil {
+					m.banReasonPopup = nil
+				}
+				return cmd
 			}
 
 		default:
 			isChatLocked := m.focus == FocusChat && m.chat.Locked()
 			if !m.HasPopup() && !isChatLocked {
-
 				left := msg.String() == "H"
 				right := msg.String() == "L"
 				direction := 0
@@ -562,6 +577,10 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 		popup, cmd := m.networkJoinPopup.Update(msg)
 		m.networkJoinPopup = &popup
 		return cmd
+	} else if m.banReasonPopup != nil {
+		popup, cmd := m.banReasonPopup.Update(msg)
+		m.banReasonPopup = &popup
+		return cmd
 	}
 	return nil
 }
@@ -573,5 +592,6 @@ func (m *Model) HasPopup() bool {
 		m.networkUpdatePopup != nil ||
 		m.frequencyCreationPopup != nil ||
 		m.frequencyUpdatePopup != nil ||
-		m.networkJoinPopup != nil
+		m.networkJoinPopup != nil ||
+		m.banReasonPopup != nil
 }

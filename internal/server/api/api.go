@@ -487,6 +487,12 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 }
 
 func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMember) packet.Payload {
+	if request.BanReason != nil && len(*request.BanReason) > packet.MaxBanReasonBytes {
+		return &packet.Error{Error: fmt.Sprintf(
+			"Ban reason may not exceed %v bytes", packet.MaxBanReasonBytes,
+		)}
+	}
+
 	queries := data.New(db)
 
 	network, err := queries.GetNetworkById(ctx, request.Network)
@@ -584,7 +590,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			isMember = true
 		}
 	} else if request.Admin != nil {
-		if isSessOwner && request.User != sess.ID() {
+		if isSessOwner && request.User != sess.ID() && isMember {
 			isAdmin = *request.Admin
 		}
 	} else if request.Muted != nil {
