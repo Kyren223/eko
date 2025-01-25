@@ -239,10 +239,6 @@ func (m *Model) Members() []data.Member {
 	return members
 }
 
-func (m *Model) ndex() int {
-	return m.index
-}
-
 func (m *Model) SetIndex(index int) {
 	m.index = min(max(index, 0), m.MembersLength()-1)
 	if m.index < m.base && m.index != -1 {
