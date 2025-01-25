@@ -115,7 +115,7 @@ func UserPropagate(
 ) packet.Payload {
 	session := sess.Manager().Session(user)
 	if session == nil {
-		log.Println(sess.Addr(), "propagation to", session.Addr(), "failed due to session being nil")
+		log.Println(sess.Addr(), "propagation to user", user, "failed due to session being nil")
 		return payload
 	}
 	timeout := 1 * time.Second
