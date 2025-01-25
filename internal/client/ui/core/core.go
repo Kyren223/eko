@@ -412,7 +412,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 						m.helpPopup = NewHelpPopup(HelpChat)
 					}
 				case FocusRightSidebar:
-					m.helpPopup = NewHelpPopup(HelpMemberList)
+					if m.memberList.IsBanList() {
+						m.helpPopup = NewHelpPopup(HelpBanList)
+					} else {
+						m.helpPopup = NewHelpPopup(HelpMemberList)
+					}
 				}
 				return nil
 			}

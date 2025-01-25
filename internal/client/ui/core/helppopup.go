@@ -39,6 +39,7 @@ const (
 	HelpMemberList
 	HelpGlobal
 	HelpVim
+	HelpBanList
 	HelpMax
 )
 
@@ -84,6 +85,8 @@ func (m HelpPopup) View() string {
 		keymapLists = m.HelpGlobal()
 	case HelpVim:
 		keymapLists = m.HelpVim()
+	case HelpBanList:
+		keymapLists = m.HelpBanList()
 	}
 
 	helps := []string{}
@@ -136,6 +139,8 @@ func (m HelpPopup) Title() string {
 		return "Global"
 	case HelpVim:
 		return "VIM"
+	case HelpBanList:
+		return "Ban List"
 	}
 	return "Unknown"
 }
@@ -221,14 +226,14 @@ func (m HelpPopup) HelpMemberList() [][]Keymap {
 		{"g", "Move to the top"},
 		{"G", "Move to the bottom"},
 
-		{"p", "View member profile"},
+		{"p", "View member profile"}, // TODO: implement
 		{"T", "Trust/untrust member"},
 	}, {
 		{"K", "Kick selected member"},
 		{"M", "Mute selected member"},
 		{"U", "Unmute selected member"},
-		{"B", "Ban selected member"},    // TODO: implement
-		{"b", "Switch to banlist view"}, // TODO: implement
+		{"B", "Ban selected member"},
+		{"b", "Switch to banlist view"},
 		{"P", "Promote member to admin"},
 		{"D", "Demote member from admin"},
 		{"ctrl+t", "Transfer ownership"}, // TODO: implement
@@ -242,4 +247,20 @@ func (m HelpPopup) HelpVim() [][]Keymap {
 		{"ctrl+q", "Exit typing from insert mode"},
 		{"Other", "The rest of the vim keys work as usual"},
 	}, {}}
+}
+
+func (m HelpPopup) HelpBanList() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up by one"},
+		{"j", "Move down by one"},
+		{"ctrl+u", "Move half a page up"},
+		{"ctrl+d", "Move half a page down"},
+		{"g", "Move to the top"},
+		{"G", "Move to the bottom"},
+	}, {
+		{"p", "View user profile"}, // TODO: implement
+		{"U", "Unban user"},
+		{"V", "View ban reason"},
+		{"b", "Switch to member list view"},
+	}}
 }
