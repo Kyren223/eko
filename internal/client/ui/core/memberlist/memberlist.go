@@ -279,6 +279,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				Network:   *state.NetworkId(m.networkIndex),
 				User:      member.UserID,
 			})
+
 		case "U":
 			networkId := state.NetworkId(m.networkIndex)
 			network := state.State.Networks[*networkId]
@@ -328,7 +329,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			cmd := func() tea.Msg {
-				return ui.BanPopupMsg{
+				return ui.BanReasonPopupMsg{
 					Network: *state.NetworkId(m.networkIndex),
 					User:    member.UserID,
 				}

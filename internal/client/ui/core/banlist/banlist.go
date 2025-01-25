@@ -166,18 +166,33 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "p":
 			// TODO: profile
 
+		case "v", "V":
+			members := m.Members()
+			if 0 <= m.index && m.index < len(members) {
+				member := members[m.index]
+				return m, func() tea.Msg {
+					return ui.BanViewPopupmsg{
+						Network: m.networkId,
+						User:    member.UserID,
+					}
+				}
+			}
+
 		case "U":
-			member := m.Members()[m.index]
-			no := false
-			return m, gateway.Send(&packet.SetMember{
-				Member:    nil,
-				Admin:     nil,
-				Muted:     nil,
-				Banned:    &no,
-				BanReason: nil,
-				Network:   m.networkId,
-				User:      member.UserID,
-			})
+			members := m.Members()
+			if 0 <= m.index && m.index < len(members) {
+				member := members[m.index]
+				no := false
+				return m, gateway.Send(&packet.SetMember{
+					Member:    nil,
+					Admin:     nil,
+					Muted:     nil,
+					Banned:    &no,
+					BanReason: nil,
+					Network:   m.networkId,
+					User:      member.UserID,
+				})
+			}
 
 		}
 	}
@@ -224,7 +239,7 @@ func (m *Model) Members() []data.Member {
 	return members
 }
 
-func (m *Model) Index() int {
+func (m *Model) ndex() int {
 	return m.index
 }
 

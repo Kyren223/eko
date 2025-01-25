@@ -52,9 +52,14 @@ func Transition(model tea.Model) tea.Cmd {
 
 type QuitMsg struct{}
 
-type BanPopupMsg struct {
+type BanViewPopupmsg struct {
 	Network snowflake.ID
-	User snowflake.ID
+	User    snowflake.ID
+}
+
+type BanReasonPopupMsg struct {
+	Network snowflake.ID
+	User    snowflake.ID
 }
 
 func AddBorderHeader(header string, headerOffset int, style lipgloss.Style, render string) string {
