@@ -208,8 +208,8 @@ func (m HelpPopup) HelpPeerList() [][]Keymap {
 		{"g", "Move to the top"},
 		{"G", "Move to the bottom"},
 	}, {
-		{"n", "New user conversation"},
-		{"c", "Close user conversation"},
+		{"a", "Add new user signal"},
+		{"c", "Close user signal"},
 		{"T", "Trust/untrust user"},
 		{"B", "Block user"},
 		{"U", "Unblock user"},

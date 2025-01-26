@@ -2,13 +2,16 @@ package peerlist
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
+	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
@@ -17,10 +20,7 @@ var (
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	nameStyle = lipgloss.NewStyle().
-			Padding(1).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-	networkIdStyle = lipgloss.NewStyle().
-			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
+			MarginBottom(1).Padding(1).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
 
 	margin    = 2
@@ -28,13 +28,7 @@ var (
 	peerStyle = lipgloss.NewStyle().
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
-	symbolReadWrite     = "󰖩 "
-	symbolReadOnly      = "󱛂 "
-	symbolReadOnlyAdmin = "󰖩 "
-	symbolNoAccess      = "󱚿 "
-	symbolNoAccessAdmin = "󱛀 "
-	symbolWidth         = 2
-
+	symbolWidth      = 2
 	widthWithoutUser = ((margin + padding) * 2) + symbolWidth
 
 	ellipsis = "…"
@@ -148,11 +142,33 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "g":
 			m.SetIndex(0)
 		case "G":
-			m.SetIndex(m.FrequenciesLength() - 1)
+			m.SetIndex(len(m.Peers()) - 1)
 		case "ctrl+u":
 			m.SetIndex(m.index - m.height/2)
 		case "ctrl+d":
 			m.SetIndex(m.index + m.height/2)
+
+		case "c":
+			if m.index == -1 {
+				return m, nil
+			}
+			state.Data.Peers = slices.Delete(state.Data.Peers, m.index, m.index+1)
+			if m.index == len(state.Data.Peers) {
+				m.SetIndex(m.index - 1)
+			}
+
+		case "T":
+			if m.index == -1 {
+				return m, nil
+			}
+			userId := state.Data.Peers[m.index]
+
+			_, isTrusting := state.State.Trusteds[userId]
+
+			return m, gateway.Send(&packet.TrustUser{
+				User:  userId,
+				Trust: !isTrusting,
+			})
 
 		}
 	}
@@ -168,11 +184,6 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m Model) FrequenciesLength() int {
-	// TODO:
-	return len(state.State.Frequencies[0])
-}
-
 func (m Model) Peers() []snowflake.ID {
 	return state.Data.Peers
 }
@@ -182,7 +193,7 @@ func (m *Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	m.index = min(max(index, 0), m.FrequenciesLength()-1)
+	m.index = min(max(index, 0), len(m.Peers())-1)
 	if m.index < m.base {
 		m.base = max(m.index, 0)
 	} else if m.index >= m.base+m.height {

@@ -25,6 +25,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkupdate"
+	"github.com/kyren223/eko/internal/client/ui/core/peeradd"
 	"github.com/kyren223/eko/internal/client/ui/core/peerlist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
@@ -76,6 +77,7 @@ type Model struct {
 	frequencyUpdatePopup   *frequencyupdate.Model
 	banReasonPopup         *banreason.Model
 	banViewPopup           *banview.Model
+	peerAddPopup           *peeradd.Model
 	networkList            networklist.Model
 	peerList               peerlist.Model
 	frequencyList          frequencylist.Model
@@ -101,6 +103,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		frequencyUpdatePopup:   nil,
 		banReasonPopup:         nil,
 		banViewPopup:           nil,
+		peerAddPopup:           nil,
 		networkList:            networklist.New(),
 		peerList:               peerlist.New(),
 		frequencyList:          frequencylist.New(),
@@ -158,6 +161,8 @@ func (m Model) View() string {
 		popup = m.banReasonPopup.View()
 	} else if m.banViewPopup != nil {
 		popup = m.banViewPopup.View()
+	} else if m.peerAddPopup != nil {
+		popup = m.peerAddPopup.View()
 	}
 
 	if popup != "" {
@@ -355,10 +360,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			}
 
 		case "a":
-			if m.focus == FocusNetworkList && !m.HasPopup() {
-				popup := networkjoin.New()
-				m.networkJoinPopup = &popup
-				return nil
+			if !m.HasPopup() {
+				if m.focus == FocusNetworkList {
+					popup := networkjoin.New()
+					m.networkJoinPopup = &popup
+					return nil
+				}
+				if m.focus == FocusLeftSidebar && m.networkList.Index() == networklist.PeersIndex {
+					popup := peeradd.New()
+					m.peerAddPopup = &popup
+					return nil
+				}
 			}
 
 		case "i":
@@ -449,6 +461,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.networkJoinPopup = nil
 				m.banReasonPopup = nil
 				m.banViewPopup = nil
+				m.peerAddPopup = nil
 			}
 
 		case "enter":
@@ -498,6 +511,13 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				return cmd
 			} else if m.banViewPopup != nil {
 				m.banViewPopup = nil
+			} else if m.peerAddPopup != nil {
+				cmd, i := m.peerAddPopup.Select()
+				if i != -1 {
+					m.peerAddPopup = nil
+					m.peerList.SetIndex(i)
+				}
+				return cmd
 			}
 
 		default:
@@ -633,6 +653,10 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 		popup, cmd := m.banViewPopup.Update(msg)
 		m.banViewPopup = &popup
 		return cmd
+	} else if m.peerAddPopup != nil {
+		popup, cmd := m.peerAddPopup.Update(msg)
+		m.peerAddPopup = &popup
+		return cmd
 	}
 	return nil
 }
@@ -646,5 +670,6 @@ func (m *Model) HasPopup() bool {
 		m.frequencyUpdatePopup != nil ||
 		m.networkJoinPopup != nil ||
 		m.banReasonPopup != nil ||
-		m.banViewPopup != nil
+		m.banViewPopup != nil ||
+		m.peerAddPopup != nil
 }

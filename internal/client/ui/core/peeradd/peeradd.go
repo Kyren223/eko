@@ -1,7 +1,9 @@
-package networkjoin
+package peeradd
 
 import (
 	"errors"
+	"log"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -36,9 +38,9 @@ var (
 				Border(lipgloss.ThickBorder())
 
 	blurredCreate = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1).Render("Join Network")
+			Background(colors.Gray).Padding(0, 1).Render("Add user signal")
 	focusedCreate = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1).Render("Join Network")
+			Background(colors.Blue).Padding(0, 1).Render("Add user signal")
 )
 
 const (
@@ -62,7 +64,7 @@ type Model struct {
 
 func New() Model {
 	name := field.New(width)
-	name.Header = "Network Invite Code"
+	name.Header = "User ID"
 	name.HeaderStyle = headerStyle
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
@@ -74,7 +76,7 @@ func New() Model {
 			return errors.New("cannot be empty")
 		}
 		if _, err := strconv.ParseInt(s, 10, 64); err != nil {
-			return errors.New("invalid invite code")
+			return errors.New("invalid user id")
 		}
 
 		return nil
@@ -151,28 +153,38 @@ func (m *Model) updateFocus() tea.Cmd {
 	}
 }
 
-func (m *Model) Select() tea.Cmd {
+func (m *Model) Select() (tea.Cmd, int) {
 	if m.selected != CreateField {
-		return nil
+		return nil, -1
 	}
 
 	m.name.Input.Err = m.name.Input.Validate(m.name.Input.Value())
 	if m.name.Input.Err != nil {
-		return nil
+		return nil, -1
 	}
 	name := m.name.Input.Value()
-	id, err := strconv.ParseInt(name, 10, 64)
+	num, err := strconv.ParseInt(name, 10, 64)
+	id := snowflake.ID(num)
 	assert.NoError(err, "input is already validated to be valid")
 
-	yes := true
-	request := packet.SetMember{
-		Member:    &yes,
-		Admin:     nil,
-		Muted:     nil,
-		Banned:    nil,
-		BanReason: nil,
-		Network:   snowflake.ID(id),
-		User:      *state.UserID,
+	i := -1
+	for i, peer := range state.Data.Peers {
+		if peer == id {
+			i = i
+			break
+		}
 	}
-	return gateway.Send(&request)
+
+	if i != -1 {
+		return nil, i
+	}
+
+	state.Data.Peers = slices.Insert(state.Data.Peers, 0, id)
+	log.Println("Peers:", state.Data.Peers)
+
+	data := state.JsonUserData()
+	return gateway.Send(&packet.SetUserData{
+		Data: &data,
+		User: nil,
+	}), 0
 }
