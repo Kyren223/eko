@@ -142,6 +142,9 @@ func UpdateMessages(info *packet.MessagesInfo) {
 		msgSource := message.FrequencyID
 		if msgSource == nil {
 			msgSource = message.ReceiverID
+			if *message.ReceiverID == *UserID {
+				msgSource = &message.SenderID
+			}
 		}
 		bt := State.Messages[*msgSource]
 		if bt == nil {
