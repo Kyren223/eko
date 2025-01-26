@@ -167,16 +167,16 @@ func (m *Model) Select() (tea.Cmd, int) {
 	id := snowflake.ID(num)
 	assert.NoError(err, "input is already validated to be valid")
 
-	i := -1
+	index := -1
 	for i, peer := range state.Data.Peers {
 		if peer == id {
-			i = i
+			index = i
 			break
 		}
 	}
 
-	if i != -1 {
-		return nil, i
+	if index != -1 {
+		return nil, index
 	}
 
 	state.Data.Peers = slices.Insert(state.Data.Peers, 0, id)
