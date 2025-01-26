@@ -95,19 +95,19 @@ func (m Model) View() string {
 		var userStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
-				userStyle = ui.TrustedOwnerMemberStyle
+				userStyle = ui.TrustedOwnerStyle
 			} else if member.IsAdmin {
-				userStyle = ui.TrustedAdminMemberStyle
+				userStyle = ui.TrustedAdminStyle
 			} else {
-				userStyle = ui.TrustedNormalMemberStyle
+				userStyle = ui.TrustedMemberStyle
 			}
 		} else {
 			if ownerId == member.UserID {
-				userStyle = ui.OwnerMemberStyle
+				userStyle = ui.OwnerStyle
 			} else if member.IsAdmin {
-				userStyle = ui.AdminMemberStyle
+				userStyle = ui.AdminStyle
 			} else {
-				userStyle = ui.NormalMemberStyle
+				userStyle = ui.UserStyle
 			}
 		}
 		memberName := state.State.Users[member.UserID].Name

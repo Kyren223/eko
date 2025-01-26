@@ -45,10 +45,12 @@ var State state = state{
 
 type UserData struct {
 	Networks []snowflake.ID
+	Peers    []snowflake.ID
 }
 
 var Data UserData = UserData{
 	Networks: []snowflake.ID{},
+	Peers:    []snowflake.ID{},
 }
 
 var UserID *snowflake.ID = nil

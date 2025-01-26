@@ -34,6 +34,7 @@ var (
 
 const (
 	HelpNetworkList = iota
+	HelpPeerList
 	HelpFrequencyList
 	HelpChat
 	HelpMemberList
@@ -75,6 +76,8 @@ func (m HelpPopup) View() string {
 	switch m.help {
 	case HelpNetworkList:
 		keymapLists = m.HelpNetworkList()
+	case HelpPeerList:
+		keymapLists = m.HelpPeerList()
 	case HelpFrequencyList:
 		keymapLists = m.HelpFrequencyList()
 	case HelpChat:
@@ -129,6 +132,8 @@ func (m HelpPopup) Title() string {
 	switch m.help {
 	case HelpNetworkList:
 		return "Network"
+	case HelpPeerList:
+		return "Signals"
 	case HelpFrequencyList:
 		return "Frequency"
 	case HelpChat:
@@ -191,6 +196,23 @@ func (m HelpPopup) HelpFrequencyList() [][]Keymap {
 		{"K", "Move the selected frequency up"},
 		{"J", "Move the selected frequency down"},
 		{"i", "Copy the network's invite code"},
+	}}
+}
+
+func (m HelpPopup) HelpPeerList() [][]Keymap {
+	return [][]Keymap{{
+		{"k", "Move up a user"},
+		{"j", "Move down a user"},
+		{"ctrl+u", "Move half a page up"},
+		{"ctrl+d", "Move half a page down"},
+		{"g", "Move to the top"},
+		{"G", "Move to the bottom"},
+	}, {
+		{"n", "New user conversation"},
+		{"c", "Close user conversation"},
+		{"T", "Trust/untrust user"},
+		{"B", "Block user"},
+		{"U", "Unblock user"},
 	}}
 }
 

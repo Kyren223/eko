@@ -988,19 +988,19 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		var senderStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
-				senderStyle = ui.TrustedOwnerMemberStyle
+				senderStyle = ui.TrustedOwnerStyle
 			} else if member.IsAdmin {
-				senderStyle = ui.TrustedAdminMemberStyle
+				senderStyle = ui.TrustedAdminStyle
 			} else {
-				senderStyle = ui.TrustedNormalMemberStyle
+				senderStyle = ui.TrustedMemberStyle
 			}
 		} else {
 			if ownerId == member.UserID {
-				senderStyle = ui.OwnerMemberStyle
+				senderStyle = ui.OwnerStyle
 			} else if member.IsAdmin {
-				senderStyle = ui.AdminMemberStyle
+				senderStyle = ui.AdminStyle
 			} else {
-				senderStyle = ui.NormalMemberStyle
+				senderStyle = ui.UserStyle
 			}
 		}
 

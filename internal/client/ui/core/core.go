@@ -25,6 +25,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkupdate"
+	"github.com/kyren223/eko/internal/client/ui/core/peerlist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
@@ -76,6 +77,7 @@ type Model struct {
 	banReasonPopup         *banreason.Model
 	banViewPopup           *banview.Model
 	networkList            networklist.Model
+	peerList               peerlist.Model
 	frequencyList          frequencylist.Model
 	memberList             memberlist.Model
 	chat                   chat.Model
@@ -100,6 +102,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		banReasonPopup:         nil,
 		banViewPopup:           nil,
 		networkList:            networklist.New(),
+		peerList:               peerlist.New(),
 		frequencyList:          frequencylist.New(),
 		memberList:             memberlist.New(),
 		chat:                   chat.New(),
@@ -120,7 +123,12 @@ func (m Model) View() string {
 	}
 
 	networkList := m.networkList.View()
-	leftSidebar := m.frequencyList.View()
+	var leftSidebar string
+	if m.networkList.Index() == networklist.PeersIndex {
+		leftSidebar = m.peerList.View()
+	} else {
+		leftSidebar = m.frequencyList.View()
+	}
 	chat := m.chat.View()
 	rightSidebar := m.memberList.View()
 	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, leftSidebar, chat, rightSidebar)
@@ -238,6 +246,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	// log.Println("sidebarWidth:", sidebarWidth)
 	// log.Println("chatWidth:", chatWidth)
 
+	m.peerList.SetWidth(sidebarWidth)
 	m.frequencyList.SetWidth(sidebarWidth)
 	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
@@ -327,17 +336,21 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 			case FocusLeftSidebar:
 				if !m.HasPopup() {
-					networkId := state.NetworkId(m.networkList.Index())
-					if networkId == nil {
+					if m.networkList.Index() == networklist.PeersIndex {
+						// TODO: add n keybind for receiver
+					} else {
+						networkId := state.NetworkId(m.networkList.Index())
+						if networkId == nil {
+							return nil
+						}
+						member := state.State.Members[*networkId][*state.UserID]
+						if !member.IsAdmin {
+							return nil
+						}
+						popup := frequencycreation.New(*networkId)
+						m.frequencyCreationPopup = &popup
 						return nil
 					}
-					member := state.State.Members[*networkId][*state.UserID]
-					if !member.IsAdmin {
-						return nil
-					}
-					popup := frequencycreation.New(*networkId)
-					m.frequencyCreationPopup = &popup
-					return nil
 				}
 			}
 
@@ -404,7 +417,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				case FocusNetworkList:
 					m.helpPopup = NewHelpPopup(HelpNetworkList)
 				case FocusLeftSidebar:
-					m.helpPopup = NewHelpPopup(HelpFrequencyList)
+					if m.networkList.Index() == networklist.PeersIndex {
+						m.helpPopup = NewHelpPopup(HelpPeerList)
+					} else {
+						m.helpPopup = NewHelpPopup(HelpFrequencyList)
+					}
 				case FocusChat:
 					if m.chat.Locked() {
 						m.helpPopup = NewHelpPopup(HelpVim)
@@ -510,9 +527,14 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.networkList, cmd = m.networkList.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.frequencyList.SetNetworkIndex(m.networkList.Index())
-	m.frequencyList, cmd = m.frequencyList.Update(msg)
-	cmds = append(cmds, cmd)
+	if m.networkList.Index() == networklist.PeersIndex {
+		m.peerList, cmd = m.peerList.Update(msg)
+		cmds = append(cmds, cmd)
+	} else {
+		m.frequencyList.SetNetworkIndex(m.networkList.Index())
+		m.frequencyList, cmd = m.frequencyList.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
 	m.memberList, cmd = m.memberList.Update(msg)
@@ -541,6 +563,7 @@ func (m *Model) move(direction int) {
 
 	switch m.focus {
 	case FocusNetworkList:
+		m.peerList.Blur()
 		m.frequencyList.Blur()
 		m.memberList.Blur()
 		m.chat.Blur()
@@ -549,13 +572,21 @@ func (m *Model) move(direction int) {
 		m.networkList.Blur()
 		m.memberList.Blur()
 		m.chat.Blur()
-		m.frequencyList.Focus()
+		if m.networkList.Index() == networklist.PeersIndex {
+			m.frequencyList.Blur()
+			m.peerList.Focus()
+		} else {
+			m.peerList.Blur()
+			m.frequencyList.Focus()
+		}
 	case FocusChat:
+		m.peerList.Blur()
 		m.networkList.Blur()
 		m.memberList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Focus()
 	case FocusRightSidebar:
+		m.peerList.Blur()
 		m.networkList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Blur()
