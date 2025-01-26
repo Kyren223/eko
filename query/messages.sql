@@ -10,7 +10,7 @@ ORDER BY id;
 -- name: GetDirectMessages :many
 SELECT * FROM messages
 WHERE
-  (sender_id = @user1 AND receiver_id = @user2) OR 
+  (sender_id = @user1 AND receiver_id = @user2) OR
   (sender_id = @user2 AND receiver_id = @user1)
 ORDER BY id;
 

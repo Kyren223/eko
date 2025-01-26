@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"database/sql"
@@ -79,10 +80,10 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			SenderID:    sess.ID(),
 			Content:     content,
 			FrequencyID: request.FrequencyID,
-			ReceiverID:  request.ReceiverID,
+			ReceiverID:  nil,
 		})
 		if err != nil {
-			log.Println(sess.Addr(), "database error:", err, "in SendMessage")
+			log.Println(sess.Addr(), "database error 2:", err)
 			return &ErrInternalError
 		}
 
@@ -99,7 +100,47 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 	}
 
 	if request.ReceiverID != nil {
-		return &packet.Error{Error: "receiver messages not supported yet!"}
+		user, err := queries.GetUserById(ctx, *request.ReceiverID)
+		if err == sql.ErrNoRows {
+			return &packet.Error{Error: "user doesn't exist"}
+		}
+		if err != nil {
+			log.Println(sess.Addr(), "database error 3:", err)
+			return &ErrInternalError
+		}
+		if !user.IsPublicDM {
+			pubKey, err := queries.GetTrustedPublicKey(ctx, data.GetTrustedPublicKeyParams{
+				TrustingUserID: user.ID,
+				TrustedUserID:  sess.ID(),
+			})
+			if err == sql.ErrNoRows {
+				return &ErrPermissionDenied
+			}
+			if err != nil {
+				log.Println(sess.Addr(), "database error 4:", err)
+				return &ErrInternalError
+			}
+			if !bytes.Equal(sess.PubKey, pubKey) {
+				return &ErrPermissionDenied
+			}
+		}
+
+		message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
+			ID:          sess.Manager().Node().Generate(),
+			SenderID:    sess.ID(),
+			Content:     content,
+			FrequencyID: nil,
+			ReceiverID:  request.ReceiverID,
+		})
+		if err != nil {
+			log.Println(sess.Addr(), "database error 5:", err)
+			return &ErrInternalError
+		}
+
+		return UserPropagate(ctx, sess, user.ID, &packet.MessagesInfo{
+			Messages:        []data.Message{message},
+			RemovedMessages: nil,
+		})
 	}
 
 	assert.Never("already checked in the first line for the case where both are nil")
@@ -140,7 +181,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 
 		messages, err := queries.GetFrequencyMessages(ctx, request.FrequencyID)
 		if err != nil {
-			log.Println("database error 0:", err)
+			log.Println("database error 2:", err)
 			return &ErrInternalError
 		}
 
@@ -151,7 +192,19 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	if request.ReceiverID != nil && request.FrequencyID == nil {
-		return &ErrNotImplemented
+		messages, err := queries.GetDirectMessages(ctx, data.GetDirectMessagesParams{
+			User1: sess.ID(),
+			User2: request.ReceiverID,
+		})
+		if err != nil {
+			log.Println("database error 3:", err)
+			return &ErrInternalError
+		}
+
+		return &packet.MessagesInfo{
+			Messages:        messages,
+			RemovedMessages: nil,
+		}
 	}
 
 	return &packet.Error{Error: "either receiver id or frequency id must be specified"}
@@ -205,7 +258,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		log.Println("database error:", err)
 		return &ErrInternalError
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
@@ -282,7 +335,7 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
