@@ -3,6 +3,7 @@ package peerlist
 import (
 	"bytes"
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,7 +21,10 @@ var (
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	nameStyle = lipgloss.NewStyle().
-			MarginBottom(1).Padding(1).Align(lipgloss.Center).
+			Padding(1).Align(lipgloss.Center).
+			Border(lipgloss.ThickBorder(), false, false, true)
+	userIdStyle = lipgloss.NewStyle().
+			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
 
 	margin    = 2
@@ -208,7 +212,14 @@ func (m Model) renderHeader() string {
 	}
 	peersName := nameStyle.Render("User Signals")
 
-	return lipgloss.JoinVertical(0, peersName)
+	userIdStyle := userIdStyle.Width(m.width)
+	if m.focus {
+		userIdStyle = userIdStyle.BorderForeground(colors.Focus)
+	}
+	id := "Your User ID\n" + strconv.FormatInt(int64(*state.UserID), 10)
+	userId := userIdStyle.Render(id)
+
+	return lipgloss.JoinVertical(0, peersName, userId)
 }
 
 func (m *Model) SetWidth(width int) {

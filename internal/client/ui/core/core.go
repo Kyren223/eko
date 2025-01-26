@@ -340,22 +340,18 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					return nil
 				}
 			case FocusLeftSidebar:
-				if !m.HasPopup() {
-					if m.networkList.Index() == networklist.PeersIndex {
-						// TODO: add n keybind for receiver
-					} else {
-						networkId := state.NetworkId(m.networkList.Index())
-						if networkId == nil {
-							return nil
-						}
-						member := state.State.Members[*networkId][*state.UserID]
-						if !member.IsAdmin {
-							return nil
-						}
-						popup := frequencycreation.New(*networkId)
-						m.frequencyCreationPopup = &popup
+				if !m.HasPopup() && m.networkList.Index() != networklist.PeersIndex {
+					networkId := state.NetworkId(m.networkList.Index())
+					if networkId == nil {
 						return nil
 					}
+					member := state.State.Members[*networkId][*state.UserID]
+					if !member.IsAdmin {
+						return nil
+					}
+					popup := frequencycreation.New(*networkId)
+					m.frequencyCreationPopup = &popup
+					return nil
 				}
 			}
 
@@ -550,9 +546,15 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	if m.networkList.Index() == networklist.PeersIndex {
 		m.peerList, cmd = m.peerList.Update(msg)
 		cmds = append(cmds, cmd)
+
+		cmd = m.chat.SetReceiver(m.peerList.Index())
+		cmds = append(cmds, cmd)
 	} else {
 		m.frequencyList.SetNetworkIndex(m.networkList.Index())
 		m.frequencyList, cmd = m.frequencyList.Update(msg)
+		cmds = append(cmds, cmd)
+
+		cmd = m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
 		cmds = append(cmds, cmd)
 	}
 
@@ -560,8 +562,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.memberList, cmd = m.memberList.Update(msg)
 	cmds = append(cmds, cmd)
 
-	cmd = m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
-	cmds = append(cmds, cmd)
 	m.chat, cmd = m.chat.Update(msg)
 	cmds = append(cmds, cmd)
 

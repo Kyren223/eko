@@ -573,7 +573,7 @@ func (m *Model) sendMessage() tea.Cmd {
 
 	var receiverId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
-		// TODO: do nothing for now, until trusted friends are implemented
+		receiverId = &state.Data.Peers[m.receiverIndex]
 	}
 
 	var frequencyId *snowflake.ID = nil
@@ -590,15 +590,15 @@ func (m *Model) sendMessage() tea.Cmd {
 	})
 }
 
-func (m *Model) SetReceiver(receiverIndex int) {
+func (m *Model) SetReceiver(receiverIndex int) tea.Cmd {
 	if m.receiverIndex == receiverIndex {
-		return
+		return nil
 	}
 	m.ResetBeforeSwitch()
 	m.receiverIndex = receiverIndex
 	m.frequencyIndex = -1
 	m.networkIndex = -1
-	m.RestoreAfterSwitch()
+	return m.RestoreAfterSwitch()
 }
 
 func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
@@ -625,24 +625,30 @@ func (m *Model) ResetBeforeSwitch() {
 			return
 		}
 		frequencyId := frequencies[m.frequencyIndex].ID
-		log.Println("Saving", frequencyId)
-		state.State.FrequencyState[frequencyId] = state.FrequencyState{
+		log.Println("Saving frequency", frequencyId)
+		state.State.ChatState[frequencyId] = state.FrequencyState{
 			IncompleteMessage: m.vi.String(),
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
 		}
 	} else if m.receiverIndex != -1 {
-		// TODO: receiver
+		receiverId := state.Data.Peers[m.receiverIndex]
+		log.Println("Saving signal:", receiverId)
+		state.State.ChatState[receiverId] = state.FrequencyState{
+			IncompleteMessage: m.vi.String(),
+			Base:              m.base,
+			MaxHeight:         m.maxMessagesHeight,
+		}
 	}
 }
 
 func (m *Model) RestoreAfterSwitch() tea.Cmd {
-	msgs := state.State.FrequencyState
+	msgs := state.State.ChatState
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
 		frequency := frequencies[m.frequencyIndex]
-		log.Println("Restoring", frequency.ID)
+		log.Println("Restoring frequency:", frequency.ID)
 
 		if val, ok := msgs[frequency.ID]; ok {
 			m.vi.SetString(val.IncompleteMessage)
@@ -658,7 +664,23 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			FrequencyID: &frequency.ID,
 		})
 	} else if m.receiverIndex != -1 {
-		// TODO: receiver
+		peers := state.Data.Peers
+		peer := peers[m.receiverIndex]
+		log.Println("Restoring signal:", peer)
+
+		if val, ok := msgs[peer]; ok {
+			m.vi.SetString(val.IncompleteMessage)
+			m.base = val.Base
+			m.SetIndex(Unselected)
+			m.maxMessagesHeight = val.MaxHeight
+
+			// Don't ask for messages if you already visited this frequency
+			return nil
+		}
+		return gateway.Send(&packet.RequestMessages{
+			ReceiverID:  &peer,
+			FrequencyID: nil,
+		})
 	}
 
 	return nil
@@ -735,7 +757,8 @@ func (m *Model) renderMessages(screenHeight int) string {
 		frequencyId := frequencies[m.frequencyIndex].ID
 		btree = state.State.Messages[frequencyId]
 	} else {
-		// TODO: implement support for receiver id
+		receiverId := state.Data.Peers[m.receiverIndex]
+		btree = state.State.Messages[receiverId]
 	}
 
 	if !m.hasReadAccess {
@@ -1012,7 +1035,23 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		}
 
 	} else if m.receiverIndex != -1 {
-		// TODO: receiver
+		user := state.State.Users[message.SenderID]
+		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
+
+		if isTrusted && !keysMatch {
+			buf = append(buf, ui.UntrustedSymbol...)
+		}
+
+		var senderStyle lipgloss.Style
+		if isTrusted && keysMatch {
+			senderStyle = ui.TrustedUserStyle
+		} else {
+			senderStyle = ui.UserStyle
+		}
+
+		sender := senderStyle.Render(user.Name)
+		buf = append(buf, sender...)
 	}
 
 	// Render header time format

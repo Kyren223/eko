@@ -20,9 +20,8 @@ type FrequencyState struct {
 }
 
 type state struct {
-	// Key is either a frequency or receiver
-	FrequencyState map[snowflake.ID]FrequencyState // key is frequency id
-	LastFrequency  map[snowflake.ID]snowflake.ID   // key is network id
+	ChatState     map[snowflake.ID]FrequencyState // key is frequency id or receiver id
+	LastFrequency map[snowflake.ID]snowflake.ID   // key is network id
 
 	Messages    map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
 	Networks    map[snowflake.ID]data.Network                 // key is network id
@@ -33,14 +32,14 @@ type state struct {
 }
 
 var State state = state{
-	FrequencyState: map[snowflake.ID]FrequencyState{},
-	LastFrequency:  map[snowflake.ID]snowflake.ID{},
-	Messages:       map[snowflake.ID]*btree.BTreeG[data.Message]{},
-	Networks:       map[snowflake.ID]data.Network{},
-	Frequencies:    map[snowflake.ID][]data.Frequency{},
-	Members:        map[snowflake.ID]map[snowflake.ID]data.Member{},
-	Users:          map[snowflake.ID]data.User{},
-	Trusteds:       map[snowflake.ID]ed25519.PublicKey{},
+	ChatState:     map[snowflake.ID]FrequencyState{},
+	LastFrequency: map[snowflake.ID]snowflake.ID{},
+	Messages:      map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Networks:      map[snowflake.ID]data.Network{},
+	Frequencies:   map[snowflake.ID][]data.Frequency{},
+	Members:       map[snowflake.ID]map[snowflake.ID]data.Member{},
+	Users:         map[snowflake.ID]data.User{},
+	Trusteds:      map[snowflake.ID]ed25519.PublicKey{},
 }
 
 type UserData struct {
