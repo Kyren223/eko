@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
@@ -151,6 +152,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(m.index - m.height/2)
 		case "ctrl+d":
 			m.SetIndex(m.index + m.height/2)
+
+		case "i":
+			_ = clipboard.WriteAll(strconv.FormatInt(int64(*state.UserID), 10))
 
 		case "c":
 			if m.index == -1 {

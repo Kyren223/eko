@@ -756,7 +756,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		frequencies := state.State.Frequencies[*networkId]
 		frequencyId := frequencies[m.frequencyIndex].ID
 		btree = state.State.Messages[frequencyId]
-	} else {
+	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
 		btree = state.State.Messages[receiverId]
 	}

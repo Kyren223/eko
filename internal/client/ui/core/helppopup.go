@@ -213,6 +213,7 @@ func (m HelpPopup) HelpPeerList() [][]Keymap {
 		{"T", "Trust/untrust user"},
 		{"B", "Block user"},
 		{"U", "Unblock user"},
+		{"i", "Copy your user ID"},
 	}}
 }
 
