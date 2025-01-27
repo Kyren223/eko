@@ -139,6 +139,7 @@ type SendMessage struct {
 	ReceiverID  *snowflake.ID
 	FrequencyID *snowflake.ID
 	Content     string
+	Ping        *snowflake.ID
 }
 
 func (m *SendMessage) Type() PacketType {

@@ -76,6 +76,11 @@ var (
 
 	MutedSymbol = lipgloss.NewStyle().
 			Foreground(colors.Red).Render(" 󱡣")
+
+	PingPrefix = "@ping:"
+
+	PingedBorderStyle = lipgloss.NewStyle().
+				Border(lipgloss.Border{Left: "┃"}, false, false, false, true)
 )
 
 const (
@@ -561,6 +566,49 @@ func (m Model) Locked() bool {
 
 func (m *Model) sendMessage() tea.Cmd {
 	message := m.vi.String()
+
+	var ping *snowflake.ID
+
+	var receiverId *snowflake.ID = nil
+	if m.receiverIndex != -1 {
+		receiverId = &state.Data.Peers[m.receiverIndex]
+		ping = nil
+	}
+
+	var frequencyId *snowflake.ID = nil
+	networkId := state.NetworkId(m.networkIndex)
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequencies := state.State.Frequencies[*networkId]
+		frequencyId = &frequencies[m.frequencyIndex].ID
+
+		// Parse ping
+		if strings.HasPrefix(message, PingPrefix) {
+			index := strings.Index(message, "\n")
+			if index != -1 {
+				value := message[len(PingPrefix):index]
+				switch value {
+				case "everyone":
+					pingValue := packet.PingEveryone
+					ping = &pingValue
+					message = message[index+1:]
+				case "admins":
+					pingValue := packet.PingAdmins
+					ping = &pingValue
+					message = message[index+1:]
+				default:
+					num, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil
+					}
+					ping = (*snowflake.ID)(&num)
+					message = message[index+1:]
+				}
+			}
+		} else {
+			ping = nil
+		}
+	}
+
 	if len(message) > MaxCharCount {
 		return nil
 	}
@@ -571,22 +619,11 @@ func (m *Model) sendMessage() tea.Cmd {
 	m.vi.Reset()
 	m.base = SnapToBottom
 
-	var receiverId *snowflake.ID = nil
-	if m.receiverIndex != -1 {
-		receiverId = &state.Data.Peers[m.receiverIndex]
-	}
-
-	var frequencyId *snowflake.ID = nil
-	networkId := state.NetworkId(m.networkIndex)
-	if m.frequencyIndex != -1 && networkId != nil {
-		frequencies := state.State.Frequencies[*networkId]
-		frequencyId = &frequencies[m.frequencyIndex].ID
-	}
-
 	return gateway.Send(&packet.SendMessage{
 		ReceiverID:  receiverId,
 		FrequencyID: frequencyId,
 		Content:     message,
+		Ping:        ping,
 	})
 }
 
@@ -903,8 +940,27 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 	// Render all messages content
 	messageStyle := lipgloss.NewStyle().Width(m.width).
-		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+		MarginLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+
 	for i := len(group) - 1; i >= 0; i-- {
+		messageStyle := messageStyle
+		if m.frequencyIndex != -1 && group[i].Ping != nil {
+			members := state.State.Members[*state.NetworkId(m.networkIndex)]
+			if *group[i].Ping == *state.UserID {
+				messageStyle = messageStyle.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Gold)
+			} else if *group[i].Ping == packet.PingEveryone {
+				messageStyle = messageStyle.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Purple)
+			} else if *group[i].Ping == packet.PingAdmins && members[*state.UserID].IsAdmin {
+				messageStyle = messageStyle.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Red)
+			}
+		}
+
 		rawContent := group[i].Content
 		content := messageStyle.Render(rawContent)
 		heights[i] = lipgloss.Height(content)
@@ -953,6 +1009,23 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		}
 
 		style := messageStyle.Background(colors.BackgroundDim)
+		if m.frequencyIndex != -1 && group[selectedIndex].Ping != nil {
+			members := state.State.Members[*state.NetworkId(m.networkIndex)]
+			if *group[selectedIndex].Ping == *state.UserID {
+				style = style.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Gold)
+			} else if *group[selectedIndex].Ping == packet.PingEveryone {
+				style = style.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Purple)
+			} else if *group[selectedIndex].Ping == packet.PingAdmins && members[*state.UserID].IsAdmin {
+				style = style.
+					MarginLeft(PaddingCount).PaddingLeft(1).
+					Inherit(PingedBorderStyle).BorderForeground(colors.Red)
+			}
+		}
+
 		rawContent := group[selectedIndex].Content
 		content := style.Render(rawContent)
 		if group[selectedIndex].Edited {
@@ -963,12 +1036,31 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				content = style.Render(rawContent + SelectedEditedIndicatorNL)
 			}
 		}
+		content = lipgloss.NewStyle().Background(colors.BackgroundDim).Render(content)
 
 		buf = append(buf, content...)
 		buf = append(buf, '\n')
 
 		// Redraw rest
 		for i := selectedIndex - 1; i >= 0; i-- {
+			messageStyle := messageStyle
+			if m.frequencyIndex != -1 && group[i].Ping != nil {
+				members := state.State.Members[*state.NetworkId(m.networkIndex)]
+				if *group[i].Ping == *state.UserID {
+					messageStyle = messageStyle.
+						MarginLeft(PaddingCount).PaddingLeft(1).
+						Inherit(PingedBorderStyle).BorderForeground(colors.Gold)
+				} else if *group[i].Ping == packet.PingEveryone {
+					messageStyle = messageStyle.
+						MarginLeft(PaddingCount).PaddingLeft(1).
+						Inherit(PingedBorderStyle).BorderForeground(colors.Purple)
+				} else if *group[i].Ping == packet.PingAdmins && members[*state.UserID].IsAdmin {
+					messageStyle = messageStyle.
+						MarginLeft(PaddingCount).PaddingLeft(1).
+						Inherit(PingedBorderStyle).BorderForeground(colors.Red)
+				}
+			}
+
 			rawContent := group[i].Content
 			content := messageStyle.Render(rawContent)
 			heights[i] = lipgloss.Height(content)

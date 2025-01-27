@@ -13,11 +13,11 @@ import (
 
 const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (
-  id, content, sender_id, frequency_id, receiver_id
+  id, content, sender_id, frequency_id, receiver_id, ping
 ) VALUES (
-  ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?
 )
-RETURNING id, sender_id, content, edited, frequency_id, receiver_id
+RETURNING id, sender_id, content, edited, frequency_id, receiver_id, ping
 `
 
 type CreateMessageParams struct {
@@ -26,6 +26,7 @@ type CreateMessageParams struct {
 	SenderID    snowflake.ID
 	FrequencyID *snowflake.ID
 	ReceiverID  *snowflake.ID
+	Ping        *snowflake.ID
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
@@ -35,6 +36,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.SenderID,
 		arg.FrequencyID,
 		arg.ReceiverID,
+		arg.Ping,
 	)
 	var i Message
 	err := row.Scan(
@@ -44,6 +46,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.Edited,
 		&i.FrequencyID,
 		&i.ReceiverID,
+		&i.Ping,
 	)
 	return i, err
 }
@@ -63,7 +66,7 @@ UPDATE messages SET
   edited = true,
   content = ?
 WHERE id = ?
-RETURNING id, sender_id, content, edited, frequency_id, receiver_id
+RETURNING id, sender_id, content, edited, frequency_id, receiver_id, ping
 `
 
 type EditMessageParams struct {
@@ -81,14 +84,15 @@ func (q *Queries) EditMessage(ctx context.Context, arg EditMessageParams) (Messa
 		&i.Edited,
 		&i.FrequencyID,
 		&i.ReceiverID,
+		&i.Ping,
 	)
 	return i, err
 }
 
 const getDirectMessages = `-- name: GetDirectMessages :many
-SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+SELECT id, sender_id, content, edited, frequency_id, receiver_id, ping FROM messages
 WHERE
-  (sender_id = ?1 AND receiver_id = ?2) OR 
+  (sender_id = ?1 AND receiver_id = ?2) OR
   (sender_id = ?2 AND receiver_id = ?1)
 ORDER BY id
 `
@@ -114,6 +118,7 @@ func (q *Queries) GetDirectMessages(ctx context.Context, arg GetDirectMessagesPa
 			&i.Edited,
 			&i.FrequencyID,
 			&i.ReceiverID,
+			&i.Ping,
 		); err != nil {
 			return nil, err
 		}
@@ -129,7 +134,7 @@ func (q *Queries) GetDirectMessages(ctx context.Context, arg GetDirectMessagesPa
 }
 
 const getFrequencyMessages = `-- name: GetFrequencyMessages :many
-SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+SELECT id, sender_id, content, edited, frequency_id, receiver_id, ping FROM messages
 WHERE frequency_id = ?
 ORDER BY id
 `
@@ -150,6 +155,7 @@ func (q *Queries) GetFrequencyMessages(ctx context.Context, frequencyID *snowfla
 			&i.Edited,
 			&i.FrequencyID,
 			&i.ReceiverID,
+			&i.Ping,
 		); err != nil {
 			return nil, err
 		}
@@ -165,7 +171,7 @@ func (q *Queries) GetFrequencyMessages(ctx context.Context, frequencyID *snowfla
 }
 
 const getMessageById = `-- name: GetMessageById :one
-SELECT id, sender_id, content, edited, frequency_id, receiver_id FROM messages
+SELECT id, sender_id, content, edited, frequency_id, receiver_id, ping FROM messages
 WHERE id = ?
 `
 
@@ -179,6 +185,7 @@ func (q *Queries) GetMessageById(ctx context.Context, id snowflake.ID) (Message,
 		&i.Edited,
 		&i.FrequencyID,
 		&i.ReceiverID,
+		&i.Ping,
 	)
 	return i, err
 }

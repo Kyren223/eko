@@ -41,6 +41,7 @@ type Message struct {
 	Edited      bool
 	FrequencyID *snowflake.ID
 	ReceiverID  *snowflake.ID
+	Ping        *snowflake.ID
 }
 
 type Network struct {

@@ -17,6 +17,8 @@ sql:
             go_type: "*github.com/kyren223/eko/pkg/snowflake.ID"
           - column: "messages.frequency_id"
             go_type: "*github.com/kyren223/eko/pkg/snowflake.ID"
+          - column: "messages.ping"
+            go_type: "*github.com/kyren223/eko/pkg/snowflake.ID"
           - column: "*.id"
             go_type: "github.com/kyren223/eko/pkg/snowflake.ID"
           - column: "*.*_id"

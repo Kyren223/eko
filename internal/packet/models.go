@@ -1,5 +1,7 @@
 package packet
 
+import "github.com/kyren223/eko/pkg/snowflake"
+
 const (
 	MaxNetworkNameBytes     = 32
 	MaxIconBytes            = 16
@@ -18,4 +20,9 @@ const (
 	PermRead
 	PermReadWrite
 	PermMax
+)
+
+const (
+	PingEveryone = snowflake.ID(0)
+	PingAdmins   = snowflake.ID(1)
 )

@@ -16,9 +16,9 @@ ORDER BY id;
 
 -- name: CreateMessage :one
 INSERT INTO messages (
-  id, content, sender_id, frequency_id, receiver_id
+  id, content, sender_id, frequency_id, receiver_id, ping
 ) VALUES (
-  ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?
 )
 RETURNING *;
 

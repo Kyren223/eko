@@ -71,8 +71,24 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 		}
 
 		if frequency.Perms != packet.PermReadWrite && !member.IsAdmin {
-			log.Println("No perms")
 			return &ErrPermissionDenied
+		}
+
+		if request.Ping != nil {
+			if *request.Ping == packet.PingEveryone {
+				if !member.IsAdmin {
+					return &ErrPermissionDenied
+				}
+			} else if *request.Ping != packet.PingAdmins {
+				_, err := queries.GetUserById(ctx, *request.Ping)
+				if err == sql.ErrNoRows {
+					return &packet.Error{Error: "pinged user doesn't exist"}
+				}
+				if err != nil {
+					log.Println("database error 2:", err)
+					return &ErrInternalError
+				}
+			}
 		}
 
 		message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
@@ -81,9 +97,10 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			Content:     content,
 			FrequencyID: request.FrequencyID,
 			ReceiverID:  nil,
+			Ping:        request.Ping,
 		})
 		if err != nil {
-			log.Println(sess.Addr(), "database error 2:", err)
+			log.Println("database error 3:", err)
 			return &ErrInternalError
 		}
 
@@ -105,7 +122,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &packet.Error{Error: "user doesn't exist"}
 		}
 		if err != nil {
-			log.Println(sess.Addr(), "database error 3:", err)
+			log.Println("database error 4:", err)
 			return &ErrInternalError
 		}
 		if !user.IsPublicDM {
@@ -117,7 +134,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 				return &ErrPermissionDenied
 			}
 			if err != nil {
-				log.Println(sess.Addr(), "database error 4:", err)
+				log.Println("database error 5:", err)
 				return &ErrInternalError
 			}
 			if !bytes.Equal(sess.PubKey, pubKey) {
@@ -127,13 +144,14 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 
 		message, err := queries.CreateMessage(ctx, data.CreateMessageParams{
 			ID:          sess.Manager().Node().Generate(),
-			SenderID:    sess.ID(),
 			Content:     content,
+			SenderID:    sess.ID(),
 			FrequencyID: nil,
 			ReceiverID:  request.ReceiverID,
+			Ping:        nil,
 		})
 		if err != nil {
-			log.Println(sess.Addr(), "database error 5:", err)
+			log.Println("database error 6:", err)
 			return &ErrInternalError
 		}
 
