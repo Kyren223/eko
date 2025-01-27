@@ -156,7 +156,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if key, ok := msg.(tea.KeyMsg); ok {
+	if key, ok := msg.(tea.KeyMsg); ok && m.focus {
 		if key.String() == "b" {
 			if m.banlist == nil {
 				banlist := banlist.New(m.Network().ID)
