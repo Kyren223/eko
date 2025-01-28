@@ -1021,21 +1021,19 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			buf = buf[:checkpoints[selectedIndex]] // Revert
 		}
 
-		messageStyle := messageStyle.Background(colors.BackgroundDim)
-		pingedMessageStyle := pingedMessageStyle.Background(colors.BackgroundDim)
-
-		selectedStyle := messageStyle
+		selectedStyle := messageStyle.Background(colors.BackgroundDim)
+		selectedPingedStyle := pingedMessageStyle.Background(colors.BackgroundDim)
 
 		extra := ""
 		if m.frequencyIndex != -1 && group[selectedIndex].Ping != nil {
 			switch *group[selectedIndex].Ping {
 			case packet.PingEveryone:
 				extra = PingedEveryone
-				selectedStyle = pingedMessageStyle.BorderForeground(colors.Purple)
+				selectedStyle = selectedPingedStyle.BorderForeground(colors.Purple)
 			case packet.PingAdmins:
 				extra = PingedAdmins
 				if members[*state.UserID].IsAdmin {
-					selectedStyle = pingedMessageStyle.BorderForeground(colors.Red)
+					selectedStyle = selectedPingedStyle.BorderForeground(colors.Red)
 				}
 			default:
 				name := "@Unknown "
@@ -1044,7 +1042,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				}
 				extra = PingedUserStyle.Render(name)
 				if *group[selectedIndex].Ping == *state.UserID {
-					selectedStyle = pingedMessageStyle.BorderForeground(colors.Gold)
+					selectedStyle = selectedPingedStyle.BorderForeground(colors.Gold)
 				}
 			}
 		}
