@@ -949,12 +949,11 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	messageStyle := MessageStyle.Width(m.width)
 	pingedMessageStyle := PingedMessageStyle.Width(m.width - 2)
 
-	members := state.State.Members[*state.NetworkId(m.networkIndex)]
-
 	for i := len(group) - 1; i >= 0; i-- {
 		extra := ""
 		messageStyle := messageStyle
 		if m.frequencyIndex != -1 && group[i].Ping != nil {
+			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[i].Ping {
 			case packet.PingEveryone:
 				extra = PingedEveryone
@@ -1028,6 +1027,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 		extra := ""
 		if m.frequencyIndex != -1 && group[selectedIndex].Ping != nil {
+			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[selectedIndex].Ping {
 			case packet.PingEveryone:
 				extra = PingedEveryone
@@ -1071,6 +1071,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			messageStyle := messageStyle
 			extra := ""
 			if m.frequencyIndex != -1 && group[i].Ping != nil {
+				members := state.State.Members[*state.NetworkId(m.networkIndex)]
 				switch *group[i].Ping {
 				case packet.PingEveryone:
 					extra = PingedEveryone
