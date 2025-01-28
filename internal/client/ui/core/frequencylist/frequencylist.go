@@ -302,7 +302,7 @@ func (m *Model) Index() int {
 func (m *Model) SetIndex(index int) {
 	m.index = min(max(index, 0), m.FrequenciesLength()-1)
 	if m.index < m.base {
-		m.base = m.index
+		m.base = max(m.index, 0)
 	} else if m.index >= m.base+m.height {
 		m.base = 1 + m.index - m.height
 	}
