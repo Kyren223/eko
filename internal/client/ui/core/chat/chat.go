@@ -1224,7 +1224,8 @@ func (m *Model) SetIndex(index int) {
 	if m.maxMessagesHeight != -1 {
 		maxHeight = m.maxMessagesHeight - 1
 	}
-	m.index = min(max(index, Unselected), maxHeight)
+	// Order is significant, max(unselected) must be the last operation
+	m.index = max(min(index, maxHeight), Unselected)
 
 	if m.index == Unselected {
 		return
