@@ -80,7 +80,7 @@ var (
 	MutedSymbol = lipgloss.NewStyle().
 			Foreground(colors.Red).Render(" 󱡣")
 
-	PingPrefix      = "@ping:"
+	PingPrefix      = "@"
 	PingedAdmins    = lipgloss.NewStyle().Foreground(colors.Red).SetString("@admins ").String()
 	PingedEveryone  = lipgloss.NewStyle().Foreground(colors.Purple).Render("@everyone ")
 	PingedUserStyle = lipgloss.NewStyle().Foreground(colors.Gold)
@@ -576,12 +576,11 @@ func (m Model) Locked() bool {
 func (m *Model) sendMessage() tea.Cmd {
 	message := m.vi.String()
 
-	var ping *snowflake.ID
+	var ping *snowflake.ID = nil
 
 	var receiverId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
 		receiverId = &state.Data.Peers[m.receiverIndex]
-		ping = nil
 	}
 
 	var frequencyId *snowflake.ID = nil
@@ -592,7 +591,7 @@ func (m *Model) sendMessage() tea.Cmd {
 
 		// Parse ping
 		if strings.HasPrefix(message, PingPrefix) {
-			index := strings.Index(message, "\n")
+			index := strings.IndexAny(message, "\n ")
 			if index != -1 {
 				value := message[len(PingPrefix):index]
 				switch value {
@@ -606,15 +605,12 @@ func (m *Model) sendMessage() tea.Cmd {
 					message = message[index+1:]
 				default:
 					num, err := strconv.ParseInt(value, 10, 64)
-					if err != nil {
-						return nil
+					if err == nil {
+						ping = (*snowflake.ID)(&num)
+						message = message[index+1:]
 					}
-					ping = (*snowflake.ID)(&num)
-					message = message[index+1:]
 				}
 			}
-		} else {
-			ping = nil
 		}
 	}
 
