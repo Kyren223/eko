@@ -245,15 +245,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if inNormalQ || inInsertCtrlQ {
 				m.locked = false
+				m.borderStyle = ViBlurredBorder
+				m.style = blurStyle
 
 				if m.editingMessage != nil {
 					m.editingMessage = nil
-					m.borderStyle = ViBlurredBorder
-					m.style = blurStyle
 					m.vi.Reset()
-					m.vi, _ = m.vi.Update(msg)
 				}
 
+				m.vi, _ = m.vi.Update(msg)
 				m.Prerender()
 				return m, nil
 			}
@@ -269,11 +269,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.borderStyle = ViBlurredBorder
 					m.style = blurStyle
 					m.vi.Reset()
-					m.vi, _ = m.vi.Update(msg)
 				} else {
 					cmd = m.sendMessage()
 				}
 
+				m.vi, _ = m.vi.Update(msg)
 				m.Prerender()
 				return m, cmd
 			}
@@ -293,6 +293,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch key {
 		case "i":
 			if !m.vi.Inactive() {
+				m.borderStyle = ViFocusedBorder
+				m.style = focusStyle
 				m.locked = true
 				m.vi.SetMode(viminput.InsertMode)
 				m.SetIndex(Unselected)
