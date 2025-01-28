@@ -116,6 +116,8 @@ func (m Model) View() string {
 		cursorStyle = InactiveCursorStyle
 	}
 
+	m.PlaceholderStyle = m.PlaceholderStyle.Width(m.width)
+
 	var builder strings.Builder
 	switch m.mode {
 	case NormalMode, InsertMode, OpendingMode:
@@ -125,9 +127,11 @@ func (m Model) View() string {
 			}
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
-				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				cursorChar := cursorStyle.
+					Foreground(m.PlaceholderStyle.GetForeground()).
+					Render(m.Placeholder[0:1])
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
-				builder.WriteString(cursorStyle.Render(cursorChar))
+				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
 				continue
@@ -155,9 +159,11 @@ func (m Model) View() string {
 			}
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
-				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				cursorChar := cursorStyle.
+					Foreground(m.PlaceholderStyle.GetForeground()).
+					Render(m.Placeholder[0:1])
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
-				builder.WriteString(cursorStyle.Render(cursorChar))
+				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
 				continue
@@ -261,9 +267,11 @@ func (m Model) View() string {
 			}
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
-				cursorChar := m.PlaceholderStyle.Render(m.Placeholder[0:1])
+				cursorChar := cursorStyle.
+					Foreground(m.PlaceholderStyle.GetForeground()).
+					Render(m.Placeholder[0:1])
 				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
-				builder.WriteString(cursorStyle.Render(cursorChar))
+				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
 				continue
