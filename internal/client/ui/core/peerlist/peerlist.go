@@ -78,9 +78,6 @@ func (m Model) View() string {
 	peers = peers[m.base:upper]
 	for i, peer := range peers {
 		peerStyle := peerStyle
-		if m.index == m.base+i {
-			peerStyle = peerStyle.Background(colors.BackgroundHighlight)
-		}
 
 		user := state.State.Users[peer]
 		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
@@ -88,9 +85,14 @@ func (m Model) View() string {
 
 		var userStyle lipgloss.Style
 		if isTrusted && keysMatch {
-			userStyle = ui.TrustedUserStyle
+			userStyle = ui.TrustedUserStyle.Background(colors.BackgroundDim)
 		} else {
-			userStyle = ui.UserStyle
+			userStyle = ui.UserStyle.Background(colors.BackgroundDim)
+		}
+
+		if m.index == m.base+i {
+			peerStyle = peerStyle.Background(colors.BackgroundHighlight)
+			userStyle = userStyle.Background(colors.BackgroundHighlight)
 		}
 
 		username := user.Name
@@ -105,7 +107,8 @@ func (m Model) View() string {
 				Render(username)
 		} else {
 			ellipsisStyle := lipgloss.NewStyle().
-				Background(peerStyle.GetBackground()).Foreground(userStyle.GetForeground())
+				Background(userStyle.GetBackground()).
+				Foreground(userStyle.GetForeground())
 			username = lipgloss.NewStyle().
 				MaxWidth(maxUserWidth-1).
 				Render(username) + ellipsisStyle.Render(ellipsis)
