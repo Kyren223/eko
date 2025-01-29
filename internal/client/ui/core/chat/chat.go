@@ -316,6 +316,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(Unselected)
 		case "enter":
 			if !m.vi.Inactive() {
+				m.borderStyle = ViFocusedBorder
+				m.style = focusStyle
 				m.locked = true
 				m.vi.SetMode(viminput.InsertMode)
 				m.base = SnapToBottom
