@@ -219,6 +219,7 @@ func clamp(v, lower, upper int) int {
 🭏🬽  🭈🭄
 */
 
+
 func IconStyle(icon string, iconFg, iconBg, bg lipgloss.Color) lipgloss.Style {
 	bgStyle := lipgloss.NewStyle().Background(iconBg).Foreground(bg)
 	top := bgStyle.Render("🭠🭘  🭣🭕")
@@ -229,3 +230,23 @@ func IconStyle(icon string, iconFg, iconBg, bg lipgloss.Color) lipgloss.Style {
 	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
 	return lipgloss.NewStyle().SetString(combined)
 }
+
+var notifications = []string{
+	"󰲠", "󰲢", "󰲤", "󰲦", "󰲨", "󰲪", "󰲬", "󰲮", "󰲰", "󰲲",
+}
+
+func IconStyleNotif(icon string, iconFg, iconBg, bg lipgloss.Color, count int) lipgloss.Style {
+	notifStyle := lipgloss.NewStyle().Background(iconBg).Foreground(colors.Red)
+	notif := notifications[min(0, max(10, count)-1)]
+	notif = notifStyle.Render(notif)
+
+	bgStyle := lipgloss.NewStyle().Background(iconBg).Foreground(bg)
+	top := bgStyle.Render("🭠🭘  🭣🭕")
+	middle := lipgloss.NewStyle().Width(6).Align(lipgloss.Center).
+		Background(iconBg).Foreground(iconFg).Render(icon)
+	bgStyle2 := lipgloss.NewStyle().Foreground(iconBg).Background(bg)
+	bottom := bgStyle2.Render("🭥🭓██") + notif + bgStyle.Render("")
+	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
+	return lipgloss.NewStyle().SetString(combined)
+}
+

@@ -66,10 +66,10 @@ func (m Model) View() string {
 	for i, networkId := range networks {
 		network := state.State.Networks[networkId]
 
-		icon := ui.IconStyle(network.Icon,
+		icon := ui.IconStyleNotif(network.Icon,
 			lipgloss.Color(network.FgHexColor),
 			lipgloss.Color(network.BgHexColor),
-			colors.BackgroundDimmer,
+			colors.BackgroundDimmer, 1,
 		)
 		if m.index == m.base+i {
 			builder.WriteString(lipgloss.JoinHorizontal(
