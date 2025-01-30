@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"crypto/ed25519"
 	"fmt"
 	"log"
@@ -258,6 +259,19 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case ui.QuitMsg:
+		data := state.JsonUserData()
+		ch := gateway.SendAsync(&packet.SetUserData{
+			Data: &data,
+			User: nil,
+		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		select {
+		case <-ctx.Done():
+		case <-ch:
+		}
+		cancel()
+
 		gateway.Disconnect()
 
 	case gateway.ConnectionLost:

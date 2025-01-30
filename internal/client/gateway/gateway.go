@@ -239,13 +239,16 @@ func Send(request packet.Payload) tea.Cmd {
 	}
 }
 
-func SendAsync(request packet.Payload) {
+func SendAsync(request packet.Payload) <-chan error {
+	ch := make(chan error, 1)
 	go func() {
 		err := send(request)
 		if err != nil {
 			log.Println("async request send error:", err)
 		}
+		ch <- err
 	}()
+	return ch
 }
 
 func send(request packet.Payload) error {
