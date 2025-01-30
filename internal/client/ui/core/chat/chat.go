@@ -117,12 +117,12 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	base              int
-	index             int
-	selectedMessage   *data.Message
-	editingMessage    *data.Message
-	lastReadMessageId *snowflake.ID
-	keepLastRead      bool
+	base            int
+	index           int
+	selectedMessage *data.Message
+	editingMessage  *data.Message
+	lastReadMsg     *snowflake.ID
+	keepLastRead    bool
 
 	messagesHeight    int
 	maxMessagesHeight int
@@ -152,7 +152,7 @@ func New() Model {
 		index:             Unselected,
 		selectedMessage:   nil,
 		editingMessage:    nil,
-		lastReadMessageId: nil,
+		lastReadMsg:       nil,
 		keepLastRead:      false,
 		messagesHeight:    0,
 		maxMessagesHeight: -1,
@@ -206,15 +206,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		frequency := frequencies[m.frequencyIndex]
 		member := state.State.Members[*networkId][*state.UserID]
 
-		if m.base == SnapToBottom {
-			lastRead := state.GetLastReadMessage(frequency.ID)
-			if lastRead != nil && m.lastReadMessageId != nil &&
-				state.Data.LastReadMessage[frequency.ID] != nil &&
-				*m.lastReadMessageId != *lastRead &&
-				*m.lastReadMessageId != *state.Data.LastReadMessage[frequency.ID] {
+		lastMsg := state.GetLastReadMessage(frequency.ID)
+		if m.base != SnapToBottom {
+			m.keepLastRead = false
+		} else if lastMsg != nil {
+			lastReadMsg := state.Data.LastReadMessage[frequency.ID]
+			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
+				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
 				m.keepLastRead = false
 			}
-			m.lastReadMessageId = lastRead
+
+			state.Data.LastReadMessage[frequency.ID] = lastMsg
 		}
 
 		m.hasReadAccess = frequency.Perms != packet.PermNoAccess || member.IsAdmin
@@ -251,15 +253,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
 
-		if m.base == SnapToBottom {
-			lastRead := state.GetLastReadMessage(receiverId)
-			if lastRead != nil && m.lastReadMessageId != nil &&
-				state.Data.LastReadMessage[receiverId] != nil &&
-				*m.lastReadMessageId != *lastRead &&
-				*m.lastReadMessageId != *state.Data.LastReadMessage[receiverId] {
-				m.keepLastRead = false
-			}
-			m.lastReadMessageId = lastRead
+		lastMsg := state.GetLastReadMessage(receiverId)
+		if m.base == SnapToBottom && lastMsg != nil {
+			lastReadMsg := state.Data.LastReadMessage[receiverId]
+
+			// if m.lastReadMsg != nil && lastReadMsg != nil &&
+			// 	*lastReadMsg != *lastMsg &&
+			// 	*lastReadMsg != *m.lastReadMsg {
+			// 	m.keepLastRead = false
+			// }
+
+			*lastReadMsg = *lastMsg
 		}
 	}
 
@@ -694,7 +698,7 @@ func (m *Model) ResetBeforeSwitch() {
 		m.base = SnapToBottom
 		m.SetIndex(Unselected)
 		m.maxMessagesHeight = -1
-		m.lastReadMessageId = nil
+		m.lastReadMsg = nil
 	}()
 
 	networkId := state.NetworkId(m.networkIndex)
@@ -711,10 +715,7 @@ func (m *Model) ResetBeforeSwitch() {
 			MaxHeight:         m.maxMessagesHeight,
 		}
 
-		if m.lastReadMessageId != nil {
-			log.Println("Setting last msg ID")
-			state.SetLastReadMessage(frequencyId, *m.lastReadMessageId)
-		}
+		state.SendUserDatUpdate()
 
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
@@ -725,9 +726,7 @@ func (m *Model) ResetBeforeSwitch() {
 			MaxHeight:         m.maxMessagesHeight,
 		}
 
-		if m.lastReadMessageId != nil {
-			state.SetLastReadMessage(receiverId, *m.lastReadMessageId)
-		}
+		state.SendUserDatUpdate()
 	}
 }
 
@@ -739,8 +738,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
 
-		m.lastReadMessageId = state.Data.LastReadMessage[frequency.ID]
-		if m.lastReadMessageId != nil {
+		m.lastReadMsg = state.Data.LastReadMessage[frequency.ID]
+		if m.lastReadMsg != nil {
+			log.Println("LAST READ MSG", m.lastReadMsg)
 			m.keepLastRead = true
 		}
 
@@ -761,8 +761,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		receiverId := state.Data.Peers[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
-		m.lastReadMessageId = state.Data.LastReadMessage[receiverId]
-		if m.lastReadMessageId != nil {
+		m.lastReadMsg = state.Data.LastReadMessage[receiverId]
+		if m.lastReadMsg != nil {
 			m.keepLastRead = true
 		}
 
@@ -881,18 +881,30 @@ func (m *Model) renderMessages(screenHeight int) string {
 	renderedGroups := []string{}
 	group := []data.Message{}
 
-	lastReadId := m.lastReadMessageId
+	lastReadId := state.Data.LastReadMessage[*id]
 	if m.keepLastRead {
-		lastReadId = state.Data.LastReadMessage[*id]
+		// assert.NotNil(m.lastReadMsg, "TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
+		// assert.Assert(*m.lastReadMsg != *lastReadId, "TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
+		if m.lastReadMsg != nil && lastReadId != nil && *m.lastReadMsg == *lastReadId {
+			log.Println("TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
+		}
+		lastReadId = m.lastReadMsg
 	}
 
 	last := snowflake.ID(0)
 	btree.Descend(func(message data.Message) bool {
 		last = message.ID
-		isLastRead := lastReadId != nil && *lastReadId == message.ID
+		// >= is needed so if the message was deleted
+		// Any prior messages will still be separated by "new"
+		isLastRead := lastReadId != nil && *lastReadId >= message.ID
 
 		if len(group) == 0 {
 			group = append(group, message)
+
+			if isLastRead {
+				lastReadId = nil
+			}
+
 			return true
 		}
 
@@ -921,6 +933,8 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 			renderedGroups = append(renderedGroups, newSep+"\n")
 			remainingHeight--
+
+			lastReadId = nil // Stop the rest of the messages from having NEW
 		}
 
 		return remainingHeight > 0

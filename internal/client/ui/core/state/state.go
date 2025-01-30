@@ -236,9 +236,7 @@ func GetLastReadMessage(id snowflake.ID) *snowflake.ID {
 	return &msg.ID
 }
 
-func SetLastReadMessage(id snowflake.ID, message snowflake.ID) {
-	Data.LastReadMessage[id] = &message
-
+func SendUserDatUpdate() {
 	data := JsonUserData()
 	gateway.SendAsync(&packet.SetUserData{
 		Data: &data,

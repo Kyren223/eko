@@ -14,6 +14,7 @@ import (
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var (
@@ -44,6 +45,13 @@ var (
 	ellipsis = "…"
 
 	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
+
+	notifSymbol = []string{
+		"  ", " 󰲠 ", " 󰲢 ", " 󰲤 ", " 󰲦 ", " 󰲨 ", " 󰲪 ", " 󰲬 ", " 󰲮 ", " 󰲰 ", " 󰲲 ",
+	}
+	notifStyleDot = lipgloss.NewStyle().Foreground(colors.White)
+	notifStyle    = lipgloss.NewStyle().Foreground(colors.Red)
+	notifWidth    = 3
 )
 
 type Model struct {
@@ -91,6 +99,8 @@ func (m Model) View() string {
 	upper := min(m.base+m.height, len(frequencies))
 	frequencies = frequencies[m.base:upper]
 	for i, frequency := range frequencies {
+		maxFrequencyWidth := maxFrequencyWidth
+
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
 		if m.index == m.base+i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
@@ -109,6 +119,24 @@ func (m Model) View() string {
 			symbol = symbolNoAccessAdmin
 		}
 
+		notif := ""
+		notifStyle := notifStyle
+		pings, hasNotif := m.getNotifCount(frequency.ID)
+		if pings == 0 && hasNotif {
+			notif = notifSymbol[0]
+			// notifStyle = notifStyleDot
+		} else if hasNotif {
+			notif = notifSymbol[min(pings, 10)]
+		}
+
+		if m.index == m.base+i {
+			notifStyle = notifStyle.Background(colors.BackgroundHighlight)
+		}
+		if notif != "" {
+			maxFrequencyWidth -= notifWidth
+			notif = notifStyle.Render(notif)
+		}
+
 		frequencyName := ""
 		if lipgloss.Width(frequency.Name) <= maxFrequencyWidth {
 			frequencyName = lipgloss.NewStyle().
@@ -119,8 +147,10 @@ func (m Model) View() string {
 				MaxWidth(maxFrequencyWidth-1).
 				Render(frequency.Name) + ellipsis
 		}
+		frequencyName = lipgloss.NewStyle().Width(maxFrequencyWidth).
+			Render(frequencyName)
 
-		frequency := frequencyStyle.Render(symbol + frequencyName)
+		frequency := frequencyStyle.Render(symbol + frequencyName + notif)
 		builder.WriteString(backgroundStyle.Render(frequency))
 		builder.WriteString("\n")
 	}
@@ -329,4 +359,42 @@ func (m Model) renderNetworkName() string {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
+}
+
+func (m *Model) getNotifCount(frequencyId snowflake.ID) (_ int, _ bool) {
+	lastReadMsg := state.Data.LastReadMessage[frequencyId]
+	if lastReadMsg == nil {
+		return 0, false
+	}
+
+	btree := state.State.Messages[frequencyId]
+	if btree == nil {
+		return 0, false
+	}
+
+	pings := 0
+	hasNotif := false
+
+	networkId := state.NetworkId(m.networkIndex)
+	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
+
+	btree.AscendGreaterOrEqual(data.Message{ID: *lastReadMsg + 1}, func(item data.Message) bool {
+		hasNotif = true
+
+		if item.Ping == nil {
+			return true
+		}
+
+		if *item.Ping == packet.PingEveryone {
+			pings++
+		} else if *item.Ping == packet.PingAdmins && isAdmin {
+			pings++
+		} else if *item.Ping == *state.UserID {
+			pings++
+		}
+
+		return pings <= 10
+	})
+
+	return pings, hasNotif
 }
