@@ -43,13 +43,15 @@ var State state = state{
 }
 
 type UserData struct {
-	Networks []snowflake.ID
-	Peers    []snowflake.ID
+	LastReadMessage map[snowflake.ID]*snowflake.ID
+	Networks        []snowflake.ID
+	Peers           []snowflake.ID
 }
 
 var Data UserData = UserData{
-	Networks: []snowflake.ID{},
-	Peers:    []snowflake.ID{},
+	LastReadMessage: map[snowflake.ID]*snowflake.ID{},
+	Networks:        []snowflake.ID{},
+	Peers:           []snowflake.ID{},
 }
 
 var UserID *snowflake.ID = nil
@@ -207,6 +209,9 @@ func FromJsonUserData(s string) {
 		return
 	}
 	Data = data
+	if Data.LastReadMessage == nil {
+		Data.LastReadMessage = map[snowflake.ID]*snowflake.ID{}
+	}
 }
 
 func UpdateTrusteds(info *packet.TrustInfo) {
@@ -217,4 +222,26 @@ func UpdateTrusteds(info *packet.TrustInfo) {
 	for i, trusted := range info.Trusteds {
 		State.Trusteds[trusted] = info.TrustedPublicKeys[i]
 	}
+}
+
+func GetLastReadMessage(id snowflake.ID) *snowflake.ID {
+	btree := State.Messages[id]
+	if btree == nil {
+		return nil
+	}
+	msg, ok := btree.Max()
+	if !ok {
+		return nil
+	}
+	return &msg.ID
+}
+
+func SetLastReadMessage(id snowflake.ID, message snowflake.ID) {
+	Data.LastReadMessage[id] = &message
+
+	data := JsonUserData()
+	gateway.SendAsync(&packet.SetUserData{
+		Data: &data,
+		User: nil,
+	})
 }

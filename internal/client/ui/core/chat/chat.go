@@ -90,6 +90,10 @@ var (
 	PingedMessageStyle = lipgloss.NewStyle().
 				MarginLeft(PaddingCount).PaddingLeft(1).PaddingRight(PaddingCount).
 				Border(lipgloss.Border{Left: "┃"}, false, false, false, true)
+
+	NewStyle  = lipgloss.NewStyle().Foreground(colors.Red)
+	NewText   = "━━ NEW ━━"
+	NewSymbol = "━"
 )
 
 const (
@@ -113,10 +117,12 @@ type Model struct {
 	receiverIndex  int
 	frequencyIndex int
 
-	base            int
-	index           int
-	selectedMessage *data.Message
-	editingMessage  *data.Message
+	base              int
+	index             int
+	selectedMessage   *data.Message
+	editingMessage    *data.Message
+	lastReadMessageId *snowflake.ID
+	keepLastRead      bool
 
 	messagesHeight    int
 	maxMessagesHeight int
@@ -146,6 +152,8 @@ func New() Model {
 		index:             Unselected,
 		selectedMessage:   nil,
 		editingMessage:    nil,
+		lastReadMessageId: nil,
+		keepLastRead:      false,
 		messagesHeight:    0,
 		maxMessagesHeight: -1,
 		messagesCache:     nil,
@@ -198,6 +206,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		frequency := frequencies[m.frequencyIndex]
 		member := state.State.Members[*networkId][*state.UserID]
 
+		if m.base == SnapToBottom {
+			lastRead := state.GetLastReadMessage(frequency.ID)
+			if lastRead != nil && m.lastReadMessageId != nil &&
+				state.Data.LastReadMessage[frequency.ID] != nil &&
+				*m.lastReadMessageId != *lastRead &&
+				*m.lastReadMessageId != *state.Data.LastReadMessage[frequency.ID] {
+				m.keepLastRead = false
+			}
+			m.lastReadMessageId = lastRead
+		}
+
 		m.hasReadAccess = frequency.Perms != packet.PermNoAccess || member.IsAdmin
 		m.hasWriteAccess = !member.IsMuted && (frequency.Perms == packet.PermReadWrite || member.IsAdmin)
 
@@ -230,7 +249,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetInactive(false)
 		}
 	} else if m.receiverIndex != -1 {
-		// TODO: receiver
+		receiverId := state.Data.Peers[m.receiverIndex]
+
+		if m.base == SnapToBottom {
+			lastRead := state.GetLastReadMessage(receiverId)
+			if lastRead != nil && m.lastReadMessageId != nil &&
+				state.Data.LastReadMessage[receiverId] != nil &&
+				*m.lastReadMessageId != *lastRead &&
+				*m.lastReadMessageId != *state.Data.LastReadMessage[receiverId] {
+				m.keepLastRead = false
+			}
+			m.lastReadMessageId = lastRead
+		}
 	}
 
 	if !m.focus {
@@ -659,15 +689,18 @@ func (m *Model) SetFrequency(networkIndex, frequencyIndex int) tea.Cmd {
 }
 
 func (m *Model) ResetBeforeSwitch() {
-	m.vi.Reset()
-	m.base = SnapToBottom
-	m.SetIndex(Unselected)
-	m.maxMessagesHeight = -1
+	defer func() {
+		m.vi.Reset()
+		m.base = SnapToBottom
+		m.SetIndex(Unselected)
+		m.maxMessagesHeight = -1
+		m.lastReadMessageId = nil
+	}()
 
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
-		if len(frequencies) >= m.frequencyIndex {
+		if len(frequencies) <= m.frequencyIndex {
 			return
 		}
 		frequencyId := frequencies[m.frequencyIndex].ID
@@ -677,6 +710,12 @@ func (m *Model) ResetBeforeSwitch() {
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
 		}
+
+		if m.lastReadMessageId != nil {
+			log.Println("Setting last msg ID")
+			state.SetLastReadMessage(frequencyId, *m.lastReadMessageId)
+		}
+
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
 		log.Println("Saving signal:", receiverId)
@@ -684,6 +723,10 @@ func (m *Model) ResetBeforeSwitch() {
 			IncompleteMessage: m.vi.String(),
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
+		}
+
+		if m.lastReadMessageId != nil {
+			state.SetLastReadMessage(receiverId, *m.lastReadMessageId)
 		}
 	}
 }
@@ -695,6 +738,11 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequencies := state.State.Frequencies[*networkId]
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
+
+		m.lastReadMessageId = state.Data.LastReadMessage[frequency.ID]
+		if m.lastReadMessageId != nil {
+			m.keepLastRead = true
+		}
 
 		if val, ok := msgs[frequency.ID]; ok {
 			m.vi.SetString(val.IncompleteMessage)
@@ -710,11 +758,15 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			FrequencyID: &frequency.ID,
 		})
 	} else if m.receiverIndex != -1 {
-		peers := state.Data.Peers
-		peer := peers[m.receiverIndex]
-		log.Println("Restoring signal:", peer)
+		receiverId := state.Data.Peers[m.receiverIndex]
+		log.Println("Restoring signal:", receiverId)
 
-		if val, ok := msgs[peer]; ok {
+		m.lastReadMessageId = state.Data.LastReadMessage[receiverId]
+		if m.lastReadMessageId != nil {
+			m.keepLastRead = true
+		}
+
+		if val, ok := msgs[receiverId]; ok {
 			m.vi.SetString(val.IncompleteMessage)
 			m.base = val.Base
 			m.SetIndex(Unselected)
@@ -724,7 +776,7 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			return nil
 		}
 		return gateway.Send(&packet.RequestMessages{
-			ReceiverID:  &peer,
+			ReceiverID:  &receiverId,
 			FrequencyID: nil,
 		})
 	}
@@ -796,14 +848,17 @@ func (m *Model) renderMessageBox() string {
 }
 
 func (m *Model) renderMessages(screenHeight int) string {
+	var id *snowflake.ID
 	var btree *btree.BTreeG[data.Message]
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
 		frequencyId := frequencies[m.frequencyIndex].ID
+		id = &frequencyId
 		btree = state.State.Messages[frequencyId]
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
+		id = &receiverId
 		btree = state.State.Messages[receiverId]
 	}
 
@@ -811,7 +866,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		return NoAccess.Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
-	if btree == nil {
+	if btree == nil || id == nil {
 		return NoMessages.Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
@@ -826,9 +881,15 @@ func (m *Model) renderMessages(screenHeight int) string {
 	renderedGroups := []string{}
 	group := []data.Message{}
 
+	lastReadId := m.lastReadMessageId
+	if m.keepLastRead {
+		lastReadId = state.Data.LastReadMessage[*id]
+	}
+
 	last := snowflake.ID(0)
 	btree.Descend(func(message data.Message) bool {
 		last = message.ID
+		isLastRead := lastReadId != nil && *lastReadId == message.ID
 
 		if len(group) == 0 {
 			group = append(group, message)
@@ -838,7 +899,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		lastMsg := group[0]
 		sameSender := lastMsg.SenderID == message.SenderID
 		withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
-		if sameSender && withinTime && len(group) < MaxViewableMessages {
+		if sameSender && withinTime && len(group) < MaxViewableMessages && !isLastRead {
 			group = append(group, message)
 			return true
 		}
@@ -846,6 +907,21 @@ func (m *Model) renderMessages(screenHeight int) string {
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 		renderedGroups = append(renderedGroups, renderedGroup)
 		group = []data.Message{message}
+
+		if isLastRead {
+			lineWidth := m.width - lipgloss.Width(NewText)
+			line := strings.Repeat(NewSymbol, lineWidth)
+
+			newStyle := NewStyle.Width(m.width)
+			if m.index == height-remainingHeight {
+				newStyle = newStyle.Background(colors.BackgroundDim)
+			}
+
+			newSep := newStyle.Render(line + NewText)
+
+			renderedGroups = append(renderedGroups, newSep+"\n")
+			remainingHeight--
+		}
 
 		return remainingHeight > 0
 	})
