@@ -45,12 +45,18 @@ var (
 
 	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 
-	notifSymbol = []string{
-		"  ", " 󰲠 ", " 󰲢 ", " 󰲤 ", " 󰲦 ", " 󰲨 ", " 󰲪 ", " 󰲬 ", " 󰲮 ", " 󰲰 ", " 󰲲 ",
-	}
-	notifStyleDot = lipgloss.NewStyle().Foreground(colors.White)
-	notifStyle    = lipgloss.NewStyle().Foreground(colors.Red)
-	notifWidth    = 3
+	notifSymbol  = "◗"
+	notifSymbols = func() []string {
+		notifs := []string{
+			" 󰲠", " 󰲢", " 󰲤", " 󰲦 ", " 󰲨 ", " 󰲪 ", " 󰲬 ", " 󰲮 ", " 󰲰 ", " 󰲲 ",
+		}
+		for i, notif := range notifs {
+			notifs[i] = notifStyle.Render(notif)
+		}
+		return notifs
+	}()
+	notifStyle = lipgloss.NewStyle().Foreground(colors.Red)
+	notifWidth = 2
 )
 
 type Model struct {
@@ -99,6 +105,7 @@ func (m Model) View() string {
 	frequencies = frequencies[m.base:upper]
 
 	for i, frequency := range frequencies {
+		backgroundStyle := backgroundStyle
 		maxFrequencyWidth := maxFrequencyWidth
 
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
@@ -120,21 +127,20 @@ func (m Model) View() string {
 		}
 
 		notif := ""
-		notifStyle := notifStyle
 		pings, hasNotif := state.State.Notifications[frequency.ID]
-		if pings == 0 && hasNotif {
-			notif = notifSymbol[0]
-			// notifStyle = notifStyleDot
-		} else if hasNotif {
-			notif = notifSymbol[min(pings, 10)]
+		if hasNotif {
+			builder.WriteString(notifSymbol)
+			frequencyStyle = frequencyStyle.MarginLeft(margin - 1)
+			backgroundStyle = backgroundStyle.Width(m.width - 1)
+
+			if pings != 0 {
+				notif = notifSymbols[min(pings, 10)-1]
+				maxFrequencyWidth -= notifWidth
+			}
 		}
 
 		if m.index == m.base+i {
 			notifStyle = notifStyle.Background(colors.BackgroundHighlight)
-		}
-		if notif != "" {
-			maxFrequencyWidth -= notifWidth
-			notif = notifStyle.Render(notif)
 		}
 
 		frequencyName := ""

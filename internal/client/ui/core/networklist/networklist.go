@@ -17,7 +17,7 @@ var (
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	selectedIndicator   = "🭀\n▌\n🭛"
-	notification        = " \n◗\n " //   🭬
+	notification        = " \n◗\n "
 	peersIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
 	peersButton         = peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
 	peersButtonSelected = lipgloss.JoinHorizontal(
