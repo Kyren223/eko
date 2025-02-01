@@ -219,7 +219,6 @@ func clamp(v, lower, upper int) int {
 🭏🬽  🭈🭄
 */
 
-
 func IconStyle(icon string, iconFg, iconBg, bg lipgloss.Color) lipgloss.Style {
 	bgStyle := lipgloss.NewStyle().Background(iconBg).Foreground(bg)
 	top := bgStyle.Render("🭠🭘  🭣🭕")
@@ -237,7 +236,7 @@ var notifications = []string{
 
 func IconStyleNotif(icon string, iconFg, iconBg, bg lipgloss.Color, count int) lipgloss.Style {
 	notifStyle := lipgloss.NewStyle().Background(iconBg).Foreground(colors.Red)
-	notif := notifications[min(0, max(10, count)-1)]
+	notif := notifications[max(0, min(10, count)-1)]
 	notif = notifStyle.Render(notif)
 
 	bgStyle := lipgloss.NewStyle().Background(iconBg).Foreground(bg)
@@ -249,4 +248,3 @@ func IconStyleNotif(icon string, iconFg, iconBg, bg lipgloss.Color, count int) l
 	combined := lipgloss.JoinVertical(lipgloss.Left, top, middle, bottom)
 	return lipgloss.NewStyle().SetString(combined)
 }
-

@@ -551,6 +551,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 
+	calculateNotifications()
+
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -686,4 +688,54 @@ func (m *Model) HasPopup() bool {
 		m.banReasonPopup != nil ||
 		m.banViewPopup != nil ||
 		m.peerAddPopup != nil
+}
+
+func calculateNotifications() {
+	for networkId := range state.State.Networks {
+		for _, frequency := range state.State.Frequencies[networkId] {
+			pings, hasNotif := getFrequencyNotification(networkId, frequency.ID)
+			if hasNotif {
+				state.State.Notifications[frequency.ID] = pings
+			} else {
+				delete(state.State.Notifications, frequency.ID)
+			}
+		}
+	}
+}
+
+func getFrequencyNotification(networkId, frequencyId snowflake.ID) (_ int, _ bool) {
+	lastReadMsg := state.Data.LastReadMessage[frequencyId]
+	if lastReadMsg == nil {
+		return 0, false
+	}
+
+	btree := state.State.Messages[frequencyId]
+	if btree == nil {
+		return 0, false
+	}
+
+	pings := 0
+	hasNotif := false
+
+	isAdmin := state.State.Members[networkId][*state.UserID].IsAdmin
+
+	btree.AscendGreaterOrEqual(data.Message{ID: *lastReadMsg + 1}, func(item data.Message) bool {
+		hasNotif = true
+
+		if item.Ping == nil {
+			return true
+		}
+
+		if *item.Ping == packet.PingEveryone {
+			pings++
+		} else if *item.Ping == packet.PingAdmins && isAdmin {
+			pings++
+		} else if *item.Ping == *state.UserID {
+			pings++
+		}
+
+		return pings <= 10
+	})
+
+	return pings, hasNotif
 }

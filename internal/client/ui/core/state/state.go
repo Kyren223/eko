@@ -29,6 +29,8 @@ type state struct {
 	Members     map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
 	Users       map[snowflake.ID]data.User                    // key is user id
 	Trusteds    map[snowflake.ID]ed25519.PublicKey            // key is user id
+
+	Notifications map[snowflake.ID]int // key is frequency id or receiver id
 }
 
 var State state = state{
@@ -40,6 +42,7 @@ var State state = state{
 	Members:       map[snowflake.ID]map[snowflake.ID]data.Member{},
 	Users:         map[snowflake.ID]data.User{},
 	Trusteds:      map[snowflake.ID]ed25519.PublicKey{},
+	Notifications: map[snowflake.ID]int{},
 }
 
 type UserData struct {

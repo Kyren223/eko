@@ -17,6 +17,7 @@ var (
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	selectedIndicator   = "🭀\n▌\n🭛"
+	notification        = " \n◗\n " //   🭬
 	peersIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
 	peersButton         = peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
 	peersButtonSelected = lipgloss.JoinHorizontal(
@@ -66,15 +67,39 @@ func (m Model) View() string {
 	for i, networkId := range networks {
 		network := state.State.Networks[networkId]
 
-		icon := ui.IconStyleNotif(network.Icon,
-			lipgloss.Color(network.FgHexColor),
-			lipgloss.Color(network.BgHexColor),
-			colors.BackgroundDimmer, 1,
-		)
+		pings, ok := 0, false
+		frequencies := state.State.Frequencies[networkId]
+		for _, frequency := range frequencies {
+			fpings, fok := state.State.Notifications[frequency.ID]
+			pings += fpings
+			ok = ok || fok
+		}
+
+		var icon lipgloss.Style
+		if ok && pings != 0 {
+			icon = ui.IconStyleNotif(network.Icon,
+				lipgloss.Color(network.FgHexColor),
+				lipgloss.Color(network.BgHexColor),
+				colors.BackgroundDimmer, pings,
+			)
+		} else {
+			icon = ui.IconStyle(network.Icon,
+				lipgloss.Color(network.FgHexColor),
+				lipgloss.Color(network.BgHexColor),
+				colors.BackgroundDimmer,
+			)
+		}
+
 		if m.index == m.base+i {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
+				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
+			))
+		} else if ok {
+			builder.WriteString(lipgloss.JoinHorizontal(
+				ui.Center,
+				notification,
 				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
 			))
 		} else {

@@ -14,7 +14,6 @@ import (
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
-	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 var (
@@ -93,11 +92,12 @@ func (m Model) View() string {
 	var builder strings.Builder
 
 	builder.WriteString(m.renderNetworkName())
-
 	builder.WriteString("\n")
+
 	frequencies := m.Frequencies()
 	upper := min(m.base+m.height, len(frequencies))
 	frequencies = frequencies[m.base:upper]
+
 	for i, frequency := range frequencies {
 		maxFrequencyWidth := maxFrequencyWidth
 
@@ -121,7 +121,7 @@ func (m Model) View() string {
 
 		notif := ""
 		notifStyle := notifStyle
-		pings, hasNotif := m.getNotifCount(frequency.ID)
+		pings, hasNotif := state.State.Notifications[frequency.ID]
 		if pings == 0 && hasNotif {
 			notif = notifSymbol[0]
 			// notifStyle = notifStyleDot
@@ -359,42 +359,4 @@ func (m Model) renderNetworkName() string {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-}
-
-func (m *Model) getNotifCount(frequencyId snowflake.ID) (_ int, _ bool) {
-	lastReadMsg := state.Data.LastReadMessage[frequencyId]
-	if lastReadMsg == nil {
-		return 0, false
-	}
-
-	btree := state.State.Messages[frequencyId]
-	if btree == nil {
-		return 0, false
-	}
-
-	pings := 0
-	hasNotif := false
-
-	networkId := state.NetworkId(m.networkIndex)
-	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
-
-	btree.AscendGreaterOrEqual(data.Message{ID: *lastReadMsg + 1}, func(item data.Message) bool {
-		hasNotif = true
-
-		if item.Ping == nil {
-			return true
-		}
-
-		if *item.Ping == packet.PingEveryone {
-			pings++
-		} else if *item.Ping == packet.PingAdmins && isAdmin {
-			pings++
-		} else if *item.Ping == *state.UserID {
-			pings++
-		}
-
-		return pings <= 10
-	})
-
-	return pings, hasNotif
 }
