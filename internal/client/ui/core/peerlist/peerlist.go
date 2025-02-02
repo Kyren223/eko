@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).
+	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDim).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	nameStyle = lipgloss.NewStyle().

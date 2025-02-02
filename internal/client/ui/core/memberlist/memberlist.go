@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).Background(colors.BackgroundDim).
+	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDim).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
 	headerStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
