@@ -562,8 +562,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 
-	calculateNotifications()
-
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -591,6 +589,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	m.chat, cmd = m.chat.Update(msg)
 	cmds = append(cmds, cmd)
+
+	calculateNotifications()
 
 	return tea.Batch(cmds...)
 }

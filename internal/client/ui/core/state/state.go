@@ -3,7 +3,6 @@ package state
 import (
 	"crypto/ed25519"
 	"encoding/json"
-	"log"
 	"slices"
 
 	"github.com/google/btree"
