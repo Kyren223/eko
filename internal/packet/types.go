@@ -233,3 +233,21 @@ type GetBannedMembers struct {
 func (m *GetBannedMembers) Type() PacketType {
 	return PacketGetBannedMembers
 }
+
+type GetNotifications struct {
+	Source     []snowflake.ID
+	LastReadId []snowflake.ID
+}
+
+func (m *GetNotifications) Type() PacketType {
+	return PacketGetNotifications
+}
+
+type NotificationsInfo struct {
+	Source []snowflake.ID
+	Pings  []*int64
+}
+
+func (m *NotificationsInfo) Type() PacketType {
+	return PacketNotificationsInfo
+}

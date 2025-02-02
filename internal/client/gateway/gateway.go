@@ -189,7 +189,7 @@ func handlePacketStream() {
 		payload, err := pkt.DecodedPayload()
 		assert.NoError(err, "server should always provide a decodeable packet")
 
-		log.Println("received streamed packet:", payload)
+		log.Printf("received streamed packet %v: %v\n", payload.Type(), payload)
 		ui.Program.Send(payload)
 	}
 }

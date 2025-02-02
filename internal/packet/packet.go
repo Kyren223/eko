@@ -80,6 +80,9 @@ const (
 	PacketTrustUser
 	PacketTrustInfo
 
+	PacketGetNotifications
+	PacketNotificationsInfo
+
 	PacketMax
 )
 
@@ -244,6 +247,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &TrustUser{}
 	case PacketTrustInfo:
 		payload = &TrustInfo{}
+
+	case PacketGetNotifications:
+		payload = &GetNotifications{}
+	case PacketNotificationsInfo:
+		payload = &NotificationsInfo{}
 
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())

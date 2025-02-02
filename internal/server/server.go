@@ -386,6 +386,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	case *packet.TrustUser:
 		response = timeout(10*time.Millisecond, api.TrustUser, ctx, sess, request)
 
+	case *packet.GetNotifications:
+		response = timeout(100*time.Millisecond, api.GetNotifications, ctx, sess, request)
+
 	default:
 		response = &packet.Error{Error: "use of disallowed packet type for request"}
 	}

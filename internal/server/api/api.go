@@ -1246,3 +1246,24 @@ func GetBannedMembers(ctx context.Context, sess *session.Session, request *packe
 		Network:        request.Network,
 	}
 }
+
+func GetNotifications(ctx context.Context, sess *session.Session, request *packet.GetNotifications) packet.Payload {
+	if len(request.Source) != len(request.LastReadId) {
+		return &packet.Error{Error: "source length and lastReadId length must match"}
+	}
+
+	if len(request.Source) == 0 {
+		return &packet.NotificationsInfo{
+			Source: []snowflake.ID{},
+			Pings:  []*int64{},
+		}
+	}
+
+	info, err := getNotifications(ctx, request, sess.ID())
+	if err != nil {
+		log.Println("database error:", err)
+		return &ErrInternalError
+	}
+
+	return &info
+}

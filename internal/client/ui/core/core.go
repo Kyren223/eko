@@ -189,6 +189,9 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case gateway.ConnectionEstablished:
 		state.UserID = (*snowflake.ID)(&msg)
+		state.ReceivedData = false
+		state.ReceivedNetworks = false
+		state.AskedForNotifs = false
 		m.connected = true
 		m.timeout = initialTimeout
 
@@ -256,6 +259,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.frequencyList.SetWidth(sidebarWidth)
 	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
+
+	if state.ReceivedData && state.ReceivedNetworks && !state.AskedForNotifs {
+		state.AskedForNotifs = true
+		state.AskForNotifs()
+	}
 
 	switch msg := msg.(type) {
 	case ui.QuitMsg:
@@ -334,6 +342,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 
 	case *packet.TrustInfo:
 		state.UpdateTrusteds(msg)
+
+	case *packet.NotificationsInfo:
+		state.UpdateNotifications(msg)
 
 	case ui.BanReasonPopupMsg:
 		popup := banreason.New(msg.User, msg.Network)
@@ -693,6 +704,10 @@ func (m *Model) HasPopup() bool {
 func calculateNotifications() {
 	for networkId := range state.State.Networks {
 		for _, frequency := range state.State.Frequencies[networkId] {
+			if _, ok := state.State.Messages[frequency.ID]; !ok {
+				continue
+			}
+
 			pings, hasNotif := getFrequencyNotification(networkId, frequency.ID)
 			if hasNotif {
 				state.State.Notifications[frequency.ID] = pings

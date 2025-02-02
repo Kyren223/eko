@@ -3,6 +3,7 @@ package state
 import (
 	"crypto/ed25519"
 	"encoding/json"
+	"log"
 	"slices"
 
 	"github.com/google/btree"
@@ -59,6 +60,12 @@ var Data UserData = UserData{
 
 var UserID *snowflake.ID = nil
 
+var (
+	ReceivedData     = false
+	ReceivedNetworks = false
+	AskedForNotifs   = false
+)
+
 func UpdateNetworks(info *packet.NetworksInfo) {
 	networks := State.Networks
 
@@ -111,6 +118,8 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		Data: &data,
 		User: nil,
 	})
+
+	ReceivedNetworks = true
 }
 
 func UpdateFrequencies(info *packet.FrequenciesInfo) {
@@ -215,6 +224,8 @@ func FromJsonUserData(s string) {
 	if Data.LastReadMessage == nil {
 		Data.LastReadMessage = map[snowflake.ID]*snowflake.ID{}
 	}
+
+	ReceivedData = true
 }
 
 func UpdateTrusteds(info *packet.TrustInfo) {
@@ -244,5 +255,43 @@ func SendUserDatUpdate() {
 	gateway.SendAsync(&packet.SetUserData{
 		Data: &data,
 		User: nil,
+	})
+}
+
+func UpdateNotifications(info *packet.NotificationsInfo) {
+	for i := 0; i < len(info.Source); i++ {
+		ping := info.Pings[i]
+		if ping != nil {
+			State.Notifications[info.Source[i]] = int(*ping)
+		} else {
+			delete(State.Notifications, info.Source[i])
+		}
+	}
+}
+
+func AskForNotifs() {
+	source := []snowflake.ID{}
+
+	source = append(source, Data.Peers...)
+	for networkId := range State.Networks {
+		for _, frequency := range State.Frequencies[networkId] {
+			source = append(source, frequency.ID)
+		}
+	}
+
+	lastReadId := make([]snowflake.ID, 0, len(source))
+
+	for _, source := range source {
+		id := Data.LastReadMessage[source]
+		if id == nil {
+			lastReadId = append(lastReadId, 0)
+		} else {
+			lastReadId = append(lastReadId, *id)
+		}
+	}
+
+	gateway.SendAsync(&packet.GetNotifications{
+		Source:     source,
+		LastReadId: lastReadId,
 	})
 }
