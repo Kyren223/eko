@@ -29,7 +29,7 @@ var (
 
 	margin         = 2
 	padding        = 1
-	frequencyStyle = lipgloss.NewStyle().
+	frequencyStyle = lipgloss.NewStyle().MaxHeight(1).
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
 	symbolReadWrite     = "󰖩 "
@@ -55,7 +55,7 @@ var (
 		}
 		return notifs
 	}()
-	notifStyle = lipgloss.NewStyle().Foreground(colors.Red)
+	notifStyle = lipgloss.NewStyle().Foreground(colors.Red).Inline(true)
 	notifWidth = 2
 )
 
@@ -137,10 +137,6 @@ func (m Model) View() string {
 				notif = notifSymbols[min(pings, 10)-1]
 				maxFrequencyWidth -= notifWidth
 			}
-		}
-
-		if m.index == m.base+i {
-			notifStyle = notifStyle.Background(colors.BackgroundHighlight)
 		}
 
 		frequencyName := ""
