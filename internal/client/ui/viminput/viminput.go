@@ -1703,6 +1703,13 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		return
 	}
 
+	if motion == "V" {
+		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
+		m.mode = VisualLineMode
+		m.count = NoCount
+		return
+	}
+
 	if motion != "x" && motion != "d" && motion != "c" && motion != "y" &&
 		motion != "p" && motion != "P" {
 		return
@@ -1871,6 +1878,12 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 		}
 	}
 	if shouldReturn {
+		return
+	}
+
+	if motion == "v" {
+		m.mode = VisualMode
+		m.count = NoCount
 		return
 	}
 
