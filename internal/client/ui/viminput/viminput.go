@@ -17,6 +17,7 @@ var (
 	CursorStyle         = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
 	InactiveCursorStyle = lipgloss.NewStyle()
 	VisualStyle         = lipgloss.NewStyle().Background(colors.DarkGray)
+	PlaceholderStyle    = lipgloss.NewStyle().Foreground(colors.Gray).Background(colors.Background)
 )
 
 const (
@@ -41,8 +42,7 @@ const (
 )
 
 type Model struct {
-	PlaceholderStyle lipgloss.Style
-	PromptStyle      lipgloss.Style
+	PromptStyle lipgloss.Style
 
 	Placeholder  string
 	register     string
@@ -74,33 +74,32 @@ type Model struct {
 
 func New() Model {
 	return Model{
-		PlaceholderStyle: lipgloss.NewStyle(),
-		PromptStyle:      lipgloss.NewStyle(),
-		Placeholder:      "",
-		register:         "",
-		lines:            [][]rune{[]rune("")},
-		undoStack:        []State{{[][]rune{[]rune("")}, 0, 0}},
-		redoStack:        []State{},
-		cursorLine:       0,
-		cursorColumn:     0,
-		goalColumn:       InvalidGoal,
-		mode:             NormalMode,
-		count:            NoCount,
-		vline:            0,
-		vcol:             0,
-		pending:          NullChar,
-		gmod:             false,
-		fchar:            NullChar,
-		fmod:             NullChar,
-		tlast:            false,
-		imod:             false,
-		amod:             false,
-		inactive:         false,
-		focus:            false,
-		width:            -1,
-		height:           1,
-		maxHeight:        -1,
-		offset:           0,
+		PromptStyle:  lipgloss.NewStyle(),
+		Placeholder:  "",
+		register:     "",
+		lines:        [][]rune{[]rune("")},
+		undoStack:    []State{{[][]rune{[]rune("")}, 0, 0}},
+		redoStack:    []State{},
+		cursorLine:   0,
+		cursorColumn: 0,
+		goalColumn:   InvalidGoal,
+		mode:         NormalMode,
+		count:        NoCount,
+		vline:        0,
+		vcol:         0,
+		pending:      NullChar,
+		gmod:         false,
+		fchar:        NullChar,
+		fmod:         NullChar,
+		tlast:        false,
+		imod:         false,
+		amod:         false,
+		inactive:     false,
+		focus:        false,
+		width:        -1,
+		height:       1,
+		maxHeight:    -1,
+		offset:       0,
 	}
 }
 
@@ -116,7 +115,7 @@ func (m Model) View() string {
 		cursorStyle = InactiveCursorStyle
 	}
 
-	m.PlaceholderStyle = m.PlaceholderStyle.Width(m.width)
+	placeholderStyle := PlaceholderStyle.MaxWidth(m.width)
 
 	var builder strings.Builder
 	switch m.mode {
@@ -128,9 +127,9 @@ func (m Model) View() string {
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := cursorStyle.
-					Foreground(m.PlaceholderStyle.GetForeground()).
+					Foreground(placeholderStyle.GetForeground()).
 					Render(m.Placeholder[0:1])
-				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				rest := placeholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
@@ -160,9 +159,9 @@ func (m Model) View() string {
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := cursorStyle.
-					Foreground(m.PlaceholderStyle.GetForeground()).
+					Foreground(placeholderStyle.GetForeground()).
 					Render(m.Placeholder[0:1])
-				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				rest := placeholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
@@ -268,9 +267,9 @@ func (m Model) View() string {
 
 			if len(m.lines) == 1 && len(line) == 0 && m.Placeholder != "" {
 				cursorChar := cursorStyle.
-					Foreground(m.PlaceholderStyle.GetForeground()).
+					Foreground(placeholderStyle.GetForeground()).
 					Render(m.Placeholder[0:1])
-				rest := m.PlaceholderStyle.Render(m.Placeholder[1:])
+				rest := placeholderStyle.Render(m.Placeholder[1:])
 				builder.WriteString(cursorChar)
 				builder.WriteString(rest)
 				builder.WriteByte('\n')
@@ -305,7 +304,8 @@ func (m Model) View() string {
 
 	result := builder.String()
 	result = result[:len(result)-1] // Remove last \n
-	result = lipgloss.NewStyle().Width(m.width).Height(m.height).Render(result)
+	result = lipgloss.NewStyle().Background(colors.Background).
+		Width(m.width).Height(m.height).Render(result)
 
 	return result
 }

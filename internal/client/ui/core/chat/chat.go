@@ -23,13 +23,14 @@ import (
 )
 
 var (
-	blurStyle     = lipgloss.NewStyle().Foreground(colors.White)
-	focusStyle    = lipgloss.NewStyle().Foreground(colors.Focus)
-	readOnlyStyle = lipgloss.NewStyle().Foreground(colors.Gray)
-	mutedStyle    = lipgloss.NewStyle().Foreground(colors.Red)
-	editStyle     = lipgloss.NewStyle().Foreground(colors.Gold)
+	blurStyle     = BackgroundStyle.Foreground(colors.White)
+	focusStyle    = BackgroundStyle.Foreground(colors.Focus)
+	readOnlyStyle = BackgroundStyle.Foreground(colors.Gray)
+	mutedStyle    = BackgroundStyle.Foreground(colors.Red)
+	editStyle     = BackgroundStyle.Foreground(colors.Gold)
 
 	ViBlurredBorder = lipgloss.NewStyle().
+			Background(colors.Background).BorderBackground(colors.Background).
 			Border(lipgloss.RoundedBorder(), true, true, false).
 			Padding(0, 1)
 	ViFocusedBorder  = ViBlurredBorder.BorderForeground(colors.Focus)
@@ -37,9 +38,10 @@ var (
 	ViMutedBorder    = ViBlurredBorder.BorderForeground(colors.Red)
 	ViEditBorder     = ViBlurredBorder.BorderForeground(colors.Gold)
 
-	VimModeStyle = lipgloss.NewStyle().Bold(true)
+	VimModeStyle = lipgloss.NewStyle().Bold(true).Background(colors.Background)
 
-	DateTimeStyle = lipgloss.NewStyle().Foreground(colors.LightGray).SetString("")
+	DateTimeStyle = lipgloss.NewStyle().Background(colors.Background).
+			Foreground(colors.LightGray).SetString("")
 
 	PaddingCount = 1
 	Padding      = strings.Repeat(" ", PaddingCount)
@@ -47,13 +49,14 @@ var (
 	LeftCorner   = Border.BottomLeft + Border.Bottom
 	RightCorner  = Border.Bottom + Border.BottomRight
 
-	NoMessages = lipgloss.NewStyle().
+	NoMessages = lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
 			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
 			SetString("This frequency has no messages, start transmiting!")
 	NoAccess = NoMessages.SetString("You do not have permission to see messages in this frequency")
 
-	SelectedGap = lipgloss.NewStyle().Background(colors.BackgroundDim)
+	SelectedGap     = lipgloss.NewStyle().Background(colors.BackgroundDim)
+	BackgroundStyle = lipgloss.NewStyle().Background(colors.Background)
 
 	SendMessagePlaceholder = "Send a message..."
 	ReadOnlyPlaceholder    = "You do not have permission to send messages in this frequency"
@@ -85,7 +88,7 @@ var (
 	PingedEveryone  = lipgloss.NewStyle().Foreground(colors.Purple).Render("@everyone ")
 	PingedUserStyle = lipgloss.NewStyle().Foreground(colors.Gold)
 
-	MessageStyle = lipgloss.NewStyle().
+	MessageStyle = lipgloss.NewStyle().Background(colors.Background).
 			PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
 	PingedMessageStyle = lipgloss.NewStyle().
 				MarginLeft(PaddingCount).PaddingLeft(1).PaddingRight(PaddingCount).
@@ -137,7 +140,6 @@ type Model struct {
 
 func New() Model {
 	vi := viminput.New()
-	vi.PlaceholderStyle = lipgloss.NewStyle().Foreground(colors.Gray)
 
 	return Model{
 		vi:                vi,
@@ -173,7 +175,7 @@ func (m *Model) Prerender() {
 	frequencyHeight := lipgloss.Height(frequencyName)
 
 	messagebox := m.renderMessageBox()
-	messageBoxHeight := lipgloss.Height(messagebox)
+	messageBoxHeight := lipgloss.Height(messagebox) - 1
 
 	messagesHeight := ui.Height - messageBoxHeight - frequencyHeight
 
@@ -185,7 +187,9 @@ func (m *Model) Prerender() {
 	m.messagesCache = &messages
 	m.messagesHeight = messagesHeight
 
-	m.prerender = frequencyName + *m.messagesCache + messagebox
+	m.prerender = lipgloss.NewStyle().
+		Background(colors.Background).
+		Render(frequencyName + *m.messagesCache + messagebox)
 }
 
 func (m Model) View() string {
@@ -838,13 +842,14 @@ func (m *Model) renderMessageBox() string {
 	builder.WriteString(m.style.Render(bottom))
 
 	builder.WriteString(leftAngle)
-	builder.WriteString(countStr)
+	builder.WriteString(BackgroundStyle.Render(countStr))
 	builder.WriteString(rightAngle)
 	builder.WriteString(m.style.Render(RightCorner))
+	builder.WriteByte('\n')
 
 	result := builder.String()
 
-	return lipgloss.NewStyle().Padding(0, PaddingCount).Render(result)
+	return lipgloss.NewStyle().Background(colors.Background).Padding(0, PaddingCount).Render(result)
 }
 
 func (m *Model) renderMessages(screenHeight int) string {
@@ -1291,6 +1296,9 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 
 	if selected {
 		style := lipgloss.NewStyle().Background(colors.BackgroundDim).Width(m.width).Inline(true)
+		buf = []byte(style.Render(string(buf)))
+	} else {
+		style := lipgloss.NewStyle().Background(colors.Background).Width(m.width).Inline(true)
 		buf = []byte(style.Render(string(buf)))
 	}
 

@@ -8,12 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/muesli/termenv"
 
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
-	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -42,12 +40,6 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Config file at '%v' was unable to load successfully\n%v\n", config.ConfigFile, err)
 	}
-
-	// HACK: Sets the terminal color and keeps it that way
-	// I am not aware of a way to query the current background color (to revert this)
-	// Ideally bubbletea will handle the setting/reventing, for now it's fine
-	// It only changes the current pane so new terminal panes/windows are not affected.
-	termenv.DefaultOutput().SetBackgroundColor(termenv.RGBColor(colors.ToHex(colors.Background)))
 
 	program := tea.NewProgram(initialModel(dump), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})
