@@ -55,16 +55,16 @@ var (
 			SetString("This frequency has no messages, start transmiting!")
 	NoAccess = NoMessages.SetString("You do not have permission to see messages in this frequency")
 
-	SelectedGap     = lipgloss.NewStyle().Background(colors.BackgroundDim)
+	SelectedBgStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 	BackgroundStyle = lipgloss.NewStyle().Background(colors.Background)
 
 	SendMessagePlaceholder = "Send a message..."
 	ReadOnlyPlaceholder    = "You do not have permission to send messages in this frequency"
 	MutedPlaceholder       = "You have been muted by a network adminstrator"
 
-	EditedIndicator = lipgloss.NewStyle().
+	EditedIndicator = lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).SetString(" (edited)").String()
-	EditedIndicatorNL = lipgloss.NewStyle().
+	EditedIndicatorNL = lipgloss.NewStyle().Background(colors.Background).
 				Foreground(colors.LightGray).SetString(" (edited)").String()
 	SelectedEditedIndicator = lipgloss.NewStyle().
 				Foreground(colors.LightGray).Background(colors.BackgroundDim).
