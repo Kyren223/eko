@@ -1668,10 +1668,34 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = NormalMode
 		m.count = NoCount
+
+		m.imod = false
+		m.amod = false
 		return
 	}
 
 	motion := key.String()
+
+	// Text objects
+	if motion == "i" && !m.imod {
+		m.imod = true
+		return
+	} else if m.imod {
+		m.imod = false
+		motion = "i" + motion
+	} else {
+		m.imod = false
+	}
+	if motion == "a" && !m.amod {
+		m.amod = true
+		return
+	} else if m.amod {
+		m.amod = false
+		motion = "a" + motion
+	} else {
+		m.amod = false
+	}
+
 	if motion == "o" {
 		line, col := m.vline, m.vcol
 		m.vline = m.cursorLine
@@ -1679,6 +1703,69 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		m.SetCursorLine(line)
 		m.SetCursorColumn(col)
 		return
+	}
+
+	if motion == "iW" || motion == "aW" {
+		line := m.lines[m.cursorLine]
+		if len(line) == 0 || m.cursorColumn == len(line) {
+			return
+		}
+
+		isWhitespace := unicode.IsSpace(line[m.cursorColumn])
+		lower := m.cursorColumn
+		upper := m.cursorColumn + 1
+		searchFunc := func(c rune) bool {
+			return isWhitespace != unicode.IsSpace(c)
+		}
+
+		i, ok := SearchCharFunc(line, lower, -1, searchFunc)
+		if ok {
+			lower = i + 1
+		} else {
+			lower = 0
+		}
+
+		i, ok = SearchCharFunc(line, upper, 1, searchFunc)
+		if ok {
+			upper = i
+		} else {
+			upper = len(line)
+		}
+
+		m.vcol = lower
+		m.SetCursorColumn(max(min(upper-1, len(line)-1), lower))
+	}
+
+	if motion == "iw" || motion == "aw" {
+		line := m.lines[m.cursorLine]
+		if len(line) == 0 || m.cursorColumn == len(line) {
+			return
+		}
+
+		isKeyword := IsKeyword(line[m.cursorColumn])
+		isWhitespace := unicode.IsSpace(line[m.cursorColumn])
+		lower := m.cursorColumn
+		upper := m.cursorColumn + 1
+		searchFunc := func(c rune) bool {
+			return isKeyword != IsKeyword(c) || isWhitespace != unicode.IsSpace(c)
+		}
+
+		i, ok := SearchCharFunc(line, lower, -1, searchFunc)
+		if ok {
+			lower = i + 1
+		} else {
+			lower = 0
+		}
+
+		i, ok = SearchCharFunc(line, upper, 1, searchFunc)
+		if ok {
+			upper = i
+		} else {
+			upper = len(line)
+		}
+
+		m.vcol = lower
+		m.SetCursorColumn(max(min(upper-1, len(line)-1), lower))
 	}
 
 	count := 1
@@ -1707,6 +1794,9 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		m.SetCursorColumn(min(m.cursorColumn, len(m.lines[m.cursorLine])-1))
 		m.mode = VisualLineMode
 		m.count = NoCount
+
+		m.imod = false
+		m.amod = false
 		return
 	}
 
@@ -1714,6 +1804,9 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		motion != "p" && motion != "P" {
 		return
 	}
+
+	m.imod = false
+	m.amod = false
 
 	paste := ""
 	if motion == "p" || motion == "P" {
