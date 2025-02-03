@@ -1049,16 +1049,23 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	for i := len(group) - 1; i >= 0; i-- {
 		extra := ""
 		messageStyle := messageStyle
+		backgroundStyle := BackgroundStyle
 		if m.frequencyIndex != -1 && group[i].Ping != nil {
 			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[i].Ping {
 			case packet.PingEveryone:
 				extra = PingedEveryone
-				messageStyle = pingedMessageStyle.BorderForeground(colors.Purple)
+				messageStyle = pingedMessageStyle.
+					BorderForeground(colors.Purple).
+					Background(colors.MutedPurple)
+				backgroundStyle = backgroundStyle.Background(colors.MutedPurple)
 			case packet.PingAdmins:
 				extra = PingedAdmins
 				if members[*state.UserID].IsAdmin {
-					messageStyle = pingedMessageStyle.BorderForeground(colors.Red)
+					messageStyle = pingedMessageStyle.
+						BorderForeground(colors.Red).
+						Background(colors.MutedRed)
+					backgroundStyle = backgroundStyle.Background(colors.MutedRed)
 				}
 			default:
 				name := "@Unknown "
@@ -1067,12 +1074,15 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				}
 				extra = PingedUserStyle.Render(name)
 				if *group[i].Ping == *state.UserID {
-					messageStyle = pingedMessageStyle.BorderForeground(colors.Gold)
+					messageStyle = pingedMessageStyle.
+						BorderForeground(colors.Gold).
+						Background(colors.MutedGold)
+					backgroundStyle = backgroundStyle.Background(colors.MutedGold)
 				}
 			}
 		}
 
-		rawContent := extra + group[i].Content
+		rawContent := extra + backgroundStyle.Render(group[i].Content)
 		content := messageStyle.Render(rawContent)
 		heights[i] = lipgloss.Height(content)
 		if group[i].Edited {
@@ -1093,7 +1103,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 	// Gap between each message group
 	if m.index == height-*remaining {
-		gap := SelectedGap.Width(m.width).String()
+		gap := SelectedBgStyle.Width(m.width).String()
 		buf = append(buf, gap...)
 	}
 	buf = append(buf, '\n')
@@ -1121,18 +1131,26 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 		selectedStyle := messageStyle.Background(colors.BackgroundDim)
 		selectedPingedStyle := pingedMessageStyle.Background(colors.BackgroundDim)
+		selectedBackgroundStyle := SelectedBgStyle
 
 		extra := ""
 		if m.frequencyIndex != -1 && group[selectedIndex].Ping != nil {
+
 			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[selectedIndex].Ping {
 			case packet.PingEveryone:
 				extra = PingedEveryone
-				selectedStyle = selectedPingedStyle.BorderForeground(colors.Purple)
+				selectedStyle = selectedPingedStyle.
+					BorderForeground(colors.Purple).
+					Background(colors.DarkMutedPurple)
+				selectedBackgroundStyle = selectedBackgroundStyle.Background(colors.DarkMutedPurple)
 			case packet.PingAdmins:
 				extra = PingedAdmins
 				if members[*state.UserID].IsAdmin {
-					selectedStyle = selectedPingedStyle.BorderForeground(colors.Red)
+					selectedStyle = selectedPingedStyle.
+						BorderForeground(colors.Red).
+						Background(colors.DarkMutedRed)
+					selectedBackgroundStyle = selectedBackgroundStyle.Background(colors.DarkMutedRed)
 				}
 			default:
 				name := "@Unknown "
@@ -1141,13 +1159,16 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				}
 				extra = PingedUserStyle.Render(name)
 				if *group[selectedIndex].Ping == *state.UserID {
-					selectedStyle = selectedPingedStyle.BorderForeground(colors.Gold)
+					selectedStyle = selectedPingedStyle.
+						BorderForeground(colors.Gold).
+						Background(colors.DarkMutedGold)
+					selectedBackgroundStyle = selectedBackgroundStyle.Background(colors.DarkMutedGold)
 				}
 			}
 		}
 
 		rawContent := group[selectedIndex].Content
-		rawContent = lipgloss.NewStyle().Background(colors.BackgroundDim).Render(rawContent)
+		rawContent = selectedBackgroundStyle.Render(rawContent)
 		rawContent = extra + rawContent
 		content := selectedStyle.Render(rawContent)
 		if group[selectedIndex].Edited {
@@ -1158,25 +1179,32 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				content = selectedStyle.Render(rawContent + SelectedEditedIndicatorNL)
 			}
 		}
-		content = lipgloss.NewStyle().Background(colors.BackgroundDim).Render(content)
 
 		buf = append(buf, content...)
 		buf = append(buf, '\n')
 
 		// Redraw rest
 		for i := selectedIndex - 1; i >= 0; i-- {
-			messageStyle := messageStyle
 			extra := ""
+			messageStyle := messageStyle
+			backgroundStyle := BackgroundStyle
 			if m.frequencyIndex != -1 && group[i].Ping != nil {
+
 				members := state.State.Members[*state.NetworkId(m.networkIndex)]
 				switch *group[i].Ping {
 				case packet.PingEveryone:
 					extra = PingedEveryone
-					messageStyle = pingedMessageStyle.BorderForeground(colors.Purple)
+					messageStyle = pingedMessageStyle.
+						BorderForeground(colors.Purple).
+						Background(colors.MutedPurple)
+					backgroundStyle = backgroundStyle.Background(colors.MutedPurple)
 				case packet.PingAdmins:
 					extra = PingedAdmins
 					if members[*state.UserID].IsAdmin {
-						messageStyle = pingedMessageStyle.BorderForeground(colors.Red)
+						messageStyle = pingedMessageStyle.
+							BorderForeground(colors.Red).
+							Background(colors.MutedRed)
+						backgroundStyle = backgroundStyle.Background(colors.MutedRed)
 					}
 				default:
 					name := "@Unknown "
@@ -1185,12 +1213,15 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 					}
 					extra = PingedUserStyle.Render(name)
 					if *group[i].Ping == *state.UserID {
-						messageStyle = pingedMessageStyle.BorderForeground(colors.Gold)
+						messageStyle = pingedMessageStyle.
+							BorderForeground(colors.Gold).
+							Background(colors.MutedGold)
+						backgroundStyle = backgroundStyle.Background(colors.MutedGold)
 					}
 				}
 			}
 
-			rawContent := extra + group[i].Content
+			rawContent := extra + backgroundStyle.Render(group[i].Content)
 			content := messageStyle.Render(rawContent)
 			heights[i] = lipgloss.Height(content)
 			if group[i].Edited {

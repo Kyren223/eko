@@ -20,13 +20,19 @@ var (
 	LightMidnightBlue  = lipgloss.Color("#3c3c5d")
 	Turquoise          = lipgloss.Color("#54D7A9")
 	Red                = lipgloss.Color("#F16265")
+	MutedRed           = lipgloss.Color("#443737")
+	DarkMutedRed       = lipgloss.Color("#402d2d")
 	White              = lipgloss.Color("#FFFFFF")
 	Black              = lipgloss.Color("#000000")
 	Green              = lipgloss.Color("#46d46c")
 	Purple             = lipgloss.Color("#BB91F0")
 	DarkPurple         = lipgloss.Color("#87123d")
+	MutedPurple        = lipgloss.Color("#403744")
+	DarkMutedPurple    = lipgloss.Color("#382d40")
 	Orange             = lipgloss.Color("#F5A670")
 	Gold               = lipgloss.Color("#FFBF00")
+	MutedGold          = lipgloss.Color("#444037")
+	DarkMutedGold      = lipgloss.Color("#40382d")
 
 	Background          = MidnightBlue
 	BackgroundHighlight = LightMidnightBlue
