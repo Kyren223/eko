@@ -210,6 +210,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		frequency := frequencies[m.frequencyIndex]
 		member := state.State.Members[*networkId][*state.UserID]
 
+		if s, ok := state.State.ChatState[frequency.ID]; ok {
+			m.maxMessagesHeight = s.MaxHeight
+		}
+
 		lastMsg := state.GetLastMessage(frequency.ID)
 		if m.base != SnapToBottom {
 			m.keepLastRead = false
@@ -256,6 +260,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
+
+		if s, ok := state.State.ChatState[receiverId]; ok {
+			m.maxMessagesHeight = s.MaxHeight
+		}
 
 		lastMsg := state.GetLastMessage(receiverId)
 		if m.base == SnapToBottom && lastMsg != nil {
@@ -713,7 +721,7 @@ func (m *Model) ResetBeforeSwitch() {
 		}
 		frequencyId := frequencies[m.frequencyIndex].ID
 		log.Println("Saving frequency", frequencyId)
-		state.State.ChatState[frequencyId] = state.FrequencyState{
+		state.State.ChatState[frequencyId] = state.ChatState{
 			IncompleteMessage: m.vi.String(),
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
@@ -724,7 +732,7 @@ func (m *Model) ResetBeforeSwitch() {
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
 		log.Println("Saving signal:", receiverId)
-		state.State.ChatState[receiverId] = state.FrequencyState{
+		state.State.ChatState[receiverId] = state.ChatState{
 			IncompleteMessage: m.vi.String(),
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
@@ -951,6 +959,14 @@ func (m *Model) renderMessages(screenHeight int) string {
 	if ok && last == first.ID {
 		m.maxMessagesHeight = height - remainingHeight
 		m.SetIndex(m.index)
+		if s, ok := state.State.ChatState[*id]; ok {
+			s.MaxHeight = m.maxMessagesHeight
+			state.State.ChatState[*id] = s
+		} else {
+			state.State.ChatState[*id] = state.ChatState{
+				MaxHeight: m.maxMessagesHeight,
+			}
+		}
 	}
 
 	var builder strings.Builder

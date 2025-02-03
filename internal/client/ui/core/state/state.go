@@ -13,14 +13,14 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-type FrequencyState struct {
+type ChatState struct {
 	IncompleteMessage string
 	Base              int
 	MaxHeight         int
 }
 
 type state struct {
-	ChatState     map[snowflake.ID]FrequencyState // key is frequency id or receiver id
+	ChatState     map[snowflake.ID]ChatState // key is frequency id or receiver id
 	LastFrequency map[snowflake.ID]snowflake.ID   // key is network id
 
 	Messages    map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
@@ -34,7 +34,7 @@ type state struct {
 }
 
 var State state = state{
-	ChatState:     map[snowflake.ID]FrequencyState{},
+	ChatState:     map[snowflake.ID]ChatState{},
 	LastFrequency: map[snowflake.ID]snowflake.ID{},
 	Messages:      map[snowflake.ID]*btree.BTreeG[data.Message]{},
 	Networks:      map[snowflake.ID]data.Network{},
@@ -167,6 +167,18 @@ func UpdateMessages(info *packet.MessagesInfo) {
 			State.Messages[*msgSource] = bt
 		}
 		bt.ReplaceOrInsert(message)
+	}
+
+	// Note: this is a naive approach
+	// Ideally we check each message that was added/removed
+	// For the frequency/receiver/sender id and only remove that
+	// But it can be very slow when there are thousands of messages
+	// TODO: when msg chunking is implemented, consider doing it per-msg
+	// TODO: consider checking messages count and for small counts use
+	// the per message approach
+	for id, state := range State.ChatState {
+		state.MaxHeight = -1
+		State.ChatState[id] = state
 	}
 }
 
