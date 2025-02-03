@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	BackgroundStyle     = lipgloss.NewStyle().Background(colors.Background)
 	CursorStyle         = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
 	InactiveCursorStyle = lipgloss.NewStyle()
 	VisualStyle         = lipgloss.NewStyle().Background(colors.DarkGray)
@@ -144,7 +145,7 @@ func (m Model) View() string {
 			} else {
 				builder.WriteString(string(line[:m.cursorColumn]))
 				builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-				builder.WriteString(string(line[m.cursorColumn+1:]))
+				builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
 			}
 
 			builder.WriteByte('\n')
@@ -187,7 +188,7 @@ func (m Model) View() string {
 					if len(line) != 0 {
 						cursorChar := string(line[m.cursorColumn])
 						builder.WriteString(cursorStyle.Render(cursorChar))
-						builder.WriteString(string(line[m.cursorColumn+1:]))
+						builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
 					} else {
 						builder.WriteString(cursorStyle.Render(" "))
 					}
@@ -210,7 +211,7 @@ func (m Model) View() string {
 					builder.WriteString(VisualStyle.Render(string(line[safeUpper])))
 				}
 				safeLower := min(safeUpper+1, len(line))
-				builder.WriteString(string(line[safeLower:]))
+				builder.WriteString(BackgroundStyle.Render(string(line[safeLower:])))
 
 				if m.cursorColumn == len(line) {
 					builder.WriteString(cursorStyle.Render(" "))
@@ -226,7 +227,7 @@ func (m Model) View() string {
 				} else {
 					builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
 					builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-					builder.WriteString(string(line[m.cursorColumn+1:]))
+					builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
 				}
 			} else if m.cursorLine == i {
 				// cursor line, highlight after cursor col
@@ -251,7 +252,7 @@ func (m Model) View() string {
 					builder.WriteString(VisualStyle.Render(" "))
 				} else {
 					builder.WriteString(VisualStyle.Render(string(line[:m.vcol+1])))
-					builder.WriteString(string(line[m.vcol+1:]))
+					builder.WriteString(BackgroundStyle.Render(string(line[m.vcol+1:])))
 				}
 			}
 
