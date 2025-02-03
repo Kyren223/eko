@@ -210,7 +210,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		frequency := frequencies[m.frequencyIndex]
 		member := state.State.Members[*networkId][*state.UserID]
 
-		lastMsg := state.GetLastReadMessage(frequency.ID)
+		lastMsg := state.GetLastMessage(frequency.ID)
 		if m.base != SnapToBottom {
 			m.keepLastRead = false
 		} else if lastMsg != nil {
@@ -257,7 +257,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Peers[m.receiverIndex]
 
-		lastMsg := state.GetLastReadMessage(receiverId)
+		lastMsg := state.GetLastMessage(receiverId)
 		if m.base == SnapToBottom && lastMsg != nil {
 			lastReadMsg := state.Data.LastReadMessage[receiverId]
 
@@ -743,8 +743,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		log.Println("Restoring frequency:", frequency.ID)
 
 		m.lastReadMsg = state.Data.LastReadMessage[frequency.ID]
-		if m.lastReadMsg != nil {
-			log.Println("LAST READ MSG", m.lastReadMsg)
+		lastMsg := state.GetLastMessage(frequency.ID)
+		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
 			m.keepLastRead = true
 		}
 
@@ -766,7 +766,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		log.Println("Restoring signal:", receiverId)
 
 		m.lastReadMsg = state.Data.LastReadMessage[receiverId]
-		if m.lastReadMsg != nil {
+		lastMsg := state.GetLastMessage(receiverId)
+		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
 			m.keepLastRead = true
 		}
 
@@ -888,11 +889,6 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 	lastReadId := state.Data.LastReadMessage[*id]
 	if m.keepLastRead {
-		// assert.NotNil(m.lastReadMsg, "TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
-		// assert.Assert(*m.lastReadMsg != *lastReadId, "TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
-		if m.lastReadMsg != nil && lastReadId != nil && *m.lastReadMsg == *lastReadId {
-			log.Println("TODO: REMOVE THIS", "lastReadId", lastReadId, "m.lastReadMsg", m.lastReadMsg)
-		}
 		lastReadId = m.lastReadMsg
 	}
 

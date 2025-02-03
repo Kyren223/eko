@@ -237,7 +237,7 @@ func UpdateTrusteds(info *packet.TrustInfo) {
 	}
 }
 
-func GetLastReadMessage(id snowflake.ID) *snowflake.ID {
+func GetLastMessage(id snowflake.ID) *snowflake.ID {
 	btree := State.Messages[id]
 	if btree == nil {
 		return nil
