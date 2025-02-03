@@ -1880,6 +1880,8 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 				line = append(line, m.lines[m.cursorLine+1]...)
 				m.lines[m.cursorLine] = line
 				m.lines = slices.Delete(m.lines, m.cursorLine+1, m.cursorLine+2)
+			} else {
+				m.lines[m.cursorLine] = line
 			}
 			m.SetCursorColumn(lowerCol)
 		} else {
