@@ -132,10 +132,20 @@ func UserPropagate(
 }
 
 const getNotificationsQuery = `-- name: GetNotifications :many
-WITH entries AS (
+WITH
+entries AS (
   SELECT source_id, last_read
   FROM last_read_messages
   WHERE user_id = ?
+),
+permitted_frequencies AS (
+  SELECT f.id, m.is_admin
+  FROM frequencies f
+  JOIN entries e ON f.id = e.source_id
+  LEFT JOIN members m
+    ON m.user_id = ?
+    AND m.network_id = f.network_id
+  WHERE m.is_member = true AND (f.perms != 0 OR m.is_admin = true)
 )
 SELECT
   e.source_id,
@@ -149,6 +159,7 @@ LEFT JOIN messages m ON m.id > e.last_read
   AND (m.frequency_id = e.source_id OR
     (m.receiver_id = e.source_id AND m.sender_id = ?) OR
     (m.sender_id = e.source_id AND m.receiver_id = ?))
+JOIN permitted_frequencies pf ON e.source_id = pf.id
 GROUP BY e.source_id, e.last_read;
 `
 
