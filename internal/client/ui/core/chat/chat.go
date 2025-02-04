@@ -266,16 +266,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		lastMsg := state.GetLastMessage(receiverId)
-		if m.base == SnapToBottom && lastMsg != nil {
+		if m.base != SnapToBottom {
+			m.keepLastRead = false
+		} else if lastMsg != nil {
 			lastReadMsg := state.Data.LastReadMessage[receiverId]
+			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
+				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
+				m.keepLastRead = false
+			}
 
-			// if m.lastReadMsg != nil && lastReadMsg != nil &&
-			// 	*lastReadMsg != *lastMsg &&
-			// 	*lastReadMsg != *m.lastReadMsg {
-			// 	m.keepLastRead = false
-			// }
-
-			*lastReadMsg = *lastMsg
+			state.Data.LastReadMessage[receiverId] = lastMsg
 		}
 	}
 
