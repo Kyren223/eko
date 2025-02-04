@@ -1,9 +1,11 @@
 package state
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/json"
 	"slices"
+	"time"
 
 	"github.com/google/btree"
 	"github.com/kyren223/eko/internal/client/gateway"
@@ -20,8 +22,8 @@ type ChatState struct {
 }
 
 type state struct {
-	ChatState     map[snowflake.ID]ChatState // key is frequency id or receiver id
-	LastFrequency map[snowflake.ID]snowflake.ID   // key is network id
+	ChatState     map[snowflake.ID]ChatState    // key is frequency id or receiver id
+	LastFrequency map[snowflake.ID]snowflake.ID // key is network id
 
 	Messages    map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
 	Networks    map[snowflake.ID]data.Network                 // key is network id
@@ -30,40 +32,34 @@ type state struct {
 	Users       map[snowflake.ID]data.User                    // key is user id
 	Trusteds    map[snowflake.ID]ed25519.PublicKey            // key is user id
 
-	Notifications map[snowflake.ID]int // key is frequency id or receiver id
+	LastReadMessages map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
+	Notifications    map[snowflake.ID]int           // key is frequency id or receiver id
 }
 
 var State state = state{
-	ChatState:     map[snowflake.ID]ChatState{},
-	LastFrequency: map[snowflake.ID]snowflake.ID{},
-	Messages:      map[snowflake.ID]*btree.BTreeG[data.Message]{},
-	Networks:      map[snowflake.ID]data.Network{},
-	Frequencies:   map[snowflake.ID][]data.Frequency{},
-	Members:       map[snowflake.ID]map[snowflake.ID]data.Member{},
-	Users:         map[snowflake.ID]data.User{},
-	Trusteds:      map[snowflake.ID]ed25519.PublicKey{},
-	Notifications: map[snowflake.ID]int{},
+	ChatState:        map[snowflake.ID]ChatState{},
+	LastFrequency:    map[snowflake.ID]snowflake.ID{},
+	Messages:         map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Networks:         map[snowflake.ID]data.Network{},
+	Frequencies:      map[snowflake.ID][]data.Frequency{},
+	Members:          map[snowflake.ID]map[snowflake.ID]data.Member{},
+	Users:            map[snowflake.ID]data.User{},
+	Trusteds:         map[snowflake.ID]ed25519.PublicKey{},
+	Notifications:    map[snowflake.ID]int{},
+	LastReadMessages: map[snowflake.ID]*snowflake.ID{},
 }
 
 type UserData struct {
-	LastReadMessage map[snowflake.ID]*snowflake.ID
-	Networks        []snowflake.ID
-	Peers           []snowflake.ID
+	Networks []snowflake.ID
+	Peers    []snowflake.ID
 }
 
 var Data UserData = UserData{
-	LastReadMessage: map[snowflake.ID]*snowflake.ID{},
-	Networks:        []snowflake.ID{},
-	Peers:           []snowflake.ID{},
+	Networks: []snowflake.ID{},
+	Peers:    []snowflake.ID{},
 }
 
 var UserID *snowflake.ID = nil
-
-var (
-	ReceivedData     = false
-	ReceivedNetworks = false
-	AskedForNotifs   = false
-)
 
 func UpdateNetworks(info *packet.NetworksInfo) {
 	networks := State.Networks
@@ -117,8 +113,6 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 		Data: &data,
 		User: nil,
 	})
-
-	ReceivedNetworks = true
 }
 
 func UpdateFrequencies(info *packet.FrequenciesInfo) {
@@ -232,11 +226,6 @@ func FromJsonUserData(s string) {
 		return
 	}
 	Data = data
-	if Data.LastReadMessage == nil {
-		Data.LastReadMessage = map[snowflake.ID]*snowflake.ID{}
-	}
-
-	ReceivedData = true
 }
 
 func UpdateTrusteds(info *packet.TrustInfo) {
@@ -280,29 +269,46 @@ func UpdateNotifications(info *packet.NotificationsInfo) {
 	}
 }
 
-func AskForNotifs() {
-	source := []snowflake.ID{}
-
-	source = append(source, Data.Peers...)
-	for networkId := range State.Networks {
-		for _, frequency := range State.Frequencies[networkId] {
-			source = append(source, frequency.ID)
-		}
-	}
-
-	lastReadId := make([]snowflake.ID, 0, len(source))
-
-	for _, source := range source {
-		id := Data.LastReadMessage[source]
-		if id == nil {
-			lastReadId = append(lastReadId, 0)
-		} else {
-			lastReadId = append(lastReadId, *id)
-		}
-	}
-
-	gateway.SendAsync(&packet.GetNotifications{
-		Source:     source,
-		LastReadId: lastReadId,
+func SendFinalData() {
+	data := JsonUserData()
+	ch1 := gateway.SendAsync(&packet.SetUserData{
+		Data: &data,
+		User: nil,
 	})
+
+	sources := []snowflake.ID{}
+
+	sources = append(sources, Data.Peers...)
+	for _, frequencies := range State.Frequencies {
+		for _, frequency := range frequencies {
+			sources = append(sources, frequency.ID)
+		}
+	}
+
+	lastReads := make([]int64, 0, len(sources))
+	for _, source := range sources {
+		if lastRead := State.LastReadMessages[source]; lastRead != nil {
+			lastReads = append(lastReads, int64(*lastRead))
+		} else {
+			lastReads = append(lastReads, 0)
+		}
+	}
+
+	ch2 := gateway.SendAsync(&packet.SetLastReadMessages{
+		Source:   sources,
+		LastRead: lastReads,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	select {
+	case <-ctx.Done():
+	case <-ch1:
+	}
+
+	select {
+	case <-ctx.Done():
+	case <-ch2:
+	}
 }

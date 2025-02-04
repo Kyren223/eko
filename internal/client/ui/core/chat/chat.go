@@ -218,13 +218,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.base != SnapToBottom {
 			m.keepLastRead = false
 		} else if lastMsg != nil {
-			lastReadMsg := state.Data.LastReadMessage[frequency.ID]
+			lastReadMsg := state.State.LastReadMessages[frequency.ID]
 			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
 				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
 				m.keepLastRead = false
 			}
 
-			state.Data.LastReadMessage[frequency.ID] = lastMsg
+			state.State.LastReadMessages[frequency.ID] = lastMsg
 		}
 
 		m.hasReadAccess = frequency.Perms != packet.PermNoAccess || member.IsAdmin
@@ -269,13 +269,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.base != SnapToBottom {
 			m.keepLastRead = false
 		} else if lastMsg != nil {
-			lastReadMsg := state.Data.LastReadMessage[receiverId]
+			lastReadMsg := state.State.LastReadMessages[receiverId]
 			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
 				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
 				m.keepLastRead = false
 			}
 
-			state.Data.LastReadMessage[receiverId] = lastMsg
+			state.State.LastReadMessages[receiverId] = lastMsg
 		}
 	}
 
@@ -750,7 +750,7 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
 
-		m.lastReadMsg = state.Data.LastReadMessage[frequency.ID]
+		m.lastReadMsg = state.State.LastReadMessages[frequency.ID]
 		lastMsg := state.GetLastMessage(frequency.ID)
 		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
 			m.keepLastRead = true
@@ -773,7 +773,7 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		receiverId := state.Data.Peers[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
-		m.lastReadMsg = state.Data.LastReadMessage[receiverId]
+		m.lastReadMsg = state.State.LastReadMessages[receiverId]
 		lastMsg := state.GetLastMessage(receiverId)
 		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
 			m.keepLastRead = true
@@ -895,7 +895,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 	renderedGroups := []string{}
 	group := []data.Message{}
 
-	lastReadId := state.Data.LastReadMessage[*id]
+	lastReadId := state.State.LastReadMessages[*id]
 	if m.keepLastRead {
 		lastReadId = m.lastReadMsg
 	}

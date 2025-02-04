@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"crypto/ed25519"
 	"fmt"
 	"log"
@@ -189,9 +188,6 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case gateway.ConnectionEstablished:
 		state.UserID = (*snowflake.ID)(&msg)
-		state.ReceivedData = false
-		state.ReceivedNetworks = false
-		state.AskedForNotifs = false
 		m.connected = true
 		m.timeout = initialTimeout
 
@@ -260,26 +256,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
 
-	if state.ReceivedData && state.ReceivedNetworks && !state.AskedForNotifs {
-		state.AskedForNotifs = true
-		state.AskForNotifs()
-	}
-
 	switch msg := msg.(type) {
 	case ui.QuitMsg:
-		data := state.JsonUserData()
-		ch := gateway.SendAsync(&packet.SetUserData{
-			Data: &data,
-			User: nil,
-		})
-
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		select {
-		case <-ctx.Done():
-		case <-ch:
-		}
-		cancel()
-
+		state.SendFinalData() // blocks
 		gateway.Disconnect()
 
 	case gateway.ConnectionLost:
@@ -702,6 +681,7 @@ func (m *Model) HasPopup() bool {
 }
 
 func calculateNotifications() {
+	// TODO: handle notifications for  receiver id
 	for networkId := range state.State.Networks {
 		for _, frequency := range state.State.Frequencies[networkId] {
 			if _, ok := state.State.Messages[frequency.ID]; !ok {
@@ -719,7 +699,7 @@ func calculateNotifications() {
 }
 
 func getFrequencyNotification(networkId, frequencyId snowflake.ID) (_ int, _ bool) {
-	lastReadMsg := state.Data.LastReadMessage[frequencyId]
+	lastReadMsg := state.State.LastReadMessages[frequencyId]
 	if lastReadMsg == nil {
 		return 0, false
 	}
