@@ -369,7 +369,7 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 		response = timeout(10*time.Millisecond, api.TrustUser, ctx, sess, request)
 
 	case *packet.SetLastReadMessages:
-		response = timeout(100*time.Millisecond, api.SetLastReadMessages, ctx, sess, request)
+		response = timeout(50*time.Millisecond, api.SetLastReadMessages, ctx, sess, request)
 
 	default:
 		response = &packet.Error{Error: "use of disallowed packet type for request"}
@@ -389,7 +389,11 @@ func timeout[T packet.Payload](
 ) packet.Payload {
 	// TODO: Remove the channel and just wait directly?
 	responseChan := make(chan packet.Payload)
-	ctx, cancel := context.WithTimeout(ctx, timeoutDuration)
+
+	// FIXME: currently just ignoring the given context
+	// this fixes the issue where the client disconnects so the server
+	// doesn't bother and cancels the request
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
 	go func() {
