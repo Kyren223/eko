@@ -234,13 +234,13 @@ func (m *GetBannedMembers) Type() PacketType {
 	return PacketGetBannedMembers
 }
 
-type GetNotifications struct {
-	Source     []snowflake.ID
-	LastReadId []snowflake.ID
+type SetLastReadMessages struct {
+	Source   []snowflake.ID
+	LastRead []int64
 }
 
-func (m *GetNotifications) Type() PacketType {
-	return PacketGetNotifications
+func (m *SetLastReadMessages) Type() PacketType {
+	return PacketSetLastReadMessages
 }
 
 type NotificationsInfo struct {

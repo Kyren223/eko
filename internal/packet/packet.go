@@ -80,7 +80,7 @@ const (
 	PacketTrustUser
 	PacketTrustInfo
 
-	PacketGetNotifications
+	PacketSetLastReadMessages
 	PacketNotificationsInfo
 
 	PacketMax
@@ -248,8 +248,8 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	case PacketTrustInfo:
 		payload = &TrustInfo{}
 
-	case PacketGetNotifications:
-		payload = &GetNotifications{}
+	case PacketSetLastReadMessages:
+		payload = &SetLastReadMessages{}
 	case PacketNotificationsInfo:
 		payload = &NotificationsInfo{}
 
