@@ -148,7 +148,7 @@ permitted_frequencies AS (
   WHERE m.is_member = true AND (f.perms != 0 OR m.is_admin = true)
 )
 SELECT
-  e.source_id,
+  e.source_id, e.last_read,
   CASE
     WHEN COUNT(m.id) = 0 THEN NULL
     ELSE SUM(CASE WHEN (m.ping = 0 OR (m.ping = 1 AND pf.is_admin = true) OR m.ping = ?) THEN 1 ELSE 0 END)
@@ -173,11 +173,13 @@ func getNotifications(ctx context.Context, userId snowflake.ID) (packet.Notifica
 	var items packet.NotificationsInfo
 	for rows.Next() {
 		var source *snowflake.ID
+		var lastRead *int64
 		var pings *int64
-		if err := rows.Scan(&source, &pings); err != nil {
+		if err := rows.Scan(&source, &lastRead, &pings); err != nil {
 			return packet.NotificationsInfo{}, err
 		}
 		items.Source = append(items.Source, *source)
+		items.LastRead = append(items.LastRead, *lastRead)
 		items.Pings = append(items.Pings, pings)
 	}
 	if err := rows.Close(); err != nil {

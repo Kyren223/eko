@@ -244,8 +244,9 @@ func (m *SetLastReadMessages) Type() PacketType {
 }
 
 type NotificationsInfo struct {
-	Source []snowflake.ID
-	Pings  []*int64
+	Source   []snowflake.ID
+	LastRead []int64
+	Pings    []*int64
 }
 
 func (m *NotificationsInfo) Type() PacketType {

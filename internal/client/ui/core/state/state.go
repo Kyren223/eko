@@ -260,6 +260,9 @@ func SendUserDatUpdate() {
 
 func UpdateNotifications(info *packet.NotificationsInfo) {
 	for i := 0; i < len(info.Source); i++ {
+		lastRead := snowflake.ID(info.LastRead[i])
+		State.LastReadMessages[info.Source[i]] = &lastRead
+
 		ping := info.Pings[i]
 		if ping != nil {
 			State.Notifications[info.Source[i]] = int(*ping)
