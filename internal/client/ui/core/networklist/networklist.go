@@ -136,11 +136,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch key {
 		case "K":
 			if 0 < m.index {
-				return m.Swap(-1)
+				m.Swap(-1)
 			}
 		case "J":
 			if 0 <= m.index && m.index < len(state.State.Networks)-1 {
-				return m.Swap(1)
+				m.Swap(1)
 			}
 		case "k":
 			m.SetIndex(m.index - 1)
@@ -183,17 +183,11 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m *Model) Swap(dir int) (Model, tea.Cmd) {
+func (m *Model) Swap(dir int) {
 	tmp := state.Data.Networks[m.index]
 	state.Data.Networks[m.index] = state.Data.Networks[m.index+dir]
 	state.Data.Networks[m.index+dir] = tmp
 	m.SetIndex(m.index + dir)
-
-	data := state.JsonUserData()
-	return *m, gateway.Send(&packet.SetUserData{
-		Data: &data,
-		User: nil,
-	})
 }
 
 func (m Model) Index() int {

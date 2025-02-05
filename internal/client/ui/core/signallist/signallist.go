@@ -167,11 +167,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.index == len(state.Data.Signals) {
 				m.SetIndex(m.index - 1)
 			}
-			data := state.JsonUserData()
-			return m, gateway.Send(&packet.SetUserData{
-				Data: &data,
-				User: nil,
-			})
 
 		case "T":
 			if m.index == -1 {

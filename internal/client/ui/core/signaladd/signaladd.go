@@ -9,12 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/field"
 	"github.com/kyren223/eko/internal/client/ui/layouts/flex"
-	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
@@ -182,9 +180,5 @@ func (m *Model) Select() (tea.Cmd, int) {
 	state.Data.Signals = slices.Insert(state.Data.Signals, 0, id)
 	log.Println("Signals:", state.Data.Signals)
 
-	data := state.JsonUserData()
-	return gateway.Send(&packet.SetUserData{
-		Data: &data,
-		User: nil,
-	}), 0
+	return nil, 0
 }
