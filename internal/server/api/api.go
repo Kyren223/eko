@@ -1091,19 +1091,19 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 		return &ErrInternalError
 	}
 
+	// Note: it is possible to edit your messages in any context
+	// regardless if you are in the network or if you have access to
+	// the frequency (or a user signal), as long as you know the message ID
+	// This should be fine but may be changed later to be more strict
+	if message.SenderID != sess.ID() {
+		return &ErrPermissionDenied
+	}
+
 	if message.FrequencyID != nil {
 		frequency, err := queries.GetFrequencyById(ctx, *message.FrequencyID)
 		if err != nil {
 			log.Println("database error 1:", err)
 			return &ErrInternalError
-		}
-
-		// Note: it is possible to edit your messages in any frequency
-		// regardless if you are in the network or if you have access to
-		// the frequency, as long as you know the message ID
-		// This should be fine but may be changed later to be more strict
-		if message.SenderID != sess.ID() {
-			return &ErrPermissionDenied
 		}
 
 		editedMessage, err := queries.EditMessage(ctx, data.EditMessageParams{
@@ -1128,7 +1128,19 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 	}
 
 	if message.ReceiverID != nil {
-		return &ErrNotImplemented
+		editedMessage, err := queries.EditMessage(ctx, data.EditMessageParams{
+			Content: content,
+			ID:      message.ID,
+		})
+		if err != nil {
+			log.Println("database error 4:", err)
+			return &ErrInternalError
+		}
+
+		return UserPropagate(ctx, sess, *message.ReceiverID, &packet.MessagesInfo{
+			Messages:        []data.Message{editedMessage},
+			RemovedMessages: nil,
+		})
 	}
 
 	assert.Never("unreachable")
