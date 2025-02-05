@@ -51,12 +51,12 @@ var State state = state{
 
 type UserData struct {
 	Networks []snowflake.ID
-	Peers    []snowflake.ID
+	Signals    []snowflake.ID
 }
 
 var Data UserData = UserData{
 	Networks: []snowflake.ID{},
-	Peers:    []snowflake.ID{},
+	Signals:    []snowflake.ID{},
 }
 
 var UserID *snowflake.ID = nil
@@ -281,7 +281,7 @@ func SendFinalData() {
 
 	sources := []snowflake.ID{}
 
-	sources = append(sources, Data.Peers...)
+	sources = append(sources, Data.Signals...)
 	for _, frequencies := range State.Frequencies {
 		for _, frequency := range frequencies {
 			sources = append(sources, frequency.ID)

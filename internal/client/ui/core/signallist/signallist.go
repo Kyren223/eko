@@ -1,4 +1,4 @@
-package peerlist
+package signallist
 
 import (
 	"bytes"
@@ -30,7 +30,7 @@ var (
 
 	margin    = 2
 	padding   = 1
-	peerStyle = lipgloss.NewStyle().
+	signalStyle = lipgloss.NewStyle().
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
 	symbolWidth      = 2
@@ -64,7 +64,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	peerStyle := peerStyle.Width(m.width - (margin * 2))
+	signalStyle := signalStyle.Width(m.width - (margin * 2))
 	backgroundStyle := BackgroundStyle.Width(m.width)
 	maxUserWidth := m.width - widthWithoutUser
 
@@ -73,13 +73,13 @@ func (m Model) View() string {
 	builder.WriteString(m.renderHeader())
 
 	builder.WriteString("\n")
-	peers := m.Peers()
-	upper := min(m.base+m.height, len(peers))
-	peers = peers[m.base:upper]
-	for i, peer := range peers {
-		peerStyle := peerStyle
+	signals := m.Signals()
+	upper := min(m.base+m.height, len(signals))
+	signals = signals[m.base:upper]
+	for i, signal := range signals {
+		signalStyle := signalStyle
 
-		user := state.State.Users[peer]
+		user := state.State.Users[signal]
 		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
@@ -91,7 +91,7 @@ func (m Model) View() string {
 		}
 
 		if m.index == m.base+i {
-			peerStyle = peerStyle.Background(colors.BackgroundHighlight)
+			signalStyle = signalStyle.Background(colors.BackgroundHighlight)
 			userStyle = userStyle.Background(colors.BackgroundHighlight)
 		}
 
@@ -114,7 +114,7 @@ func (m Model) View() string {
 				Render(username) + ellipsisStyle.Render(ellipsis)
 		}
 
-		builder.WriteString(backgroundStyle.Render(peerStyle.Render(username)))
+		builder.WriteString(backgroundStyle.Render(signalStyle.Render(username)))
 		builder.WriteString("\n")
 	}
 
@@ -150,7 +150,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "g":
 			m.SetIndex(0)
 		case "G":
-			m.SetIndex(len(m.Peers()) - 1)
+			m.SetIndex(len(m.Signals()) - 1)
 		case "ctrl+u":
 			m.SetIndex(m.index - m.height/2)
 		case "ctrl+d":
@@ -163,8 +163,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.index == -1 {
 				return m, nil
 			}
-			state.Data.Peers = slices.Delete(state.Data.Peers, m.index, m.index+1)
-			if m.index == len(state.Data.Peers) {
+			state.Data.Signals = slices.Delete(state.Data.Signals, m.index, m.index+1)
+			if m.index == len(state.Data.Signals) {
 				m.SetIndex(m.index - 1)
 			}
 			data := state.JsonUserData()
@@ -177,7 +177,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.index == -1 {
 				return m, nil
 			}
-			userId := state.Data.Peers[m.index]
+			userId := state.Data.Signals[m.index]
 
 			_, isTrusting := state.State.Trusteds[userId]
 
@@ -200,8 +200,8 @@ func (m *Model) Blur() {
 	m.focus = false
 }
 
-func (m Model) Peers() []snowflake.ID {
-	return state.Data.Peers
+func (m Model) Signals() []snowflake.ID {
+	return state.Data.Signals
 }
 
 func (m *Model) Index() int {
@@ -209,7 +209,7 @@ func (m *Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	m.index = min(max(index, 0), len(m.Peers())-1)
+	m.index = min(max(index, 0), len(m.Signals())-1)
 	if m.index < m.base {
 		m.base = max(m.index, 0)
 	} else if m.index >= m.base+m.height {
@@ -222,7 +222,7 @@ func (m Model) renderHeader() string {
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
-	peersName := nameStyle.Render("User Signals")
+	signalsName := nameStyle.Render("User Signals")
 
 	userIdStyle := userIdStyle.Width(m.width)
 	if m.focus {
@@ -231,7 +231,7 @@ func (m Model) renderHeader() string {
 	id := "Your User ID\n" + strconv.FormatInt(int64(*state.UserID), 10)
 	userId := userIdStyle.Render(id)
 
-	return lipgloss.JoinVertical(0, peersName, userId)
+	return lipgloss.JoinVertical(0, signalsName, userId)
 }
 
 func (m *Model) SetWidth(width int) {

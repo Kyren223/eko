@@ -25,8 +25,8 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkupdate"
-	"github.com/kyren223/eko/internal/client/ui/core/peeradd"
-	"github.com/kyren223/eko/internal/client/ui/core/peerlist"
+	"github.com/kyren223/eko/internal/client/ui/core/signaladd"
+	"github.com/kyren223/eko/internal/client/ui/core/signallist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
@@ -77,9 +77,9 @@ type Model struct {
 	frequencyUpdatePopup   *frequencyupdate.Model
 	banReasonPopup         *banreason.Model
 	banViewPopup           *banview.Model
-	peerAddPopup           *peeradd.Model
+	signalAddPopup         *signaladd.Model
 	networkList            networklist.Model
-	peerList               peerlist.Model
+	signalList             signallist.Model
 	frequencyList          frequencylist.Model
 	memberList             memberlist.Model
 	chat                   chat.Model
@@ -103,9 +103,9 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		frequencyUpdatePopup:   nil,
 		banReasonPopup:         nil,
 		banViewPopup:           nil,
-		peerAddPopup:           nil,
+		signalAddPopup:         nil,
 		networkList:            networklist.New(),
-		peerList:               peerlist.New(),
+		signalList:             signallist.New(),
 		frequencyList:          frequencylist.New(),
 		memberList:             memberlist.New(),
 		chat:                   chat.New(),
@@ -127,8 +127,8 @@ func (m Model) View() string {
 
 	networkList := m.networkList.View()
 	var leftSidebar string
-	if m.networkList.Index() == networklist.PeersIndex {
-		leftSidebar = m.peerList.View()
+	if m.networkList.Index() == networklist.SignalsIndex {
+		leftSidebar = m.signalList.View()
 	} else {
 		leftSidebar = m.frequencyList.View()
 	}
@@ -161,8 +161,8 @@ func (m Model) View() string {
 		popup = m.banReasonPopup.View()
 	} else if m.banViewPopup != nil {
 		popup = m.banViewPopup.View()
-	} else if m.peerAddPopup != nil {
-		popup = m.peerAddPopup.View()
+	} else if m.signalAddPopup != nil {
+		popup = m.signalAddPopup.View()
 	}
 
 	if popup != "" {
@@ -251,7 +251,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	// log.Println("sidebarWidth:", sidebarWidth)
 	// log.Println("chatWidth:", chatWidth)
 
-	m.peerList.SetWidth(sidebarWidth)
+	m.signalList.SetWidth(sidebarWidth)
 	m.frequencyList.SetWidth(sidebarWidth)
 	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
@@ -284,7 +284,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	case *packet.NetworksInfo:
 		state.UpdateNetworks(msg)
 		networkId := state.NetworkId(m.networkList.Index())
-		if networkId == nil && m.networkList.Index() != networklist.PeersIndex {
+		if networkId == nil && m.networkList.Index() != networklist.SignalsIndex {
 			m.networkList.SetIndex(m.networkList.Index() - 1)
 			m.frequencyList.SetNetworkIndex(m.networkList.Index())
 			m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
@@ -344,7 +344,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					return nil
 				}
 			case FocusLeftSidebar:
-				if !m.HasPopup() && m.networkList.Index() != networklist.PeersIndex {
+				if !m.HasPopup() && m.networkList.Index() != networklist.SignalsIndex {
 					networkId := state.NetworkId(m.networkList.Index())
 					if networkId == nil {
 						return nil
@@ -366,9 +366,9 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					m.networkJoinPopup = &popup
 					return nil
 				}
-				if m.focus == FocusLeftSidebar && m.networkList.Index() == networklist.PeersIndex {
-					popup := peeradd.New()
-					m.peerAddPopup = &popup
+				if m.focus == FocusLeftSidebar && m.networkList.Index() == networklist.SignalsIndex {
+					popup := signaladd.New()
+					m.signalAddPopup = &popup
 					return nil
 				}
 			}
@@ -376,7 +376,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		case "i":
 			index := m.networkList.Index()
 			networkFocus := m.focus == FocusNetworkList
-			if !m.HasPopup() && networkFocus && index != networklist.PeersIndex {
+			if !m.HasPopup() && networkFocus && index != networklist.SignalsIndex {
 				networkId := state.NetworkId(index)
 				if networkId != nil {
 					_ = clipboard.WriteAll(networkId.String())
@@ -388,7 +388,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			index := m.networkList.Index()
 			networkFocus := m.focus == FocusNetworkList
 			frequencyFocus := m.focus == FocusLeftSidebar
-			if !m.HasPopup() && networkFocus && index != networklist.PeersIndex {
+			if !m.HasPopup() && networkFocus && index != networklist.SignalsIndex {
 				networkId := state.NetworkId(index)
 				if networkId == nil {
 					return nil
@@ -429,8 +429,8 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				case FocusNetworkList:
 					m.helpPopup = NewHelpPopup(HelpNetworkList)
 				case FocusLeftSidebar:
-					if m.networkList.Index() == networklist.PeersIndex {
-						m.helpPopup = NewHelpPopup(HelpPeerList)
+					if m.networkList.Index() == networklist.SignalsIndex {
+						m.helpPopup = NewHelpPopup(HelpSignalList)
 					} else {
 						m.helpPopup = NewHelpPopup(HelpFrequencyList)
 					}
@@ -461,7 +461,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				m.networkJoinPopup = nil
 				m.banReasonPopup = nil
 				m.banViewPopup = nil
-				m.peerAddPopup = nil
+				m.signalAddPopup = nil
 			}
 
 		case "enter":
@@ -511,11 +511,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				return cmd
 			} else if m.banViewPopup != nil {
 				m.banViewPopup = nil
-			} else if m.peerAddPopup != nil {
-				cmd, i := m.peerAddPopup.Select()
+			} else if m.signalAddPopup != nil {
+				cmd, i := m.signalAddPopup.Select()
 				if i != -1 {
-					m.peerAddPopup = nil
-					m.peerList.SetIndex(i)
+					m.signalAddPopup = nil
+					m.signalList.SetIndex(i)
 				}
 				return cmd
 			}
@@ -547,11 +547,11 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.networkList, cmd = m.networkList.Update(msg)
 	cmds = append(cmds, cmd)
 
-	if m.networkList.Index() == networklist.PeersIndex {
-		m.peerList, cmd = m.peerList.Update(msg)
+	if m.networkList.Index() == networklist.SignalsIndex {
+		m.signalList, cmd = m.signalList.Update(msg)
 		cmds = append(cmds, cmd)
 
-		cmd = m.chat.SetReceiver(m.peerList.Index())
+		cmd = m.chat.SetReceiver(m.signalList.Index())
 		cmds = append(cmds, cmd)
 	} else {
 		m.frequencyList.SetNetworkIndex(m.networkList.Index())
@@ -589,7 +589,7 @@ func (m *Model) move(direction int) {
 
 	switch m.focus {
 	case FocusNetworkList:
-		m.peerList.Blur()
+		m.signalList.Blur()
 		m.frequencyList.Blur()
 		m.memberList.Blur()
 		m.chat.Blur()
@@ -598,21 +598,21 @@ func (m *Model) move(direction int) {
 		m.networkList.Blur()
 		m.memberList.Blur()
 		m.chat.Blur()
-		if m.networkList.Index() == networklist.PeersIndex {
+		if m.networkList.Index() == networklist.SignalsIndex {
 			m.frequencyList.Blur()
-			m.peerList.Focus()
+			m.signalList.Focus()
 		} else {
-			m.peerList.Blur()
+			m.signalList.Blur()
 			m.frequencyList.Focus()
 		}
 	case FocusChat:
-		m.peerList.Blur()
+		m.signalList.Blur()
 		m.networkList.Blur()
 		m.memberList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Focus()
 	case FocusRightSidebar:
-		m.peerList.Blur()
+		m.signalList.Blur()
 		m.networkList.Blur()
 		m.frequencyList.Blur()
 		m.chat.Blur()
@@ -659,9 +659,9 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 		popup, cmd := m.banViewPopup.Update(msg)
 		m.banViewPopup = &popup
 		return cmd
-	} else if m.peerAddPopup != nil {
-		popup, cmd := m.peerAddPopup.Update(msg)
-		m.peerAddPopup = &popup
+	} else if m.signalAddPopup != nil {
+		popup, cmd := m.signalAddPopup.Update(msg)
+		m.signalAddPopup = &popup
 		return cmd
 	}
 	return nil
@@ -677,7 +677,7 @@ func (m *Model) HasPopup() bool {
 		m.networkJoinPopup != nil ||
 		m.banReasonPopup != nil ||
 		m.banViewPopup != nil ||
-		m.peerAddPopup != nil
+		m.signalAddPopup != nil
 }
 
 func calculateNotifications() {

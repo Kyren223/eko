@@ -16,20 +16,20 @@ var (
 	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDimmer).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
-	selectedIndicator   = "🭀\n▌\n🭛"
-	notification        = " \n◗\n "
-	peersIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
-	peersButton         = peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
-	peersButtonSelected = lipgloss.JoinHorizontal(
+	selectedIndicator     = "🭀\n▌\n🭛"
+	notification          = " \n◗\n "
+	signalsIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
+	signalsButton         = signalsIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
+	signalsButtonSelected = lipgloss.JoinHorizontal(
 		ui.Center,
 		selectedIndicator,
-		peersIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
+		signalsIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
 	)
 
 	backgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDimmer)
 )
 
-const PeersIndex = -1
+const SignalsIndex = -1
 
 type Model struct {
 	base   int
@@ -41,7 +41,7 @@ type Model struct {
 func New() Model {
 	return Model{
 		base:   0,
-		index:  PeersIndex,
+		index:  SignalsIndex,
 		height: 1,
 		focus:  false,
 	}
@@ -54,10 +54,10 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	var builder strings.Builder
 	builder.WriteString("\n")
-	if m.index == PeersIndex {
-		builder.WriteString(peersButtonSelected)
+	if m.index == SignalsIndex {
+		builder.WriteString(signalsButtonSelected)
 	} else {
-		builder.WriteString(peersButton)
+		builder.WriteString(signalsButton)
 	}
 	builder.WriteString("\n")
 
@@ -127,7 +127,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.height = ui.Height
 	m.height -= 1 // Inital top margin
 	m.height /= 4 // 4 per icon
-	m.height -= 1 // For peers icon
+	m.height -= 1 // For signals icon
 	m.SetIndex(m.index)
 
 	switch msg := msg.(type) {
@@ -148,7 +148,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(m.index + 1)
 
 		case "Q":
-			if state.UserID == nil || m.index == PeersIndex {
+			if state.UserID == nil || m.index == SignalsIndex {
 				return m, nil
 			}
 			no := false
@@ -163,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			})
 
 		case "D":
-			if state.UserID == nil || m.index == PeersIndex {
+			if state.UserID == nil || m.index == SignalsIndex {
 				return m, nil
 			}
 			return m, gateway.Send(&packet.DeleteNetwork{
@@ -201,8 +201,8 @@ func (m Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	m.index = min(max(index, PeersIndex), len(state.State.Networks)-1)
-	if m.index < m.base && m.index != PeersIndex {
+	m.index = min(max(index, SignalsIndex), len(state.State.Networks)-1)
+	if m.index < m.base && m.index != SignalsIndex {
 		m.base = m.index
 	} else if m.index >= m.base+m.height {
 		m.base = 1 + m.index - m.height

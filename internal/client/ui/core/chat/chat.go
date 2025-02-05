@@ -259,7 +259,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetInactive(false)
 		}
 	} else if m.receiverIndex != -1 {
-		receiverId := state.Data.Peers[m.receiverIndex]
+		receiverId := state.Data.Signals[m.receiverIndex]
 
 		if s, ok := state.State.ChatState[receiverId]; ok {
 			m.maxMessagesHeight = s.MaxHeight
@@ -637,7 +637,7 @@ func (m *Model) sendMessage() tea.Cmd {
 
 	var receiverId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
-		receiverId = &state.Data.Peers[m.receiverIndex]
+		receiverId = &state.Data.Signals[m.receiverIndex]
 	}
 
 	var frequencyId *snowflake.ID = nil
@@ -737,7 +737,7 @@ func (m *Model) ResetBeforeSwitch() {
 		state.SendUserDatUpdate()
 
 	} else if m.receiverIndex != -1 {
-		receiverId := state.Data.Peers[m.receiverIndex]
+		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Saving signal:", receiverId)
 		state.State.ChatState[receiverId] = state.ChatState{
 			IncompleteMessage: m.vi.String(),
@@ -777,7 +777,7 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			FrequencyID: &frequency.ID,
 		})
 	} else if m.receiverIndex != -1 {
-		receiverId := state.Data.Peers[m.receiverIndex]
+		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
 		m.lastReadMsg = state.State.LastReadMessages[receiverId]
@@ -878,7 +878,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		id = &frequencyId
 		btree = state.State.Messages[frequencyId]
 	} else if m.receiverIndex != -1 {
-		receiverId := state.Data.Peers[m.receiverIndex]
+		receiverId := state.Data.Signals[m.receiverIndex]
 		id = &receiverId
 		btree = state.State.Messages[receiverId]
 	}

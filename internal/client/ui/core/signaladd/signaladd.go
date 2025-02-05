@@ -1,4 +1,4 @@
-package peeradd
+package signaladd
 
 import (
 	"errors"
@@ -168,8 +168,8 @@ func (m *Model) Select() (tea.Cmd, int) {
 	assert.NoError(err, "input is already validated to be valid")
 
 	index := -1
-	for i, peer := range state.Data.Peers {
-		if peer == id {
+	for i, signal := range state.Data.Signals {
+		if signal == id {
 			index = i
 			break
 		}
@@ -179,8 +179,8 @@ func (m *Model) Select() (tea.Cmd, int) {
 		return nil, index
 	}
 
-	state.Data.Peers = slices.Insert(state.Data.Peers, 0, id)
-	log.Println("Peers:", state.Data.Peers)
+	state.Data.Signals = slices.Insert(state.Data.Signals, 0, id)
+	log.Println("Signals:", state.Data.Signals)
 
 	data := state.JsonUserData()
 	return gateway.Send(&packet.SetUserData{
