@@ -371,32 +371,38 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case "x", "d":
-			if m.selectedMessage != nil {
-				log.Println("deleting message:", m.selectedMessage)
-				cmd = gateway.Send(&packet.DeleteMessage{
-					Message: m.selectedMessage.ID,
-				})
+			if m.selectedMessage == nil {
+				return m, nil
 			}
+			log.Println("deleting message:", m.selectedMessage)
+			cmd = gateway.Send(&packet.DeleteMessage{
+				Message: m.selectedMessage.ID,
+			})
 
 		case "e":
-			if m.selectedMessage != nil && m.selectedMessage.SenderID == *state.UserID {
-				log.Println("editing message:", m.selectedMessage)
-				m.editingMessage = m.selectedMessage
-
-				m.vi.Reset()
-				m.vi.SetString(m.selectedMessage.Content)
-
-				m.locked = true
-				m.vi.SetMode(viminput.InsertMode)
-				m.vi.SetCursorLine(len(m.vi.Lines()) - 1)
-				m.vi.SetCursorColumn(len(m.vi.Lines()[m.vi.CursorLine()]))
-
-				m.borderStyle = ViEditBorder
-				m.style = editStyle
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			if m.selectedMessage.SenderID != *state.UserID {
+				return m, nil
 			}
 
+			log.Println("editing message:", m.selectedMessage)
+			m.editingMessage = m.selectedMessage
+
+			m.vi.Reset()
+			m.vi.SetString(m.selectedMessage.Content)
+
+			m.locked = true
+			m.vi.SetMode(viminput.InsertMode)
+			m.vi.SetCursorLine(len(m.vi.Lines()) - 1)
+			m.vi.SetCursorColumn(len(m.vi.Lines()[m.vi.CursorLine()]))
+
+			m.borderStyle = ViEditBorder
+			m.style = editStyle
+
 		case "T":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			senderId := m.selectedMessage.SenderID
@@ -414,7 +420,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		// Admin
 		case "K":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			networkId := state.NetworkId(m.networkIndex)
@@ -445,7 +451,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "M":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			networkId := state.NetworkId(m.networkIndex)
@@ -480,7 +486,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "U":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			networkId := state.NetworkId(m.networkIndex)
@@ -515,7 +521,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "B":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			networkId := state.NetworkId(m.networkIndex)
@@ -545,9 +551,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		// Owner
 		case "D":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
+
 			networkId := state.NetworkId(m.networkIndex)
 			network := state.State.Networks[*networkId]
 			senderId := m.selectedMessage.SenderID
@@ -573,7 +580,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "P":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
 			networkId := state.NetworkId(m.networkIndex)

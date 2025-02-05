@@ -1037,7 +1037,20 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 	}
 
 	if message.ReceiverID != nil {
-		return &ErrNotImplemented
+		if message.SenderID != sess.ID() {
+			return &ErrPermissionDenied
+		}
+
+		err = queries.DeleteMessage(ctx, message.ID)
+		if err != nil {
+			log.Println("database error 5:", err)
+			return &ErrInternalError
+		}
+
+		return UserPropagate(ctx, sess, *message.ReceiverID, &packet.MessagesInfo{
+			Messages:        nil,
+			RemovedMessages: []snowflake.ID{message.ID},
+		})
 	}
 
 	assert.Never("unreachable")
