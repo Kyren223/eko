@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -191,8 +192,6 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 		m.connected = true
 		m.timeout = initialTimeout
 
-		requestUserData := gateway.Send(&packet.GetUserData{})
-
 		var setName tea.Cmd
 		if m.name != "" {
 			setName = gateway.Send(&packet.SetUserData{
@@ -206,7 +205,7 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 			m.name = ""
 		}
 
-		return tea.Batch(m.timer.Stop(), requestUserData, setName)
+		return tea.Batch(m.timer.Stop(), setName)
 
 	case gateway.ConnectionFailed:
 		log.Println("failed to connect:", msg)
@@ -323,7 +322,14 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		state.UpdateTrusteds(msg)
 
 	case *packet.NotificationsInfo:
-		state.UpdateNotifications(msg)
+		signals := state.UpdateNotifications(msg)
+		if m.networkList.Index() == networklist.SignalsIndex {
+			m.chat.SetReceiver(-1)
+			state.Data.Signals = slices.Insert(state.Data.Signals, 0, signals...)
+			return m.chat.SetReceiver(m.signalList.Index())
+		} else {
+			state.Data.Signals = slices.Insert(state.Data.Signals, 0, signals...)
+		}
 
 	case ui.BanReasonPopupMsg:
 		popup := banreason.New(msg.User, msg.Network)

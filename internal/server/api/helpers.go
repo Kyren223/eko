@@ -151,15 +151,16 @@ SELECT
   e.source_id, e.last_read,
   CASE
     WHEN COUNT(m.id) = 0 THEN NULL
-    ELSE SUM(CASE WHEN (m.ping = 0 OR (m.ping = 1 AND pf.is_admin = true) OR m.ping = ?) THEN 1 ELSE 0 END)
+    ELSE SUM(CASE WHEN (m.frequency_id IS NULL OR
+	m.ping = 0 OR (m.ping = 1 AND pf.is_admin = true) OR m.ping = ?) THEN 1 ELSE 0 END)
 	-- 0 is @everyone, 1 is @admins, otherwise it's user_id
   END AS pings
 FROM entries e
+LEFT JOIN permitted_frequencies pf ON e.source_id = pf.id
 LEFT JOIN messages m ON m.id > e.last_read
-  AND (m.frequency_id = e.source_id OR
+  AND ((m.frequency_id = e.source_id AND pf.id IS NOT NULL) OR
     (m.receiver_id = e.source_id AND m.sender_id = ?) OR
     (m.sender_id = e.source_id AND m.receiver_id = ?))
-JOIN permitted_frequencies pf ON e.source_id = pf.id
 GROUP BY e.source_id, e.last_read;
 `
 

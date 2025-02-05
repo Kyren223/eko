@@ -11,6 +11,23 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+const insertLastReadMessage = `-- name: InsertLastReadMessage :exec
+INSERT OR IGNORE INTO last_read_messages (
+  user_id, source_id, last_read
+) VALUES (?, ?, ?)
+`
+
+type InsertLastReadMessageParams struct {
+	UserID   snowflake.ID
+	SourceID snowflake.ID
+	LastRead int64
+}
+
+func (q *Queries) InsertLastReadMessage(ctx context.Context, arg InsertLastReadMessageParams) error {
+	_, err := q.db.ExecContext(ctx, insertLastReadMessage, arg.UserID, arg.SourceID, arg.LastRead)
+	return err
+}
+
 const setLastReadMessage = `-- name: SetLastReadMessage :exec
 INSERT INTO last_read_messages (
   user_id, source_id, last_read

@@ -28,8 +28,8 @@ var (
 			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
 			Border(lipgloss.ThickBorder(), false, false, true)
 
-	margin    = 2
-	padding   = 1
+	margin      = 2
+	padding     = 1
 	signalStyle = lipgloss.NewStyle().
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 

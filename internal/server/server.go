@@ -414,6 +414,7 @@ func (server *server) sendInitialPackets(ctx context.Context, sess *session.Sess
 	if payload == &api.ErrInternalError {
 		return false
 	}
+	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
 	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, pkt)
 
@@ -421,6 +422,7 @@ func (server *server) sendInitialPackets(ctx context.Context, sess *session.Sess
 	if payload == &api.ErrInternalError {
 		return false
 	}
+	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
 	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, pkt)
 
@@ -428,6 +430,7 @@ func (server *server) sendInitialPackets(ctx context.Context, sess *session.Sess
 	if err != nil {
 		return false
 	}
+	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
 	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, pkt)
 
@@ -435,6 +438,7 @@ func (server *server) sendInitialPackets(ctx context.Context, sess *session.Sess
 	if payload == &api.ErrInternalError {
 		return false
 	}
+	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
 	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, pkt)
 

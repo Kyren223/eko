@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"log"
 	"slices"
 	"time"
 
@@ -51,12 +52,12 @@ var State state = state{
 
 type UserData struct {
 	Networks []snowflake.ID
-	Signals    []snowflake.ID
+	Signals  []snowflake.ID
 }
 
 var Data UserData = UserData{
 	Networks: []snowflake.ID{},
-	Signals:    []snowflake.ID{},
+	Signals:  []snowflake.ID{},
 }
 
 var UserID *snowflake.ID = nil
@@ -106,12 +107,6 @@ func UpdateNetworks(info *packet.NetworksInfo) {
 	Data.Networks = slices.DeleteFunc(Data.Networks, func(id snowflake.ID) bool {
 		_, ok := State.Networks[id]
 		return !ok
-	})
-
-	data := JsonUserData()
-	gateway.SendAsync(&packet.SetUserData{
-		Data: &data,
-		User: nil,
 	})
 }
 
@@ -225,7 +220,15 @@ func FromJsonUserData(s string) {
 	if err != nil {
 		return
 	}
-	Data = data
+
+	// log.Println("Previous user data:", Data)
+	if data.Networks != nil {
+		Data.Networks = data.Networks
+	}
+	if data.Signals != nil {
+		Data.Signals = data.Signals
+	}
+	log.Println("Updated user data:", Data)
 }
 
 func UpdateTrusteds(info *packet.TrustInfo) {
@@ -250,26 +253,45 @@ func GetLastMessage(id snowflake.ID) *snowflake.ID {
 	return &msg.ID
 }
 
-func SendUserDatUpdate() {
-	data := JsonUserData()
-	gateway.SendAsync(&packet.SetUserData{
-		Data: &data,
-		User: nil,
-	})
+func IsFrequency(id snowflake.ID) bool {
+	// Note this is very expensive and inefficient
+	// A map is better but as most of the time frequencies are iterated
+	// over based on a network id, this would add overhead
+	// And this function is only used once in notifications
+
+	for _, frequencies := range State.Frequencies {
+		for _, frequency := range frequencies {
+			if id == frequency.ID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
-func UpdateNotifications(info *packet.NotificationsInfo) {
+func UpdateNotifications(info *packet.NotificationsInfo) []snowflake.ID {
+	signals := []snowflake.ID{}
+
 	for i := 0; i < len(info.Source); i++ {
+		source := info.Source[i]
 		lastRead := snowflake.ID(info.LastRead[i])
-		State.LastReadMessages[info.Source[i]] = &lastRead
+		State.LastReadMessages[source] = &lastRead
 
 		ping := info.Pings[i]
 		if ping != nil {
-			State.Notifications[info.Source[i]] = int(*ping)
+			// log.Println(source, *ping)
+			State.Notifications[source] = int(*ping)
+			if !IsFrequency(source) && !slices.Contains(Data.Signals, source) {
+				signals = append(signals, source)
+				// log.Println("Signals:", Data.Signals)
+			}
 		} else {
+			// log.Println(source, "deleted")
 			delete(State.Notifications, info.Source[i])
 		}
 	}
+
+	return signals
 }
 
 func SendFinalData() {

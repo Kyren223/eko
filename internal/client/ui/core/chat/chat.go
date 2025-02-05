@@ -277,6 +277,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			state.State.LastReadMessages[receiverId] = lastMsg
 		}
+
+		m.hasReadAccess = true
+		m.hasWriteAccess = true // TODO: implement blocking users
+
+		if m.locked {
+			m.vi.Placeholder = SendMessagePlaceholder
+			m.borderStyle = ViFocusedBorder
+			m.style = focusStyle
+			m.vi.SetInactive(false)
+			m.vi.Focus()
+			if m.editingMessage != nil {
+				m.borderStyle = ViEditBorder
+				m.style = editStyle
+			}
+		} else {
+			m.vi.Placeholder = SendMessagePlaceholder
+			m.borderStyle = ViBlurredBorder
+			m.style = blurStyle
+			m.vi.SetInactive(false)
+		}
 	}
 
 	if !m.focus {
@@ -734,8 +754,6 @@ func (m *Model) ResetBeforeSwitch() {
 			MaxHeight:         m.maxMessagesHeight,
 		}
 
-		state.SendUserDatUpdate()
-
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Saving signal:", receiverId)
@@ -744,8 +762,6 @@ func (m *Model) ResetBeforeSwitch() {
 			Base:              m.base,
 			MaxHeight:         m.maxMessagesHeight,
 		}
-
-		state.SendUserDatUpdate()
 	}
 }
 
@@ -772,6 +788,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			// Don't ask for messages if you already visited this frequency
 			return nil
 		}
+
+		log.Println("Requesting frequency messages")
 		return gateway.Send(&packet.RequestMessages{
 			ReceiverID:  nil,
 			FrequencyID: &frequency.ID,
@@ -795,6 +813,8 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 			// Don't ask for messages if you already visited this frequency
 			return nil
 		}
+
+		log.Println("Requesting signal messages:", receiverId)
 		return gateway.Send(&packet.RequestMessages{
 			ReceiverID:  &receiverId,
 			FrequencyID: nil,

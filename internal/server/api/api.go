@@ -156,6 +156,16 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &ErrInternalError
 		}
 
+		err = queries.InsertLastReadMessage(ctx, data.InsertLastReadMessageParams{
+			UserID:   *request.ReceiverID,
+			SourceID: sess.ID(),
+			LastRead: 0,
+		})
+		if err != nil {
+			log.Println("database error 7:", err)
+			return &ErrInternalError
+		}
+
 		return UserPropagate(ctx, sess, user.ID, &packet.MessagesInfo{
 			Messages:        []data.Message{message},
 			RemovedMessages: nil,
