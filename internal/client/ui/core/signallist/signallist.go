@@ -33,12 +33,24 @@ var (
 	signalStyle = lipgloss.NewStyle().
 			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 
-	symbolWidth      = 2
-	widthWithoutUser = ((margin + padding) * 2) + symbolWidth
+	widthWithoutUser = ((margin + padding) * 2)
 
 	ellipsis = "…"
 
 	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
+
+	notifSymbols = func() []string {
+		notifs := []string{
+			" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
+		}
+		for i, notif := range notifs {
+			notifs[i] = notifStyle.Render(notif)
+		}
+		return notifs
+	}()
+	notifStyle = lipgloss.NewStyle().Inline(true).
+			Foreground(colors.Red).Background(colors.BackgroundDim)
+	notifWidth = 2
 )
 
 type Model struct {
@@ -78,6 +90,7 @@ func (m Model) View() string {
 	signals = signals[m.base:upper]
 	for i, signal := range signals {
 		signalStyle := signalStyle
+		maxUserWidth := maxUserWidth
 
 		user := state.State.Users[signal]
 		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
@@ -90,9 +103,18 @@ func (m Model) View() string {
 			userStyle = ui.UserStyle.Background(colors.BackgroundDim)
 		}
 
+		notif := ""
+		pings := state.State.Notifications[signal]
+		if pings != 0 {
+			notif = notifSymbols[min(pings, 10)-1]
+			maxUserWidth -= notifWidth
+		}
+
 		if m.index == m.base+i {
 			signalStyle = signalStyle.Background(colors.BackgroundHighlight)
 			userStyle = userStyle.Background(colors.BackgroundHighlight)
+			notif = lipgloss.NewStyle().Background(colors.BackgroundHighlight).
+				Render(notif)
 		}
 
 		username := user.Name
@@ -113,8 +135,16 @@ func (m Model) View() string {
 				MaxWidth(maxUserWidth-1).
 				Render(username) + ellipsisStyle.Render(ellipsis)
 		}
+		if m.index == m.base+i {
+			username = lipgloss.NewStyle().Width(maxUserWidth).
+				Background(colors.BackgroundHighlight).Render(username)
+		} else {
+			username = lipgloss.NewStyle().Width(maxUserWidth).
+				Background(colors.BackgroundDim).Render(username)
+		}
 
-		builder.WriteString(backgroundStyle.Render(signalStyle.Render(username)))
+		signal := signalStyle.Render(username + notif)
+		builder.WriteString(backgroundStyle.Render(signal))
 		builder.WriteString("\n")
 	}
 

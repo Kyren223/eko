@@ -48,7 +48,7 @@ var (
 	notifSymbol  = "◗"
 	notifSymbols = func() []string {
 		notifs := []string{
-			" 󰲠", " 󰲢", " 󰲤", " 󰲦 ", " 󰲨 ", " 󰲪 ", " 󰲬 ", " 󰲮 ", " 󰲰 ", " 󰲲 ",
+			" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
 		}
 		for i, notif := range notifs {
 			notifs[i] = notifStyle.Render(notif)

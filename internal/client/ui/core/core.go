@@ -687,7 +687,15 @@ func (m *Model) HasPopup() bool {
 }
 
 func calculateNotifications() {
-	// TODO: handle notifications for  receiver id
+	for _, signal := range state.Data.Signals {
+		if _, ok := state.State.Messages[signal]; !ok {
+			continue
+		}
+
+		pings := getSignalNotification(signal)
+		state.State.Notifications[signal] = pings
+	}
+
 	for networkId := range state.State.Networks {
 		for _, frequency := range state.State.Frequencies[networkId] {
 			if _, ok := state.State.Messages[frequency.ID]; !ok {
@@ -739,4 +747,25 @@ func getFrequencyNotification(networkId, frequencyId snowflake.ID) (_ int, _ boo
 	})
 
 	return pings, hasNotif
+}
+
+func getSignalNotification(signal snowflake.ID) int {
+	lastReadMsg := state.State.LastReadMessages[signal]
+	if lastReadMsg == nil {
+		return 0
+	}
+
+	btree := state.State.Messages[signal]
+	if btree == nil {
+		return 0
+	}
+
+	pings := 0
+
+	btree.AscendGreaterOrEqual(data.Message{ID: *lastReadMsg + 1}, func(item data.Message) bool {
+		pings++
+		return pings <= 10
+	})
+
+	return pings
 }
