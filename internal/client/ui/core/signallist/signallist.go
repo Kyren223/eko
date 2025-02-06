@@ -234,7 +234,7 @@ func (m *Model) Index() int {
 }
 
 func (m *Model) SetIndex(index int) {
-	m.index = min(max(index, 0), len(m.Signals())-1)
+	m.index = min(max(index, -1), len(m.Signals())-1)
 	if m.index < m.base {
 		m.base = max(m.index, 0)
 	} else if m.index >= m.base+m.height {

@@ -710,7 +710,7 @@ func (m *Model) sendMessage() tea.Cmd {
 }
 
 func (m *Model) SetReceiver(receiverIndex int) tea.Cmd {
-	if m.receiverIndex == receiverIndex {
+	if m.receiverIndex == receiverIndex && m.frequencyIndex == -1 {
 		return nil
 	}
 	m.ResetBeforeSwitch()
