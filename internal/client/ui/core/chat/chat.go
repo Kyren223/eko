@@ -902,6 +902,10 @@ func (m *Model) renderMessageBox() string {
 }
 
 func (m *Model) renderMessages(screenHeight int) string {
+	if !m.hasReadAccess {
+		return NoAccess.Width(m.width).Height(screenHeight).String() + "\n"
+	}
+
 	var id *snowflake.ID
 	var btree *btree.BTreeG[data.Message]
 	networkId := state.NetworkId(m.networkIndex)
@@ -916,11 +920,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		btree = state.State.Messages[receiverId]
 	}
 
-	if !m.hasReadAccess {
-		return NoAccess.Width(m.width).Height(screenHeight).String() + "\n"
-	}
-
-	if btree == nil || id == nil {
+	if btree == nil || btree.Len() == 0 || id == nil {
 		if m.frequencyIndex != -1 {
 			return NoMessagesFrequency.Width(m.width).Height(screenHeight).String() + "\n"
 		} else if m.receiverIndex != -1 {
