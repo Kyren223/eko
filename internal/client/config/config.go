@@ -7,27 +7,60 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+
+	"github.com/kyren223/eko/internal/client/ui/colors"
 )
 
 type Config struct {
-	ServerName             string `json:"server_name"`
-	PrivateKeyPath         string `json:"private_key_path"`
-	InsertModeTabToSpace   bool   `json:"insert_mode_tab_to_space"`
-	InsertModeSpacesPerTab uint8  `json:"insert_mode_spaces_per_tab"`
-	InsecureDebugMode      bool   `json:"insecure_debug_mode"`
+	ServerName             string   `json:"server_name"`
+	PrivateKeyPath         string   `json:"private_key_path"`
+	InsertModeTabToSpace   bool     `json:"insert_mode_tab_to_space"`
+	InsertModeSpacesPerTab uint8    `json:"insert_mode_spaces_per_tab"`
+	InsecureDebugMode      bool     `json:"insecure_debug_mode"`
+	Colors                 []string `json:"colors"`
 }
 
 func Default() Config {
+	colors.Save()
+	cols := colors.Get()
+	sColors := make([]string, 0, colors.Count)
+	for _, color := range cols {
+		if color != "" {
+			sColors = append(sColors, colors.ToHex(color))
+		}
+	}
+
 	return Config{
 		ServerName:             "eko.kyren.codes",
 		PrivateKeyPath:         "",
 		InsertModeTabToSpace:   true,
 		InsertModeSpacesPerTab: 4,
 		InsecureDebugMode:      false,
+		Colors:                 sColors,
 	}
 }
 
-func Verify(config *Config) error {
+func VerifyAndFix(config *Config) error {
+	if config.ServerName == "" {
+		config.ServerName = Default().ServerName
+	}
+
+	if config.Colors != nil {
+		for i, color := range config.Colors {
+			if !colors.IsHex(color) {
+				return fmt.Errorf("Color at %v is not a valid hex color", i)
+			}
+		}
+
+		if len(config.Colors) != colors.Count {
+			return fmt.Errorf(
+				"Expected %v colors, got %v colors, set this value to null to use the default colors",
+				colors.Count, len(config.Colors),
+			)
+		}
+
+	}
+
 	return nil
 }
 
@@ -89,7 +122,7 @@ func Load() error {
 
 	config = finalConfig.Interface().(Config)
 
-	err = Verify(&config)
+	err = VerifyAndFix(&config)
 	if err != nil {
 		return err
 	}
