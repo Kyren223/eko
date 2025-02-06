@@ -16,15 +16,8 @@ var (
 	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDimmer).
 			Border(lipgloss.ThickBorder(), false, true, false, false)
 
-	selectedIndicator     = "🭀\n▌\n🭛"
-	notification          = " \n◗\n "
-	signalsIcon           = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
-	signalsButton         = signalsIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
-	signalsButtonSelected = lipgloss.JoinHorizontal(
-		ui.Center,
-		selectedIndicator,
-		signalsIcon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
-	)
+	selectedIndicator = "🭀\n▌\n🭛"
+	notification      = " \n◗\n "
 
 	backgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDimmer)
 )
@@ -53,11 +46,31 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	var builder strings.Builder
+
+	pings := 0
+	for _, signal := range state.Data.Signals {
+		pings += state.State.Notifications[signal]
+	}
+	var signalsIcon lipgloss.Style
+	if pings == 0 {
+		signalsIcon = ui.IconStyle(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer)
+	} else {
+		signalsIcon = ui.IconStyleNotif(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer, pings)
+	}
+
 	builder.WriteString("\n")
 	if m.index == SignalsIndex {
+		signalsButtonSelected := lipgloss.JoinHorizontal(
+			ui.Center,
+			selectedIndicator,
+			signalsIcon.Background(colors.BackgroundDimmer).
+				Padding(0, 1, 1, 0).String(),
+		)
 		builder.WriteString(signalsButtonSelected)
 	} else {
-		builder.WriteString(signalsButton)
+		signalsButtonStyle := signalsIcon.
+			Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
+		builder.WriteString(signalsButtonStyle)
 	}
 	builder.WriteString("\n")
 
