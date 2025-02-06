@@ -49,18 +49,22 @@ var (
 	LeftCorner   = Border.BottomLeft + Border.Bottom
 	RightCorner  = Border.Bottom + Border.BottomRight
 
-	NoMessages = lipgloss.NewStyle().Background(colors.Background).
+	EmptyMsgs = lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
 			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
 			SetString("This frequency has no messages, start transmiting!")
-	NoAccess = NoMessages.SetString("You do not have permission to see messages in this frequency")
+	NoMessagesFrequency = EmptyMsgs.SetString("This frequency has no messages, start transmiting!")
+	NoMessagesSignal    = EmptyMsgs.SetString("This signal has no messages, start transmiting!")
+	NothingSelected     = EmptyMsgs.SetString("You haven't seelcted a signal or frequency yet!")
+	NoAccess            = EmptyMsgs.SetString("You do not have permission to see messages in this frequency")
 
 	SelectedBgStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 	BackgroundStyle = lipgloss.NewStyle().Background(colors.Background)
 
-	SendMessagePlaceholder = "Send a message..."
-	ReadOnlyPlaceholder    = "You do not have permission to send messages in this frequency"
-	MutedPlaceholder       = "You have been muted by a network adminstrator"
+	SendMessagePlaceholder  = "Send a message..."
+	ReadOnlyPlaceholder     = "You do not have permission to send messages in this frequency"
+	MutedPlaceholder        = "You have been muted by a network adminstrator"
+	SelectSignalOrFrequency = "Cannot send messages, select a signal or frequency first"
 
 	EditedIndicator = lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).SetString(" (edited)").String()
@@ -75,10 +79,10 @@ var (
 
 	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
 
-	FrequencyNameStyle = lipgloss.NewStyle().
-				Background(colors.Background).
-				AlignHorizontal(lipgloss.Center).
-				Border(lipgloss.ThickBorder(), false, false, true)
+	nameStyle = lipgloss.NewStyle().
+			Background(colors.Background).
+			AlignHorizontal(lipgloss.Center).
+			Border(lipgloss.ThickBorder(), false, false, true)
 
 	MutedSymbol = lipgloss.NewStyle().
 			Foreground(colors.Red).Render(" 󱡣")
@@ -297,6 +301,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.style = blurStyle
 			m.vi.SetInactive(false)
 		}
+	} else {
+		// On signal, but nothing is selected
+		m.hasReadAccess = true
+		m.hasWriteAccess = false // TODO: implement blocking users
+
+		m.vi.Placeholder = SelectSignalOrFrequency
+		m.borderStyle = ViReadOnlyBorder
+		m.style = readOnlyStyle
+		m.vi.SetInactive(true)
 	}
 
 	if !m.focus {
@@ -908,7 +921,13 @@ func (m *Model) renderMessages(screenHeight int) string {
 	}
 
 	if btree == nil || id == nil {
-		return NoMessages.Width(m.width).Height(screenHeight).String() + "\n"
+		if m.frequencyIndex != -1 {
+			return NoMessagesFrequency.Width(m.width).Height(screenHeight).String() + "\n"
+		} else if m.receiverIndex != -1 {
+			return NoMessagesSignal.Width(m.width).Height(screenHeight).String() + "\n"
+		} else {
+			return NothingSelected.Width(m.width).Height(screenHeight).String() + "\n"
+		}
 	}
 
 	height := screenHeight
@@ -1446,21 +1465,38 @@ func (m *Model) SetWidth(width int) {
 }
 
 func (m *Model) renderFrequencyName() string {
+	name := ""
+	color := colors.White
+
 	networkId := state.NetworkId(m.networkIndex)
-	if m.frequencyIndex == -1 || networkId == nil {
+	if m.frequencyIndex != -1 && networkId != nil {
+		frequency := state.State.Frequencies[*networkId][m.frequencyIndex]
+		color = lipgloss.Color(frequency.HexColor)
+		name = frequency.Name
+	} else if m.receiverIndex != -1 {
+		signal := state.Data.Signals[m.receiverIndex]
+		user := state.State.Users[signal]
+		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
+
+		color = colors.Purple
+		if isTrusted && keysMatch {
+			color = colors.Turquoise
+		} else if isTrusted {
+			color = colors.Red
+		}
+
+		name = user.Name
+	} else {
 		return ""
 	}
 
-	frequency := state.State.Frequencies[*networkId][m.frequencyIndex]
-	color := lipgloss.Color(frequency.HexColor)
-
-	frequencyNameStyle := FrequencyNameStyle.
-		Width(m.width).Foreground(color)
+	nameStyle := nameStyle.Width(m.width).Foreground(color)
 	if m.focus {
-		frequencyNameStyle = frequencyNameStyle.BorderForeground(colors.Focus)
+		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
 
-	return frequencyNameStyle.Render(frequency.Name) + "\n"
+	return nameStyle.Render(name) + "\n"
 }
 
 func (m *Model) Mode() int {
