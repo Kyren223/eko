@@ -18,39 +18,17 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDim).
-			Border(lipgloss.ThickBorder(), false, true, false, false)
-
-	nameStyle = lipgloss.NewStyle().
-			Padding(1).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-	userIdStyle = lipgloss.NewStyle().
-			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-
-	margin      = 2
-	padding     = 1
-	signalStyle = lipgloss.NewStyle().
-			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+	margin  = 2
+	padding = 1
 
 	widthWithoutUser = ((margin + padding) * 2)
 
 	ellipsis = "…"
 
-	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
-
-	notifSymbols = func() []string {
-		notifs := []string{
-			" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
-		}
-		for i, notif := range notifs {
-			notifs[i] = notifStyle.Render(notif)
-		}
-		return notifs
-	}()
-	notifStyle = lipgloss.NewStyle().Inline(true).
-			Foreground(colors.Red).Background(colors.BackgroundDim)
 	notifWidth = 2
+	notifs     = []string{
+		" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
+	}
 )
 
 type Model struct {
@@ -76,8 +54,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	signalStyle := signalStyle.Width(m.width - (margin * 2))
-	backgroundStyle := BackgroundStyle.Width(m.width)
+	signalStyle := lipgloss.NewStyle().Width(m.width-(margin*2)).
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
+	backgroundWidthStyle := backgroundStyle.Width(m.width)
 	maxUserWidth := m.width - widthWithoutUser
 
 	var builder strings.Builder
@@ -106,8 +86,12 @@ func (m Model) View() string {
 		notif := ""
 		pings := state.State.Notifications[signal]
 		if pings != 0 {
-			notif = notifSymbols[min(pings, 10)-1]
+			notif = notifs[min(pings, 10)-1]
+			notif = lipgloss.NewStyle().Inline(true).
+				Foreground(colors.Red).Background(colors.BackgroundDim).
+				Render(notif)
 			maxUserWidth -= notifWidth
+
 		}
 
 		if m.index == m.base+i {
@@ -144,18 +128,21 @@ func (m Model) View() string {
 		}
 
 		signal := signalStyle.Render(username + notif)
-		builder.WriteString(backgroundStyle.Render(signal))
+		builder.WriteString(backgroundWidthStyle.Render(signal))
 		builder.WriteString("\n")
 	}
 
 	sidebar := builder.String()
-	sep := sepStyle.Height(ui.Height)
+
+	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
+		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
+		Border(lipgloss.ThickBorder(), false, true, false, false)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
-	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
 
-	return BackgroundStyle.Render(result)
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
+	return backgroundStyle.Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -243,13 +230,21 @@ func (m *Model) SetIndex(index int) {
 }
 
 func (m Model) renderHeader() string {
-	nameStyle := nameStyle.Background(colors.DarkerCyan).Foreground(colors.Turquoise).Width(m.width)
+	nameStyle := lipgloss.NewStyle().Width(m.width).
+		Padding(1).Align(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		Background(colors.DarkerCyan).Foreground(colors.Turquoise).
+		BorderForeground(colors.White)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
 	signalsName := nameStyle.Render("User Signals")
 
-	userIdStyle := userIdStyle.Width(m.width)
+	userIdStyle := lipgloss.NewStyle().Width(m.width).
+		MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		BorderForeground(colors.White).Foreground(colors.White).
+		Background(colors.BackgroundDim)
 	if m.focus {
 		userIdStyle = userIdStyle.BorderForeground(colors.Focus)
 	}
