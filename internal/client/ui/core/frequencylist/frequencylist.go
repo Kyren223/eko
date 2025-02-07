@@ -17,20 +17,8 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDim).
-			Border(lipgloss.ThickBorder(), false, true, false, false)
-
-	nameStyle = lipgloss.NewStyle().
-			Padding(1).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-	networkIdStyle = lipgloss.NewStyle().
-			MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-
-	margin         = 2
-	padding        = 1
-	frequencyStyle = lipgloss.NewStyle().MaxHeight(1).
-			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+	margin  = 2
+	padding = 1
 
 	symbolReadWrite     = "󰖩 "
 	symbolReadOnly      = "󱛂 "
@@ -41,22 +29,12 @@ var (
 
 	widthWithoutFrequency = ((margin + padding) * 2) + symbolWidth
 
-	ellipsis = "…"
-
-	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
-
-	notifSymbol  = "◗"
-	notifSymbols = func() []string {
-		notifs := []string{
-			" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
-		}
-		for i, notif := range notifs {
-			notifs[i] = notifStyle.Render(notif)
-		}
-		return notifs
-	}()
-	notifStyle = lipgloss.NewStyle().Foreground(colors.Red).Inline(true)
-	notifWidth = 2
+	ellipsis    = "…"
+	notifSymbol = "◗"
+	notifsWidth = 2
+	notifs      = []string{
+		" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
+	}
 )
 
 type Model struct {
@@ -89,8 +67,11 @@ func (m Model) View() string {
 		return ""
 	}
 
-	frequencyStyle := frequencyStyle.Width(m.width - (margin * 2))
-	backgroundStyle := BackgroundStyle.Width(m.width)
+	notifStyle := lipgloss.NewStyle().Foreground(colors.Red).Inline(true)
+	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
+	frequencyStyle := lipgloss.NewStyle().
+		MaxHeight(1).Width(m.width-(margin*2)).
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
 	maxFrequencyWidth := m.width - widthWithoutFrequency
 
 	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
@@ -105,7 +86,7 @@ func (m Model) View() string {
 	frequencies = frequencies[m.base:upper]
 
 	for i, frequency := range frequencies {
-		backgroundStyle := backgroundStyle
+		backgroundStyle := backgroundStyle.Width(m.width)
 		maxFrequencyWidth := maxFrequencyWidth
 
 		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
@@ -129,13 +110,16 @@ func (m Model) View() string {
 		notif := ""
 		pings, hasNotif := state.State.Notifications[frequency.ID]
 		if hasNotif {
+			notifSymbol := lipgloss.NewStyle().
+				Foreground(colors.White).Render(notifSymbol)
 			builder.WriteString(notifSymbol)
 			frequencyStyle = frequencyStyle.MarginLeft(margin - 1)
 			backgroundStyle = backgroundStyle.Width(m.width - 1)
 
 			if pings != 0 {
-				notif = notifSymbols[min(pings, 10)-1]
-				maxFrequencyWidth -= notifWidth
+				notif = notifs[min(pings, 10)-1]
+				notif = notifStyle.Render(notif)
+				maxFrequencyWidth -= notifsWidth
 			}
 		}
 
@@ -158,13 +142,17 @@ func (m Model) View() string {
 	}
 
 	sidebar := builder.String()
-	sep := sepStyle.Height(ui.Height)
+
+	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
+		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
+		Border(lipgloss.ThickBorder(), false, true, false, false)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
+
 	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
 
-	return BackgroundStyle.Render(result)
+	return backgroundStyle.Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -343,13 +331,22 @@ func (m *Model) SetIndex(index int) {
 func (m Model) renderNetworkName() string {
 	bg := lipgloss.Color(m.Network().BgHexColor)
 	fg := lipgloss.Color(m.Network().FgHexColor)
-	nameStyle := nameStyle.Background(bg).Foreground(fg).Width(m.width)
+
+	nameStyle := lipgloss.NewStyle().Width(m.width).
+		Padding(1).Align(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		BorderForeground(colors.White).
+		Background(bg).Foreground(fg)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
 	networkName := nameStyle.Render(m.Network().Name)
 
-	networkIdStyle := networkIdStyle.Width(m.width)
+	networkIdStyle := lipgloss.NewStyle().Width(m.width).
+		MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		Background(colors.BackgroundDim).Foreground(colors.White).
+		BorderForeground(colors.White)
 	if m.focus {
 		networkIdStyle = networkIdStyle.BorderForeground(colors.Focus)
 	}
