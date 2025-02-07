@@ -12,16 +12,6 @@ import (
 	"github.com/kyren223/eko/internal/packet"
 )
 
-var (
-	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDimmer).
-			Border(lipgloss.ThickBorder(), false, true, false, false)
-
-	selectedIndicator = "🭀\n▌\n🭛"
-	notification      = " \n◗\n "
-
-	backgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDimmer)
-)
-
 const SignalsIndex = -1
 
 type Model struct {
@@ -45,6 +35,12 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	selectedIndicator := lipgloss.NewStyle().
+		Foreground(colors.White).Render("🭀\n▌\n🭛")
+
+	notification := lipgloss.NewStyle().
+		Foreground(colors.White).Render(" \n◗\n ")
+
 	var builder strings.Builder
 
 	pings := 0
@@ -123,13 +119,16 @@ func (m Model) View() string {
 
 	result := builder.String()
 
-	sep := sepStyle.Height(ui.Height)
+	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
+		BorderBackground(colors.BackgroundDimmer).BorderForeground(colors.White).
+		Border(lipgloss.ThickBorder(), false, true, false, false)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
+
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
 
-	return backgroundStyle.Render(result)
+	return lipgloss.NewStyle().Background(colors.BackgroundDimmer).Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
