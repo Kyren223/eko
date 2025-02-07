@@ -1315,25 +1315,25 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		if isTrusted && !keysMatch {
-			buf = append(buf, ui.UntrustedSymbol...)
+			buf = append(buf, ui.UntrustedSymbol()...)
 		}
 
 		var senderStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
-				senderStyle = ui.TrustedOwnerStyle
+				senderStyle = ui.TrustedOwnerStyle()
 			} else if member.IsAdmin {
-				senderStyle = ui.TrustedAdminStyle
+				senderStyle = ui.TrustedAdminStyle()
 			} else {
-				senderStyle = ui.TrustedMemberStyle
+				senderStyle = ui.TrustedMemberStyle()
 			}
 		} else {
 			if ownerId == member.UserID {
-				senderStyle = ui.OwnerStyle
+				senderStyle = ui.OwnerStyle()
 			} else if member.IsAdmin {
-				senderStyle = ui.AdminStyle
+				senderStyle = ui.AdminStyle()
 			} else {
-				senderStyle = ui.UserStyle
+				senderStyle = ui.UserStyle()
 			}
 		}
 
@@ -1350,14 +1350,14 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		if isTrusted && !keysMatch {
-			buf = append(buf, ui.UntrustedSymbol...)
+			buf = append(buf, ui.UntrustedSymbol()...)
 		}
 
 		var senderStyle lipgloss.Style
 		if isTrusted && keysMatch {
-			senderStyle = ui.TrustedUserStyle
+			senderStyle = ui.TrustedUserStyle()
 		} else {
-			senderStyle = ui.UserStyle
+			senderStyle = ui.UserStyle()
 		}
 
 		sender := senderStyle.Render(user.Name)

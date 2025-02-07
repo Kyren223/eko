@@ -29,14 +29,14 @@ var (
 	Height  int
 	Program *tea.Program
 
-	UserStyle          = lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉")
-	AdminStyle         = lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏")
-	OwnerStyle         = AdminStyle.Foreground(colors.Gold).SetString("󱟜")
-	TrustedUserStyle   = UserStyle.Foreground(colors.Turquoise).SetString("󰢏")
-	TrustedMemberStyle = UserStyle.SetString("󰢏")
-	TrustedAdminStyle  = AdminStyle.SetString("󱄻")
-	TrustedOwnerStyle  = OwnerStyle.SetString("󱢼")
-	UntrustedSymbol    = lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸")
+	UserStyle          = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Purple).SetString("󰀉") }
+	AdminStyle         = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Red).Bold(true).SetString("󰓏") }
+	OwnerStyle         = func() lipgloss.Style { return AdminStyle().Foreground(colors.Gold).SetString("󱟜") }
+	TrustedUserStyle   = func() lipgloss.Style { return UserStyle().Foreground(colors.Turquoise).SetString("󰢏") }
+	TrustedMemberStyle = func() lipgloss.Style { return UserStyle().SetString("󰢏") }
+	TrustedAdminStyle  = func() lipgloss.Style { return AdminStyle().SetString("󱄻") }
+	TrustedOwnerStyle  = func() lipgloss.Style { return OwnerStyle().SetString("󱢼") }
+	UntrustedSymbol    = func() string { return lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸") }
 )
 
 var NewAuth func() tea.Model

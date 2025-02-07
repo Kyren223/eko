@@ -18,24 +18,13 @@ import (
 )
 
 var (
-	sepStyle = lipgloss.NewStyle().Width(0).BorderBackground(colors.BackgroundDim).
-			Border(lipgloss.ThickBorder(), false, true, false, false)
-
-	headerStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
-			Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-
-	margin      = 2
-	padding     = 1
-	memberStyle = lipgloss.NewStyle().Background(colors.BackgroundDim).
-			Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+	margin  = 2
+	padding = 1
 
 	symbolWidth        = 2
 	widthWithoutMember = ((margin + padding) * 2) + symbolWidth
 
 	ellipsis = "…"
-
-	BackgroundStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
 )
 
 type Model struct {
@@ -77,8 +66,12 @@ func (m Model) View() string {
 		return m.banlist.View()
 	}
 
-	memberStyle := memberStyle.Width(m.width - (margin * 2))
-	backgroundStyle := BackgroundStyle.Width(m.width)
+	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
+
+	memberStyle := lipgloss.NewStyle().Width(m.width-(margin*2)).
+		Background(colors.BackgroundDim).
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+	backgroundWidtStyle := backgroundStyle.Width(m.width)
 	maxMemberWidth := m.width - widthWithoutMember
 	ownerId := state.State.Networks[*networkId].OwnerID
 
@@ -104,25 +97,25 @@ func (m Model) View() string {
 		var userStyle lipgloss.Style
 		if isTrusted && keysMatch {
 			if ownerId == member.UserID {
-				userStyle = ui.TrustedOwnerStyle
+				userStyle = ui.TrustedOwnerStyle()
 			} else if member.IsAdmin {
-				userStyle = ui.TrustedAdminStyle
+				userStyle = ui.TrustedAdminStyle()
 			} else {
-				userStyle = ui.TrustedMemberStyle
+				userStyle = ui.TrustedMemberStyle()
 			}
 		} else {
 			if ownerId == member.UserID {
-				userStyle = ui.OwnerStyle
+				userStyle = ui.OwnerStyle()
 			} else if member.IsAdmin {
-				userStyle = ui.AdminStyle
+				userStyle = ui.AdminStyle()
 			} else {
-				userStyle = ui.UserStyle
+				userStyle = ui.UserStyle()
 			}
 		}
 		memberName := m.Users()[member.UserID].Name
 		memberName = userStyle.Render(memberName)
 		if isTrusted && !keysMatch {
-			memberName = ui.UntrustedSymbol + memberName
+			memberName = ui.UntrustedSymbol() + memberName
 		}
 
 		if lipgloss.Width(memberName) <= maxMemberWidth {
@@ -137,17 +130,20 @@ func (m Model) View() string {
 				Render(memberName) + ellipsisStyle.Render(ellipsis)
 		}
 
-		builder.WriteString(backgroundStyle.Render(memberStyle.Render(memberName)))
+		builder.WriteString(backgroundWidtStyle.Render(memberStyle.Render(memberName)))
 		builder.WriteString("\n")
 	}
 
-	sidebar := BackgroundStyle.Height(ui.Height).Render(builder.String())
-	sep := sepStyle.Height(ui.Height)
+	sidebar := backgroundStyle.Height(ui.Height).Render(builder.String())
+
+	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
+		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
+		Border(lipgloss.ThickBorder(), false, true, false, false)
 	if m.focus {
 		sep = sep.BorderForeground(colors.Focus)
 	}
-	result := lipgloss.JoinHorizontal(lipgloss.Top, sep.String(), sidebar)
 
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sep.String(), sidebar)
 	return result
 }
 
@@ -524,7 +520,11 @@ func (m *Model) SetIndex(index int) {
 }
 
 func (m Model) renderHeader() string {
-	headerStyle := headerStyle.Width(m.width)
+	headerStyle := lipgloss.NewStyle().Width(m.width).
+		Background(colors.BackgroundDim).
+		Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		BorderForeground(colors.White).Foreground(colors.White)
 	if m.focus {
 		headerStyle = headerStyle.BorderForeground(colors.Focus)
 	}

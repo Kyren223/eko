@@ -98,9 +98,9 @@ func (m Model) View() string {
 
 		var userStyle lipgloss.Style
 		if isTrusted && keysMatch {
-			userStyle = ui.TrustedUserStyle.Background(colors.BackgroundDim)
+			userStyle = ui.TrustedUserStyle().Background(colors.BackgroundDim)
 		} else {
-			userStyle = ui.UserStyle.Background(colors.BackgroundDim)
+			userStyle = ui.UserStyle().Background(colors.BackgroundDim)
 		}
 
 		notif := ""
@@ -120,7 +120,7 @@ func (m Model) View() string {
 		username := user.Name
 		username = userStyle.Render(username)
 		if isTrusted && !keysMatch {
-			username = ui.UntrustedSymbol + username
+			username = ui.UntrustedSymbol() + username
 		}
 
 		if lipgloss.Width(username) <= maxUserWidth {
