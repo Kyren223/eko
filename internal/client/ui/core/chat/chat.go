@@ -23,25 +23,31 @@ import (
 )
 
 var (
-	blurStyle     = BackgroundStyle.Foreground(colors.White)
-	focusStyle    = BackgroundStyle.Foreground(colors.Focus)
-	readOnlyStyle = BackgroundStyle.Foreground(colors.Gray)
-	mutedStyle    = BackgroundStyle.Foreground(colors.Red)
-	editStyle     = BackgroundStyle.Foreground(colors.Gold)
+	blurStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White)
+	}
+	focusStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Focus)
+	}
+	readOnlyStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gray)
+	}
+	mutedStyle = func() lipgloss.Style { return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Red) }
+	editStyle  = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gold)
+	}
 
-	ViBlurredBorder = lipgloss.NewStyle().
+	ViBlurredBorder = func() lipgloss.Style {
+		return lipgloss.NewStyle().
 			Background(colors.Background).BorderBackground(colors.Background).
+			BorderForeground(colors.White).
 			Border(lipgloss.RoundedBorder(), true, true, false).
 			Padding(0, 1)
-	ViFocusedBorder  = ViBlurredBorder.BorderForeground(colors.Focus)
-	ViReadOnlyBorder = ViBlurredBorder.BorderForeground(colors.Gray)
-	ViMutedBorder    = ViBlurredBorder.BorderForeground(colors.Red)
-	ViEditBorder     = ViBlurredBorder.BorderForeground(colors.Gold)
-
-	VimModeStyle = lipgloss.NewStyle().Bold(true).Background(colors.Background)
-
-	DateTimeStyle = lipgloss.NewStyle().Background(colors.Background).
-			Foreground(colors.LightGray).SetString("")
+	}
+	ViFocusedBorder  = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Focus) }
+	ViReadOnlyBorder = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gray) }
+	ViMutedBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Red) }
+	ViEditBorder     = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gold) }
 
 	PaddingCount = 1
 	Padding      = strings.Repeat(" ", PaddingCount)
@@ -49,56 +55,54 @@ var (
 	LeftCorner   = Border.BottomLeft + Border.Bottom
 	RightCorner  = Border.Bottom + Border.BottomRight
 
-	EmptyMsgs = lipgloss.NewStyle().Background(colors.Background).
+	EmptyMsgs = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).Padding(0, PaddingCount, 1).
 			AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Bottom).
 			SetString("This frequency has no messages, start transmiting!")
-	NoMessagesFrequency = EmptyMsgs.SetString("This frequency has no messages, start transmiting!")
-	NoMessagesSignal    = EmptyMsgs.SetString("This signal has no messages, start transmiting!")
-	NothingSelected     = EmptyMsgs.SetString("You haven't seelcted a signal or frequency yet!")
-	NoAccess            = EmptyMsgs.SetString("You do not have permission to see messages in this frequency")
-
-	SelectedBgStyle = lipgloss.NewStyle().Background(colors.BackgroundDim)
-	BackgroundStyle = lipgloss.NewStyle().Background(colors.Background)
+	}
+	NoMessagesFrequency = func() lipgloss.Style {
+		return EmptyMsgs().SetString("This frequency has no messages, start transmiting!")
+	}
+	NoMessagesSignal = func() lipgloss.Style { return EmptyMsgs().SetString("This signal has no messages, start transmiting!") }
+	NothingSelected  = func() lipgloss.Style { return EmptyMsgs().SetString("You haven't seelcted a signal or frequency yet!") }
+	NoAccess         = func() lipgloss.Style {
+		return EmptyMsgs().SetString("You do not have permission to see messages in this frequency")
+	}
 
 	SendMessagePlaceholder  = "Send a message..."
 	ReadOnlyPlaceholder     = "You do not have permission to send messages in this frequency"
 	MutedPlaceholder        = "You have been muted by a network adminstrator"
 	SelectSignalOrFrequency = "Cannot send messages, select a signal or frequency first"
 
-	EditedIndicator = lipgloss.NewStyle().Background(colors.Background).
+	EditedIndicator = func() string {
+		return lipgloss.NewStyle().Background(colors.Background).
 			Foreground(colors.LightGray).SetString(" (edited)").String()
-	EditedIndicatorNL = lipgloss.NewStyle().Background(colors.Background).
-				Foreground(colors.LightGray).SetString(" (edited)").String()
-	SelectedEditedIndicator = lipgloss.NewStyle().
-				Foreground(colors.LightGray).Background(colors.BackgroundDim).
-				SetString(" (edited)").String()
-	SelectedEditedIndicatorNL = lipgloss.NewStyle().
-					Foreground(colors.LightGray).Background(colors.BackgroundDim).
-					SetString("\n(edited)").String()
+	}
+	EditedIndicatorNL = func() string {
+		return lipgloss.NewStyle().Background(colors.Background).
+			Foreground(colors.LightGray).SetString(" (edited)").String()
+	}
+	SelectedEditedIndicator = func() string {
+		return lipgloss.NewStyle().
+			Foreground(colors.LightGray).Background(colors.BackgroundDim).
+			SetString(" (edited)").String()
+	}
+	SelectedEditedIndicatorNL = func() string {
+		return lipgloss.NewStyle().
+			Foreground(colors.LightGray).Background(colors.BackgroundDim).
+			SetString("\n(edited)").String()
+	}
 
 	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
 
-	nameStyle = lipgloss.NewStyle().
-			Background(colors.Background).
-			AlignHorizontal(lipgloss.Center).
-			Border(lipgloss.ThickBorder(), false, false, true)
-
-	MutedSymbol = lipgloss.NewStyle().
-			Foreground(colors.Red).Render(" 󱡣")
+	MutedSymbol = func() string { return lipgloss.NewStyle().Foreground(colors.Red).Render(" 󱡣") }
 
 	PingPrefix      = "@"
-	PingedAdmins    = lipgloss.NewStyle().Foreground(colors.Red).SetString("@admins ").String()
-	PingedEveryone  = lipgloss.NewStyle().Foreground(colors.Purple).Render("@everyone ")
-	PingedUserStyle = lipgloss.NewStyle().Foreground(colors.Gold)
+	PingedAdmins    = func() string { return lipgloss.NewStyle().Foreground(colors.Red).SetString("@admins ").String() }
+	PingedEveryone  = func() string { return lipgloss.NewStyle().Foreground(colors.Purple).Render("@everyone ") }
+	PingedUserStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Gold) }
 
-	MessageStyle = lipgloss.NewStyle().Background(colors.Background).
-			PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
-	PingedMessageStyle = lipgloss.NewStyle().
-				MarginLeft(PaddingCount).PaddingLeft(1).PaddingRight(PaddingCount).
-				Border(lipgloss.Border{Left: "┃"}, false, false, false, true)
-
-	NewStyle  = lipgloss.NewStyle().Foreground(colors.Red)
 	NewText   = "━━ NEW ━━"
 	NewSymbol = "━"
 )
@@ -165,8 +169,8 @@ func New() Model {
 		messagesCache:     nil,
 		prerender:         "",
 		width:             -1,
-		style:             blurStyle,
-		borderStyle:       ViBlurredBorder,
+		style:             blurStyle(),
+		borderStyle:       ViBlurredBorder(),
 	}
 }
 
@@ -236,30 +240,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		if member.IsMuted {
 			m.vi.Placeholder = MutedPlaceholder
-			m.borderStyle = ViMutedBorder
-			m.style = mutedStyle
+			m.borderStyle = ViMutedBorder()
+			m.style = mutedStyle()
 			m.vi.SetInactive(true)
 			m.locked = false
 		} else if frequency.Perms != packet.PermReadWrite && !member.IsAdmin {
 			m.vi.Placeholder = ReadOnlyPlaceholder
-			m.borderStyle = ViReadOnlyBorder
-			m.style = readOnlyStyle
+			m.borderStyle = ViReadOnlyBorder()
+			m.style = readOnlyStyle()
 			m.vi.SetInactive(true)
 			m.locked = false
 		} else if m.locked {
 			m.vi.Placeholder = SendMessagePlaceholder
-			m.borderStyle = ViFocusedBorder
-			m.style = focusStyle
+			m.borderStyle = ViFocusedBorder()
+			m.style = focusStyle()
 			m.vi.SetInactive(false)
 			m.vi.Focus()
 			if m.editingMessage != nil {
-				m.borderStyle = ViEditBorder
-				m.style = editStyle
+				m.borderStyle = ViEditBorder()
+				m.style = editStyle()
 			}
 		} else {
 			m.vi.Placeholder = SendMessagePlaceholder
-			m.borderStyle = ViBlurredBorder
-			m.style = blurStyle
+			m.borderStyle = ViBlurredBorder()
+			m.style = blurStyle()
 			m.vi.SetInactive(false)
 		}
 	} else if m.receiverIndex != -1 {
@@ -287,18 +291,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		if m.locked {
 			m.vi.Placeholder = SendMessagePlaceholder
-			m.borderStyle = ViFocusedBorder
-			m.style = focusStyle
+			m.borderStyle = ViFocusedBorder()
+			m.style = focusStyle()
 			m.vi.SetInactive(false)
 			m.vi.Focus()
 			if m.editingMessage != nil {
-				m.borderStyle = ViEditBorder
-				m.style = editStyle
+				m.borderStyle = ViEditBorder()
+				m.style = editStyle()
 			}
 		} else {
 			m.vi.Placeholder = SendMessagePlaceholder
-			m.borderStyle = ViBlurredBorder
-			m.style = blurStyle
+			m.borderStyle = ViBlurredBorder()
+			m.style = blurStyle()
 			m.vi.SetInactive(false)
 		}
 	} else {
@@ -307,8 +311,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.hasWriteAccess = false // TODO: implement blocking users
 
 		m.vi.Placeholder = SelectSignalOrFrequency
-		m.borderStyle = ViReadOnlyBorder
-		m.style = readOnlyStyle
+		m.borderStyle = ViReadOnlyBorder()
+		m.style = readOnlyStyle()
 		m.vi.SetInactive(true)
 	}
 
@@ -324,8 +328,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if inNormalQ || inInsertCtrlQ {
 				m.locked = false
-				m.borderStyle = ViBlurredBorder
-				m.style = blurStyle
+				m.borderStyle = ViBlurredBorder()
+				m.style = blurStyle()
 
 				if m.editingMessage != nil {
 					m.editingMessage = nil
@@ -345,8 +349,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.locked = false
 					m.editingMessage = nil
 
-					m.borderStyle = ViBlurredBorder
-					m.style = blurStyle
+					m.borderStyle = ViBlurredBorder()
+					m.style = blurStyle()
 					m.vi.Reset()
 				} else {
 					cmd = m.sendMessage()
@@ -372,8 +376,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch key {
 		case "i":
 			if !m.vi.Inactive() {
-				m.borderStyle = ViFocusedBorder
-				m.style = focusStyle
+				m.borderStyle = ViFocusedBorder()
+				m.style = focusStyle()
 				m.locked = true
 				m.vi.SetMode(viminput.InsertMode)
 				m.SetIndex(Unselected)
@@ -395,8 +399,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(Unselected)
 		case "enter":
 			if !m.vi.Inactive() {
-				m.borderStyle = ViFocusedBorder
-				m.style = focusStyle
+				m.borderStyle = ViFocusedBorder()
+				m.style = focusStyle()
 				m.locked = true
 				m.vi.SetMode(viminput.InsertMode)
 				m.base = SnapToBottom
@@ -431,8 +435,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.vi.SetCursorLine(len(m.vi.Lines()) - 1)
 			m.vi.SetCursorColumn(len(m.vi.Lines()[m.vi.CursorLine()]))
 
-			m.borderStyle = ViEditBorder
-			m.style = editStyle
+			m.borderStyle = ViEditBorder()
+			m.style = editStyle()
 
 		case "T":
 			if m.selectedMessage == nil || m.receiverIndex != -1 {
@@ -854,19 +858,20 @@ func (m *Model) renderMessageBox() string {
 
 	builder.WriteString(leftAngle)
 	width -= lipgloss.Width(leftAngle)
-	mode := VimModeStyle.Foreground(colors.Gray).Render("  NONE ")
+	vimModeStyle := lipgloss.NewStyle().Bold(true).Background(colors.Background)
+	mode := vimModeStyle.Foreground(colors.Gray).Render("  NONE ")
 	if m.locked {
 		switch m.vi.Mode() {
 		case viminput.InsertMode:
-			mode = VimModeStyle.Foreground(colors.Green).Render("  INSERT ")
+			mode = vimModeStyle.Foreground(colors.Green).Render("  INSERT ")
 		case viminput.NormalMode:
-			mode = VimModeStyle.Foreground(colors.Orange).Render("  NORMAL ")
+			mode = vimModeStyle.Foreground(colors.Orange).Render("  NORMAL ")
 		case viminput.OpendingMode:
-			mode = VimModeStyle.Foreground(colors.Red).Render("  O-PENDING ")
+			mode = vimModeStyle.Foreground(colors.Red).Render("  O-PENDING ")
 		case viminput.VisualMode:
-			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  VISUAL ")
+			mode = vimModeStyle.Foreground(colors.Turquoise).Render("  VISUAL ")
 		case viminput.VisualLineMode:
-			mode = VimModeStyle.Foreground(colors.Turquoise).Render("  V-LINE ")
+			mode = vimModeStyle.Foreground(colors.Turquoise).Render("  V-LINE ")
 		}
 	}
 	builder.WriteString(mode)
@@ -879,8 +884,18 @@ func (m *Model) renderMessageBox() string {
 	countStr := " " + strconv.Itoa(count)
 	if count > MaxCharCount {
 		countStr = lipgloss.NewStyle().Foreground(colors.Red).Render(countStr)
+	} else if m.vi.Inactive() {
+		countStr = lipgloss.NewStyle().Foreground(colors.Gray).Render(countStr)
+	} else {
+		countStr = lipgloss.NewStyle().Foreground(colors.White).Render(countStr)
 	}
-	countStr += " / " + strconv.Itoa(MaxCharCount) + " "
+	countStyle := lipgloss.NewStyle().Background(colors.Background)
+	if m.vi.Inactive() {
+		countStyle = countStyle.Foreground(colors.Gray)
+	} else {
+		countStyle = countStyle.Foreground(colors.White)
+	}
+	countStr += countStyle.Render(" / " + strconv.Itoa(MaxCharCount) + " ")
 	width -= lipgloss.Width(countStr)
 	width -= lipgloss.Width(rightAngle)
 
@@ -890,20 +905,22 @@ func (m *Model) renderMessageBox() string {
 	bottom := strings.Repeat(Border.Bottom, bottomCount)
 	builder.WriteString(m.style.Render(bottom))
 
+	backgroundStyle := lipgloss.NewStyle().Background(colors.Background)
 	builder.WriteString(leftAngle)
-	builder.WriteString(BackgroundStyle.Render(countStr))
+	builder.WriteString(backgroundStyle.Render(countStr))
 	builder.WriteString(rightAngle)
 	builder.WriteString(m.style.Render(RightCorner))
 	builder.WriteByte('\n')
 
 	result := builder.String()
 
-	return lipgloss.NewStyle().Background(colors.Background).Padding(0, PaddingCount).Render(result)
+	return lipgloss.NewStyle().Padding(0, PaddingCount).
+		Background(colors.Background).Render(result)
 }
 
 func (m *Model) renderMessages(screenHeight int) string {
 	if !m.hasReadAccess {
-		return NoAccess.Width(m.width).Height(screenHeight).String() + "\n"
+		return NoAccess().Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
 	var id *snowflake.ID
@@ -922,11 +939,11 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 	if btree == nil || btree.Len() == 0 || id == nil {
 		if m.frequencyIndex != -1 {
-			return NoMessagesFrequency.Width(m.width).Height(screenHeight).String() + "\n"
+			return NoMessagesFrequency().Width(m.width).Height(screenHeight).String() + "\n"
 		} else if m.receiverIndex != -1 {
-			return NoMessagesSignal.Width(m.width).Height(screenHeight).String() + "\n"
+			return NoMessagesSignal().Width(m.width).Height(screenHeight).String() + "\n"
 		} else {
-			return NothingSelected.Width(m.width).Height(screenHeight).String() + "\n"
+			return NothingSelected().Width(m.width).Height(screenHeight).String() + "\n"
 		}
 	}
 
@@ -979,7 +996,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 			lineWidth := m.width - lipgloss.Width(NewText)
 			line := strings.Repeat(NewSymbol, lineWidth)
 
-			newStyle := NewStyle.Width(m.width)
+			newStyle := lipgloss.NewStyle().Foreground(colors.Red).Width(m.width)
 			if m.index == height-remainingHeight {
 				newStyle = newStyle.Background(colors.BackgroundDim)
 			}
@@ -1101,24 +1118,30 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 	checkpoints := make([]int, len(group))
 
 	// Render all messages content
-	messageStyle := MessageStyle.Width(m.width)
-	pingedMessageStyle := PingedMessageStyle.Width(m.width - 2)
+
+	messageStyle := lipgloss.NewStyle().Width(m.width).
+		Background(colors.Background).Foreground(colors.White).
+		PaddingLeft(PaddingCount + 2).PaddingRight(PaddingCount)
+
+	pingedMessageStyle := lipgloss.NewStyle().Width(m.width-2).
+		MarginLeft(PaddingCount).PaddingLeft(1).PaddingRight(PaddingCount).
+		Border(lipgloss.Border{Left: "┃"}, false, false, false, true)
 
 	for i := len(group) - 1; i >= 0; i-- {
 		extra := ""
 		messageStyle := messageStyle
-		backgroundStyle := BackgroundStyle
+		backgroundStyle := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White)
 		if m.frequencyIndex != -1 && group[i].Ping != nil {
 			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[i].Ping {
 			case packet.PingEveryone:
-				extra = PingedEveryone
+				extra = PingedEveryone()
 				messageStyle = pingedMessageStyle.
 					BorderForeground(colors.Purple).
 					Background(colors.MutedPurple)
 				backgroundStyle = backgroundStyle.Background(colors.MutedPurple)
 			case packet.PingAdmins:
-				extra = PingedAdmins
+				extra = PingedAdmins()
 				if members[*state.UserID].IsAdmin {
 					messageStyle = pingedMessageStyle.
 						BorderForeground(colors.Red).
@@ -1130,7 +1153,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				if user, ok := state.State.Users[*group[i].Ping]; ok {
 					name = "@" + user.Name + " "
 				}
-				extra = PingedUserStyle.Render(name)
+				extra = PingedUserStyle().Render(name)
 				if *group[i].Ping == *state.UserID {
 					messageStyle = pingedMessageStyle.
 						BorderForeground(colors.Gold).
@@ -1145,10 +1168,10 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		heights[i] = lipgloss.Height(content)
 		if group[i].Edited {
 			before := heights[i]
-			content = messageStyle.Render(rawContent + EditedIndicator)
+			content = messageStyle.Render(rawContent + EditedIndicator())
 			heights[i] = lipgloss.Height(content)
 			if before != heights[i] {
-				content = messageStyle.Render(rawContent + EditedIndicatorNL)
+				content = messageStyle.Render(rawContent + EditedIndicatorNL())
 				heights[i] = lipgloss.Height(content)
 			}
 		}
@@ -1161,7 +1184,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 	// Gap between each message group
 	if m.index == height-*remaining {
-		gap := SelectedBgStyle.Width(m.width).String()
+		gap := lipgloss.NewStyle().Background(colors.BackgroundDim).Width(m.width).String()
 		buf = append(buf, gap...)
 	}
 	buf = append(buf, '\n')
@@ -1189,21 +1212,20 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 
 		selectedStyle := messageStyle.Background(colors.BackgroundDim)
 		selectedPingedStyle := pingedMessageStyle.Background(colors.BackgroundDim)
-		selectedBackgroundStyle := SelectedBgStyle
+		selectedBackgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim).Foreground(colors.White)
 
 		extra := ""
 		if m.frequencyIndex != -1 && group[selectedIndex].Ping != nil {
-
 			members := state.State.Members[*state.NetworkId(m.networkIndex)]
 			switch *group[selectedIndex].Ping {
 			case packet.PingEveryone:
-				extra = PingedEveryone
+				extra = PingedEveryone()
 				selectedStyle = selectedPingedStyle.
 					BorderForeground(colors.Purple).
 					Background(colors.DarkMutedPurple)
 				selectedBackgroundStyle = selectedBackgroundStyle.Background(colors.DarkMutedPurple)
 			case packet.PingAdmins:
-				extra = PingedAdmins
+				extra = PingedAdmins()
 				if members[*state.UserID].IsAdmin {
 					selectedStyle = selectedPingedStyle.
 						BorderForeground(colors.Red).
@@ -1215,7 +1237,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 				if user, ok := state.State.Users[*group[selectedIndex].Ping]; ok {
 					name = "@" + user.Name + " "
 				}
-				extra = PingedUserStyle.Render(name)
+				extra = PingedUserStyle().Render(name)
 				if *group[selectedIndex].Ping == *state.UserID {
 					selectedStyle = selectedPingedStyle.
 						BorderForeground(colors.Gold).
@@ -1231,10 +1253,10 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		content := selectedStyle.Render(rawContent)
 		if group[selectedIndex].Edited {
 			before := lipgloss.Height(content)
-			content = selectedStyle.Render(rawContent + SelectedEditedIndicator)
+			content = selectedStyle.Render(rawContent + SelectedEditedIndicator())
 			after := lipgloss.Height(content)
 			if before != after {
-				content = selectedStyle.Render(rawContent + SelectedEditedIndicatorNL)
+				content = selectedStyle.Render(rawContent + SelectedEditedIndicatorNL())
 			}
 		}
 
@@ -1245,19 +1267,19 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		for i := selectedIndex - 1; i >= 0; i-- {
 			extra := ""
 			messageStyle := messageStyle
-			backgroundStyle := BackgroundStyle
+			backgroundStyle := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White)
 			if m.frequencyIndex != -1 && group[i].Ping != nil {
 
 				members := state.State.Members[*state.NetworkId(m.networkIndex)]
 				switch *group[i].Ping {
 				case packet.PingEveryone:
-					extra = PingedEveryone
+					extra = PingedEveryone()
 					messageStyle = pingedMessageStyle.
 						BorderForeground(colors.Purple).
 						Background(colors.MutedPurple)
 					backgroundStyle = backgroundStyle.Background(colors.MutedPurple)
 				case packet.PingAdmins:
-					extra = PingedAdmins
+					extra = PingedAdmins()
 					if members[*state.UserID].IsAdmin {
 						messageStyle = pingedMessageStyle.
 							BorderForeground(colors.Red).
@@ -1269,7 +1291,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 					if user, ok := state.State.Users[*group[i].Ping]; ok {
 						name = "@" + user.Name + " "
 					}
-					extra = PingedUserStyle.Render(name)
+					extra = PingedUserStyle().Render(name)
 					if *group[i].Ping == *state.UserID {
 						messageStyle = pingedMessageStyle.
 							BorderForeground(colors.Gold).
@@ -1284,10 +1306,10 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			heights[i] = lipgloss.Height(content)
 			if group[i].Edited {
 				before := heights[i]
-				content = messageStyle.Render(rawContent + EditedIndicator)
+				content = messageStyle.Render(rawContent + EditedIndicator())
 				heights[i] = lipgloss.Height(content)
 				if before != heights[i] {
-					content = messageStyle.Render(rawContent + EditedIndicatorNL)
+					content = messageStyle.Render(rawContent + EditedIndicatorNL())
 					heights[i] = lipgloss.Height(content)
 				}
 			}
@@ -1341,7 +1363,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		buf = append(buf, sender...)
 
 		if member.IsMuted {
-			buf = append(buf, []byte(MutedSymbol)...)
+			buf = append(buf, []byte(MutedSymbol())...)
 		}
 
 	} else if m.receiverIndex != -1 {
@@ -1376,7 +1398,8 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		datetime = unixTime.Format(" 02/01/2006 3:04 PM")
 	}
 
-	dateTimeStyle := DateTimeStyle
+	dateTimeStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.LightGray)
 	if selected {
 		dateTimeStyle = dateTimeStyle.Background(colors.BackgroundDim)
 	}
@@ -1491,7 +1514,11 @@ func (m *Model) renderFrequencyName() string {
 		return ""
 	}
 
-	nameStyle := nameStyle.Width(m.width).Foreground(color)
+	nameStyle := lipgloss.NewStyle().Width(m.width).
+		Background(colors.Background).Foreground(color).
+		AlignHorizontal(lipgloss.Center).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		BorderForeground(colors.White)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
 	}
