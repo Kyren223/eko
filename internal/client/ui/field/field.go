@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 )
 
 type Model struct {
@@ -67,7 +68,9 @@ func (m Model) View() string {
 			Render(header + m.ErrorStyle.Render(" - "+error))
 	}
 
-	field := ui.AddBorderHeader(header, 1, style, m.Input.View()+m.icon)
+	input := m.Input.View() + m.icon
+
+	field := ui.AddBorderHeader(header, 1, style, input)
 	return field
 }
 
@@ -84,6 +87,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) Focus() tea.Cmd {
 	m.Input.PromptStyle = m.FocusedTextStyle
 	m.Input.TextStyle = m.FocusedTextStyle
+	m.Input.Cursor.Style = lipgloss.NewStyle()
+	// Background(m.FocusedTextStyle.GetForeground()).
+	// Foreground(m.FocusedTextStyle.GetBackground())
 	return m.Input.Focus()
 }
 
@@ -91,6 +97,9 @@ func (m *Model) Blur() {
 	m.Input.Blur()
 	m.Input.PromptStyle = m.BlurredTextStyle
 	m.Input.TextStyle = m.BlurredTextStyle
+	// m.Input.Cursor.Style = lipgloss.NewStyle().
+	// 	Background(m.BlurredTextStyle.GetForeground()).
+	// 	Foreground(m.BlurredTextStyle.GetBackground())
 }
 
 func (m *Model) SetWidth(width int) {

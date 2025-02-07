@@ -17,27 +17,17 @@ import (
 )
 
 var (
-	width = 48
-
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(colors.Focus).
-				Border(lipgloss.ThickBorder())
-
-	blurredUpdate = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1).Render("Update User Settings")
-	focusedUpdate = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1).Render("Update User Settings")
+	width         = 48
+	blurredUpdate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Gray).Foreground(colors.White).
+			Render("Update User Settings")
+	}
+	focusedUpdate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Blue).Foreground(colors.White).
+			Render("Update User Settings")
+	}
 )
 
 const (
@@ -61,6 +51,18 @@ type Model struct {
 func New() Model {
 	user, ok := state.State.Users[*state.UserID]
 	assert.Assert(ok, "user should always exist when connected to server")
+
+	headerStyle := lipgloss.NewStyle().Foreground(colors.Turquoise)
+
+	baseStyle := lipgloss.NewStyle().Inline(true).
+		Background(colors.Background).Foreground(colors.White)
+	_ = baseStyle
+	fieldBlurredStyle := lipgloss.NewStyle().Width(width).
+		PaddingLeft(1).Border(lipgloss.RoundedBorder()).
+		BorderBackground(colors.Background).BorderForeground(colors.DarkCyan)
+		// Background(colors.Background).Foreground(colors.White)
+	fieldFocusedStyle := fieldBlurredStyle.Border(lipgloss.ThickBorder()).
+		BorderBackground(colors.Background).BorderForeground(colors.Focus)
 
 	name := field.New(width)
 	name.Header = "Username"
@@ -92,7 +94,7 @@ func New() Model {
 		name:        name,
 		description: description,
 		privateDM:   !user.IsPublicDM,
-		update:      blurredUpdate,
+		update:      blurredUpdate(),
 		selected:    0,
 		nameWidth:   nameWidth,
 	}
@@ -106,7 +108,10 @@ func (m Model) View() string {
 	name := m.name.View()
 	description := m.description.View()
 
-	privateStyle := lipgloss.NewStyle().PaddingLeft(1)
+	width := lipgloss.Width(name)
+
+	privateStyle := lipgloss.NewStyle().Width(width).PaddingLeft(1).
+		Background(colors.Background).Foreground(colors.White)
 	if m.selected == PrivateField {
 		privateStyle = privateStyle.Foreground(colors.Focus)
 	}
@@ -116,10 +121,18 @@ func (m Model) View() string {
 	}
 	private = privateStyle.Render(private)
 
-	update := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.update)
+	update := lipgloss.NewStyle().Width(m.nameWidth).
+		Background(colors.Background).Align(lipgloss.Center).
+		Render(m.update)
 
 	content := flex.NewVertical(name, description, private, update).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Padding(1, 4).Align(lipgloss.Center, lipgloss.Center).
+		Border(lipgloss.ThickBorder()).
+		BorderBackground(colors.Background).BorderForeground(colors.White).
+		Background(colors.Background).Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -160,7 +173,7 @@ func (m *Model) cycle(step int) tea.Cmd {
 func (m *Model) updateFocus() tea.Cmd {
 	m.name.Blur()
 	m.description.Blur()
-	m.update = blurredUpdate
+	m.update = blurredUpdate()
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
@@ -169,7 +182,7 @@ func (m *Model) updateFocus() tea.Cmd {
 	case PrivateField:
 		return nil
 	case UpdateField:
-		m.update = focusedUpdate
+		m.update = focusedUpdate()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)
