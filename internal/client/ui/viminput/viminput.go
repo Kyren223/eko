@@ -13,14 +13,6 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
-var (
-	BackgroundStyle     = lipgloss.NewStyle().Background(colors.Background)
-	CursorStyle         = lipgloss.NewStyle().Background(colors.White).Foreground(colors.Background)
-	InactiveCursorStyle = lipgloss.NewStyle()
-	VisualStyle         = lipgloss.NewStyle().Background(colors.DarkGray)
-	PlaceholderStyle    = lipgloss.NewStyle().Foreground(colors.Gray).Background(colors.Background)
-)
-
 const (
 	Unchanged   = -1
 	InvalidGoal = -1
@@ -111,12 +103,20 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	lines := m.lines
 
-	cursorStyle := CursorStyle
-	if m.inactive {
-		cursorStyle = InactiveCursorStyle
+	backgroundStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+
+	visualStyle := lipgloss.NewStyle().
+		Background(colors.DarkGray).Foreground(colors.White)
+
+	cursorStyle := lipgloss.NewStyle()
+	if !m.inactive {
+		cursorStyle = lipgloss.NewStyle().
+			Background(colors.White).Foreground(colors.Background)
 	}
 
-	placeholderStyle := PlaceholderStyle.MaxWidth(m.width)
+	placeholderStyle := lipgloss.NewStyle().MaxWidth(m.width).
+		Foreground(colors.Gray).Background(colors.Background)
 
 	var builder strings.Builder
 	switch m.mode {
@@ -145,7 +145,7 @@ func (m Model) View() string {
 			} else {
 				builder.WriteString(string(line[:m.cursorColumn]))
 				builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-				builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
+				builder.WriteString(backgroundStyle.Render(string(line[m.cursorColumn+1:])))
 			}
 
 			builder.WriteByte('\n')
@@ -174,9 +174,9 @@ func (m Model) View() string {
 			isInBetween := before || after
 			if isInBetween {
 				// Entire line highlighted
-				builder.WriteString(VisualStyle.Render(string(line)))
+				builder.WriteString(visualStyle.Render(string(line)))
 				if len(line) == 0 {
-					builder.WriteString(VisualStyle.Render(" "))
+					builder.WriteString(visualStyle.Render(" "))
 				}
 			} else if m.cursorLine != i && m.vline != i {
 				// Normal line
@@ -188,7 +188,7 @@ func (m Model) View() string {
 					if len(line) != 0 {
 						cursorChar := string(line[m.cursorColumn])
 						builder.WriteString(cursorStyle.Render(cursorChar))
-						builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
+						builder.WriteString(backgroundStyle.Render(string(line[m.cursorColumn+1:])))
 					} else {
 						builder.WriteString(cursorStyle.Render(" "))
 					}
@@ -204,30 +204,30 @@ func (m Model) View() string {
 					lower++
 				}
 				safeUpper := min(upper, len(line))
-				builder.WriteString(VisualStyle.Render(string(line[lower:safeUpper])))
+				builder.WriteString(visualStyle.Render(string(line[lower:safeUpper])))
 				if m.cursorColumn == safeUpper && m.cursorColumn < len(line) {
 					builder.WriteString(cursorStyle.Render(string(line[safeUpper])))
 				} else if m.vcol == safeUpper && m.vcol < len(line) {
-					builder.WriteString(VisualStyle.Render(string(line[safeUpper])))
+					builder.WriteString(visualStyle.Render(string(line[safeUpper])))
 				}
 				safeLower := min(safeUpper+1, len(line))
-				builder.WriteString(BackgroundStyle.Render(string(line[safeLower:])))
+				builder.WriteString(backgroundStyle.Render(string(line[safeLower:])))
 
 				if m.cursorColumn == len(line) {
 					builder.WriteString(cursorStyle.Render(" "))
 				} else if m.vcol == len(line) {
-					builder.WriteString(VisualStyle.Render(" "))
+					builder.WriteString(visualStyle.Render(" "))
 				}
 
 			} else if m.cursorLine == i && isAnchorBefore {
 				// cursor line, highlight before cursor col
 				if m.cursorColumn == len(line) {
-					builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+					builder.WriteString(visualStyle.Render(string(line[:m.cursorColumn])))
 					builder.WriteString(cursorStyle.Render(" "))
 				} else {
-					builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+					builder.WriteString(visualStyle.Render(string(line[:m.cursorColumn])))
 					builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-					builder.WriteString(BackgroundStyle.Render(string(line[m.cursorColumn+1:])))
+					builder.WriteString(backgroundStyle.Render(string(line[m.cursorColumn+1:])))
 				}
 			} else if m.cursorLine == i {
 				// cursor line, highlight after cursor col
@@ -236,23 +236,23 @@ func (m Model) View() string {
 					builder.WriteString(cursorStyle.Render(" "))
 				} else {
 					builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-					builder.WriteString(VisualStyle.Render(string(line[m.cursorColumn+1:])))
+					builder.WriteString(visualStyle.Render(string(line[m.cursorColumn+1:])))
 				}
 			} else if m.vline == i && isAnchorBefore {
 				// anchor line highlight after col
 				builder.WriteString(string(line[:m.vcol]))
-				builder.WriteString(VisualStyle.Render(string(line[m.vcol:])))
+				builder.WriteString(visualStyle.Render(string(line[m.vcol:])))
 				if m.vcol == len(line) {
-					builder.WriteString(VisualStyle.Render(" "))
+					builder.WriteString(visualStyle.Render(" "))
 				}
 			} else if m.vline == i {
 				// anchor line, highlight before col
 				if m.vcol == len(line) {
-					builder.WriteString(VisualStyle.Render(string(line[:m.vcol])))
-					builder.WriteString(VisualStyle.Render(" "))
+					builder.WriteString(visualStyle.Render(string(line[:m.vcol])))
+					builder.WriteString(visualStyle.Render(" "))
 				} else {
-					builder.WriteString(VisualStyle.Render(string(line[:m.vcol+1])))
-					builder.WriteString(BackgroundStyle.Render(string(line[m.vcol+1:])))
+					builder.WriteString(visualStyle.Render(string(line[:m.vcol+1])))
+					builder.WriteString(backgroundStyle.Render(string(line[m.vcol+1:])))
 				}
 			}
 
@@ -281,19 +281,19 @@ func (m Model) View() string {
 			after := !isAnchorBefore && m.cursorLine < i && i <= m.vline
 			isInBetween := before || after
 			if isInBetween {
-				builder.WriteString(VisualStyle.Render(string(line)))
+				builder.WriteString(visualStyle.Render(string(line)))
 				if len(line) == 0 {
-					builder.WriteString(VisualStyle.Render(" "))
+					builder.WriteString(visualStyle.Render(" "))
 				}
 			} else if m.cursorLine != i {
 				builder.WriteString(string(line))
 			} else if m.cursorColumn == len(m.lines[m.cursorLine]) {
-				builder.WriteString(VisualStyle.Render(string(line)))
+				builder.WriteString(visualStyle.Render(string(line)))
 				builder.WriteString(cursorStyle.Render(" "))
 			} else {
-				builder.WriteString(VisualStyle.Render(string(line[:m.cursorColumn])))
+				builder.WriteString(visualStyle.Render(string(line[:m.cursorColumn])))
 				builder.WriteString(cursorStyle.Render(string(line[m.cursorColumn])))
-				builder.WriteString(VisualStyle.Render(string(line[m.cursorColumn+1:])))
+				builder.WriteString(visualStyle.Render(string(line[m.cursorColumn+1:])))
 			}
 
 			builder.WriteByte('\n')
@@ -305,8 +305,9 @@ func (m Model) View() string {
 
 	result := builder.String()
 	result = result[:len(result)-1] // Remove last \n
-	result = lipgloss.NewStyle().Background(colors.Background).
-		Width(m.width).Height(m.height).Render(result)
+	result = lipgloss.NewStyle().Width(m.width).Height(m.height).
+		Background(colors.Background).Foreground(colors.White).
+		Render(result)
 
 	return result
 }
