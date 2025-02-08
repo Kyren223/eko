@@ -86,9 +86,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) Focus() tea.Cmd {
 	m.Input.PromptStyle = m.FocusedTextStyle
 	m.Input.TextStyle = m.FocusedTextStyle
-	m.Input.Cursor.Style = lipgloss.NewStyle()
-	// Background(m.FocusedTextStyle.GetForeground()).
-	// Foreground(m.FocusedTextStyle.GetBackground())
+	m.Input.Cursor.Style = m.FocusedTextStyle
+	m.Input.Cursor.TextStyle = m.FocusedTextStyle
 	return m.Input.Focus()
 }
 
@@ -96,9 +95,8 @@ func (m *Model) Blur() {
 	m.Input.Blur()
 	m.Input.PromptStyle = m.BlurredTextStyle
 	m.Input.TextStyle = m.BlurredTextStyle
-	// m.Input.Cursor.Style = lipgloss.NewStyle().
-	// 	Background(m.BlurredTextStyle.GetForeground()).
-	// 	Foreground(m.BlurredTextStyle.GetBackground())
+	m.Input.Cursor.Style = m.BlurredTextStyle
+	m.Input.Cursor.TextStyle = m.BlurredTextStyle
 }
 
 func (m *Model) SetWidth(width int) {

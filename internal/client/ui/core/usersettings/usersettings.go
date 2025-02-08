@@ -54,21 +54,24 @@ func New() Model {
 
 	headerStyle := lipgloss.NewStyle().Foreground(colors.Turquoise)
 
-	baseStyle := lipgloss.NewStyle().Inline(true).
+	blurredTextStyle := lipgloss.NewStyle().
 		Background(colors.Background).Foreground(colors.White)
-	_ = baseStyle
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
 	fieldBlurredStyle := lipgloss.NewStyle().Width(width).
 		PaddingLeft(1).Border(lipgloss.RoundedBorder()).
-		BorderBackground(colors.Background).BorderForeground(colors.DarkCyan)
-		// Background(colors.Background).Foreground(colors.White)
-	fieldFocusedStyle := fieldBlurredStyle.Border(lipgloss.ThickBorder()).
-		BorderBackground(colors.Background).BorderForeground(colors.Focus)
+		BorderBackground(colors.Background).BorderForeground(colors.DarkCyan).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).BorderForeground(colors.Focus)
 
 	name := field.New(width)
 	name.Header = "Username"
 	name.HeaderStyle = headerStyle
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
+	name.FocusedTextStyle = focusedTextStyle
+	name.BlurredTextStyle = blurredTextStyle
 	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
 	name.Input.CharLimit = width
 	name.Focus()
@@ -86,6 +89,8 @@ func New() Model {
 	description.HeaderStyle = headerStyle
 	description.FocusedStyle = fieldFocusedStyle
 	description.BlurredStyle = fieldBlurredStyle
+	description.FocusedTextStyle = focusedTextStyle
+	description.BlurredTextStyle = blurredTextStyle
 	description.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
 	description.Input.CharLimit = width
 	description.Input.SetValue(user.Description)
