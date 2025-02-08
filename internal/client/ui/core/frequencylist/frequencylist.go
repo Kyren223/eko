@@ -71,7 +71,8 @@ func (m Model) View() string {
 	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
 	frequencyStyle := lipgloss.NewStyle().
 		MaxHeight(1).Width(m.width-(margin*2)).
-		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left).
+		Background(colors.BackgroundDim).MarginBackground(colors.BackgroundDim)
 	maxFrequencyWidth := m.width - widthWithoutFrequency
 
 	isAdmin := state.State.Members[*networkId][*state.UserID].IsAdmin
@@ -86,10 +87,10 @@ func (m Model) View() string {
 	frequencies = frequencies[m.base:upper]
 
 	for i, frequency := range frequencies {
-		backgroundStyle := backgroundStyle.Width(m.width)
 		maxFrequencyWidth := maxFrequencyWidth
 
-		frequencyStyle := frequencyStyle.Foreground(lipgloss.Color(frequency.HexColor))
+		frequencyStyle := frequencyStyle.
+			Foreground(lipgloss.Color(frequency.HexColor))
 		if m.index == m.base+i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
 		}
@@ -114,7 +115,6 @@ func (m Model) View() string {
 				Foreground(colors.White).Render(notifSymbol)
 			builder.WriteString(notifSymbol)
 			frequencyStyle = frequencyStyle.MarginLeft(margin - 1)
-			backgroundStyle = backgroundStyle.Width(m.width - 1)
 
 			if pings != 0 {
 				notif = notifs[min(pings, 10)-1]
@@ -137,7 +137,7 @@ func (m Model) View() string {
 			Render(frequencyName)
 
 		frequency := frequencyStyle.Render(symbol + frequencyName + notif)
-		builder.WriteString(backgroundStyle.Render(frequency))
+		builder.WriteString(frequency)
 		builder.WriteString("\n")
 	}
 

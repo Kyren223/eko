@@ -55,9 +55,9 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	signalStyle := lipgloss.NewStyle().Width(m.width-(margin*2)).
-		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left).
+		Background(colors.BackgroundDim).MarginBackground(colors.BackgroundDim)
 	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
-	backgroundWidthStyle := backgroundStyle.Width(m.width)
 	maxUserWidth := m.width - widthWithoutUser
 
 	var builder strings.Builder
@@ -128,7 +128,7 @@ func (m Model) View() string {
 		}
 
 		signal := signalStyle.Render(username + notif)
-		builder.WriteString(backgroundWidthStyle.Render(signal))
+		builder.WriteString(signal)
 		builder.WriteString("\n")
 	}
 

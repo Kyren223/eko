@@ -59,10 +59,10 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	memberStyle := lipgloss.NewStyle().Width(m.width-(margin*2)).
 		Background(colors.BackgroundDim).
-		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left)
+		Margin(0, margin).Padding(0, padding).Align(lipgloss.Left).
+		Background(colors.BackgroundDim).MarginBackground(colors.BackgroundDim)
 
 	backgroundStyle := lipgloss.NewStyle().Background(colors.BackgroundDim)
-	backgroundWidthStyle := backgroundStyle.Width(m.width)
 	maxMemberWidth := m.width - widthWithoutMember
 	ownerId := state.State.Networks[m.networkId].OwnerID
 
@@ -121,7 +121,7 @@ func (m Model) View() string {
 				Render(memberName) + ellipsisStyle.Render(ellipsis)
 		}
 
-		builder.WriteString(backgroundWidthStyle.Render(memberStyle.Render(memberName)))
+		builder.WriteString(memberStyle.Render(memberName))
 		builder.WriteString("\n")
 	}
 
