@@ -92,11 +92,11 @@ func (m *Model) Focus() tea.Cmd {
 }
 
 func (m *Model) Blur() {
-	m.Input.Blur()
 	m.Input.PromptStyle = m.BlurredTextStyle
 	m.Input.TextStyle = m.BlurredTextStyle
 	m.Input.Cursor.Style = m.BlurredTextStyle
 	m.Input.Cursor.TextStyle = m.BlurredTextStyle
+	m.Input.Blur()
 }
 
 func (m *Model) SetWidth(width int) {

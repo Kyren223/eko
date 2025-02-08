@@ -20,25 +20,16 @@ import (
 var (
 	width = 48
 
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(colors.Focus).
-				Border(lipgloss.ThickBorder())
-
-	blurredCreate = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1).Render("Join Network")
-	focusedCreate = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1).Render("Join Network")
+	blurredCreate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Gray).Foreground(colors.White).
+			Render("Join Network")
+	}
+	focusedCreate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Blue).Foreground(colors.White).
+			Render("Join Network")
+	}
 )
 
 const (
@@ -61,11 +52,29 @@ type Model struct {
 }
 
 func New() Model {
+	headerStyle := lipgloss.NewStyle().Foreground(colors.Turquoise)
+
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
 	name := field.New(width)
 	name.Header = "Network Invite Code"
 	name.HeaderStyle = headerStyle
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
+	name.FocusedTextStyle = focusedTextStyle
+	name.BlurredTextStyle = blurredTextStyle
 	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
 	name.Input.CharLimit = width
 	name.Focus()
@@ -84,7 +93,7 @@ func New() Model {
 
 	return Model{
 		name:      name,
-		create:    blurredCreate,
+		create:    blurredCreate(),
 		nameWidth: nameWidth,
 	}
 }
@@ -96,11 +105,22 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 	create := lipgloss.NewStyle().
-		Width(m.nameWidth).Align(lipgloss.Center).
+		Width(m.nameWidth).
+		Background(colors.Background).
+		Align(lipgloss.Center).
 		Render(m.create)
 
 	content := flex.NewVertical(name, create).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -138,12 +158,12 @@ func (m *Model) cycle(step int) tea.Cmd {
 
 func (m *Model) updateFocus() tea.Cmd {
 	m.name.Blur()
-	m.create = blurredCreate
+	m.create = blurredCreate()
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
 	case CreateField:
-		m.create = focusedCreate
+		m.create = focusedCreate()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)

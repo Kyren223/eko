@@ -130,17 +130,22 @@ func (m Model) View() string {
 	}
 	private = privateStyle.Render(private)
 
-	update := lipgloss.NewStyle().Width(m.nameWidth).
-		Background(colors.Background).Align(lipgloss.Center).
+	update := lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Background(colors.Background).
+		Align(lipgloss.Center).
 		Render(m.update)
 
 	content := flex.NewVertical(name, description, private, update).WithGap(1).View()
 
 	return lipgloss.NewStyle().
-		Padding(1, 4).Align(lipgloss.Center, lipgloss.Center).
 		Border(lipgloss.ThickBorder()).
-		BorderBackground(colors.Background).BorderForeground(colors.White).
-		Background(colors.Background).Foreground(colors.White).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
 		Render(content)
 }
 
