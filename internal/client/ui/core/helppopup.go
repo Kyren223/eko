@@ -9,29 +9,6 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/colors"
 )
 
-var (
-	style = lipgloss.NewStyle().
-		MaxWidth(ui.MinWidth).
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 2).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(colors.Focus).
-			Border(lipgloss.ThickBorder(), false, false, true).
-			Padding(0, 4, 1).MarginBottom(1).
-			Align(lipgloss.Center, lipgloss.Center)
-
-	keyStyle = lipgloss.NewStyle().
-			Padding(0, 1).
-			Background(colors.DarkPurple).Foreground(colors.White)
-
-	descriptionStyle = lipgloss.NewStyle()
-
-	toggleHint = lipgloss.NewStyle().Foreground(colors.Gold).
-			Render("-- Press space to toggle between global/local keybindings --")
-)
-
 const (
 	HelpNetworkList = iota
 	HelpSignalList
@@ -70,7 +47,23 @@ func (m HelpPopup) View() string {
 		m.help = HelpGlobal
 	}
 
-	title := titleStyle.Render(m.Title()+" Keybindings Cheatsheet") + "\n"
+	title := lipgloss.NewStyle().
+		Background(colors.Background).
+		Foreground(colors.Focus).
+		Border(lipgloss.ThickBorder(), false, false, true).
+		Padding(0, 4, 1).MarginBottom(1).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(m.Title()+" Keybindings Cheatsheet") + "\n"
+
+	descriptionStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Background(colors.Background).
+		Foreground(colors.White)
+
+	keyStyle := lipgloss.NewStyle().
+		Padding(0, 1).
+		Background(colors.DarkPurple).
+		Foreground(colors.White)
 
 	keymapLists := [][]Keymap{}
 	switch m.help {
@@ -94,27 +87,54 @@ func (m HelpPopup) View() string {
 
 	helps := []string{}
 
+	// Must known max size beforehand due to JoinHorizontal issue
+	// See https://github.com/charmbracelet/lipgloss/issues/209
+	largestSize := 0
+	for _, keymaps := range keymapLists {
+		if len(keymaps) > largestSize {
+			largestSize = len(keymaps)
+		}
+	}
+
 	for i, keymaps := range keymapLists {
 		var builder strings.Builder
 
 		for _, keymap := range keymaps {
 			builder.WriteString(keyStyle.Render(keymap.key))
-			builder.WriteString(" ")
 			builder.WriteString(descriptionStyle.Render(keymap.description))
 			builder.WriteString("\n\n")
 		}
 
-		// help := lipgloss.NewStyle().Align(lipgloss.Left).Render()
-		helps = append(helps, builder.String())
-
+		help := lipgloss.NewStyle().
+			Height(largestSize*2 + 1).
+			Background(colors.Background).
+			Render(builder.String())
 		if i != len(keymapLists)-1 {
-			helps = append(helps, "  ") // separator
+			help = lipgloss.NewStyle().
+				PaddingRight(2).
+				Background(colors.Background).
+				Render(builder.String())
 		}
+
+		helps = append(helps, help)
+
 	}
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, helps...) + "\n"
 
-	return style.Render(title + content + toggleHint)
+	toggleHint := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gold).
+		Render("-- Press space to toggle between global/local keybindings --")
+
+	return lipgloss.NewStyle().
+		MaxWidth(ui.MinWidth).
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 2).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(title + content + toggleHint)
 }
 
 func (m HelpPopup) Update(msg tea.Msg) (HelpPopup, tea.Cmd) {
