@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/kyren223/eko/internal/client/ui"
-	"github.com/kyren223/eko/internal/client/ui/colors"
 )
 
 type Model struct {
