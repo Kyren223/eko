@@ -58,12 +58,15 @@ func New() Model {
 		Background(colors.Background).Foreground(colors.White)
 	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
 
-	fieldBlurredStyle := lipgloss.NewStyle().Width(width).
-		PaddingLeft(1).Border(lipgloss.RoundedBorder()).
-		BorderBackground(colors.Background).BorderForeground(colors.DarkCyan).
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
 		Background(colors.Background)
 	fieldFocusedStyle := fieldBlurredStyle.
-		Border(lipgloss.ThickBorder()).BorderForeground(colors.Focus)
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
 
 	name := field.New(width)
 	name.Header = "Username"
@@ -94,6 +97,7 @@ func New() Model {
 	description.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
 	description.Input.CharLimit = width
 	description.Input.SetValue(user.Description)
+	description.Blur()
 
 	return Model{
 		name:        name,
