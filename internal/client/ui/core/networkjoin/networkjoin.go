@@ -75,7 +75,7 @@ func New() Model {
 	name.BlurredStyle = fieldBlurredStyle
 	name.FocusedTextStyle = focusedTextStyle
 	name.BlurredTextStyle = blurredTextStyle
-	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
+	name.ErrorStyle = lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
 	name.Input.CharLimit = width
 	name.Focus()
 	name.Input.Validate = func(s string) error {
