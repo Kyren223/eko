@@ -35,47 +35,39 @@ const (
 )
 
 var (
-	grayStyle    = lipgloss.NewStyle().Foreground(colors.Gray)
-	focusedStyle = lipgloss.NewStyle().Foreground(colors.Focus)
-	errorStyle   = lipgloss.NewStyle().Foreground(colors.Error)
+	focusedStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Focus)
+	}
 
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(focusedStyle.GetForeground()).
-				Border(lipgloss.ThickBorder())
+	headerStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Turquoise) }
+	titleStyle  = func() lipgloss.Style {
+		return focusedStyle().Width(authWidth).Bold(true).AlignHorizontal(lipgloss.Center)
+	}
 
-	focusedSignupButton = focusedStyle.Bold(true).Render("[ SIGN-UP ]")
-	focusedSigninButton = focusedStyle.Bold(true).Render("[ SIGN-IN ]")
-	blurredSignupButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-up"))
-	blurredSigninButton = fmt.Sprintf("[ %s ]", grayStyle.Render("sign-in"))
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-	titleStyle  = focusedStyle.Width(authWidth).Bold(true).AlignHorizontal(lipgloss.Center)
-
-	signupTitle = titleStyle.Render(`
+	signupTitle = func() string {
+		return titleStyle().Render(`
 ____ _ ____ _  _    _  _ ___ 
 [__  | | __ |\ | __ |  | |__]
 ___] | |__] | \|    |__| |   
 		`)
-	signinTitle = titleStyle.Render(`
+	}
+	signinTitle = func() string {
+		return titleStyle().Render(`
 ____ _ ____ _  _    _ _  _
 [__  | | __ |\ | __ | |\ |
 ___] | |__] | \|    | | \|`)
+	}
 
-	revealIcon  = lipgloss.NewStyle().PaddingLeft(1).Render("󰈈 ")
-	concealIcon = lipgloss.NewStyle().PaddingLeft(1).Render("󰈉 ")
+	revealIcon = func() string {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White).PaddingLeft(1).Render("󰈈 ")
+	}
+	concealIcon = func() string {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White).PaddingLeft(1).Render("󰈉 ")
+	}
 
-	popupStyle            = lipgloss.NewStyle().Border(lipgloss.ThickBorder())
-	choiceSelectedStyle   = lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Blue)
-	choiceUnselectedStyle = lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Gray)
-
-	blurredRememberChecked   = "[x] Remember"
-	blurredRememberUnchecked = "[ ] Remember"
-	focusedRememberChecked   = focusedStyle.Render(blurredRememberChecked)
-	focusedRememberUnchecked = focusedStyle.Render(blurredRememberUnchecked)
+	popupStyle            = func() lipgloss.Style { return lipgloss.NewStyle().Border(lipgloss.ThickBorder()) }
+	choiceSelectedStyle   = func() lipgloss.Style { return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Blue) }
+	choiceUnselectedStyle = func() lipgloss.Style { return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Gray) }
 
 	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(lipgloss.Center)
 )
@@ -103,18 +95,34 @@ func New() Model {
 		fields: make([]authfield.Model, 4),
 	}
 
+	errorStyle := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
+
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
 	for i := range m.fields {
 		field := authfield.New(48)
-		field.Input.Cursor.Style = focusedStyle
-		field.BlurredStyle = fieldBlurredStyle
+		field.Input.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
 		field.FocusedStyle = fieldFocusedStyle
+		field.BlurredStyle = fieldBlurredStyle
+		field.FocusedTextStyle = focusedTextStyle
+		field.BlurredTextStyle = blurredTextStyle
 		field.ErrorStyle = errorStyle
-		field.FocusedTextStyle = focusedStyle
-		field.BlurredTextStyle = lipgloss.NewStyle()
 
 		switch i {
 		case usernameField:
-			field.Header = headerStyle.Render("Username")
+			field.Header = headerStyle().Render("Username")
 			field.Input.Placeholder = "Username"
 			field.Input.CharLimit = 48
 			field.Input.Validate = func(username string) error {
@@ -124,7 +132,7 @@ func New() Model {
 				return nil
 			}
 		case privateKeyField:
-			field.Header = headerStyle.Render("Private Key")
+			field.Header = headerStyle().Render("Private Key")
 			field.Input.Placeholder = "Path to Private Key"
 			field.Input.CharLimit = 100
 			field.Input.Validate = func(privKey string) error {
@@ -135,18 +143,18 @@ func New() Model {
 			}
 
 		case passphraseField:
-			field.Header = headerStyle.Render("Passphrase (Optional)")
+			field.Header = headerStyle().Render("Passphrase (Optional)")
 			field.Input.Placeholder = "Passphrase"
-			field.SetRevealIcon(revealIcon)
-			field.SetConcealIcon(concealIcon)
+			field.SetRevealIcon(revealIcon())
+			field.SetConcealIcon(concealIcon())
 			field.SetRevealed(false)
 			field.Input.EchoCharacter = '*'
 
 		case passphraseConfirmField:
-			field.Header = headerStyle.Render("Passphrase Confirm")
+			field.Header = headerStyle().Render("Passphrase Confirm")
 			field.Input.Placeholder = "Repeated Passphrase"
-			field.SetRevealIcon(revealIcon)
-			field.SetConcealIcon(concealIcon)
+			field.SetRevealIcon(revealIcon())
+			field.SetConcealIcon(concealIcon())
 			field.SetRevealed(false)
 			field.Input.EchoCharacter = '*'
 		}
@@ -167,9 +175,9 @@ func (m Model) View() string {
 
 	var title string
 	if m.signup {
-		title = signupTitle
+		title = signupTitle()
 	} else {
-		title = signinTitle
+		title = signinTitle()
 	}
 
 	builder.WriteString(title)
@@ -187,55 +195,59 @@ func (m Model) View() string {
 		builder.WriteRune('\n')
 	}
 
-	var checkbox *string
 	if !m.signup {
+		checkbox := "[ ] Remember"
 		if m.remember {
-			if m.focusIndex == len(m.fields) {
-				checkbox = &focusedRememberChecked
-			} else {
-				checkbox = &blurredRememberChecked
-			}
-		} else {
-			if m.focusIndex == len(m.fields) {
-				checkbox = &focusedRememberUnchecked
-			} else {
-				checkbox = &blurredRememberUnchecked
-			}
+			checkbox = "[x] Remember"
 		}
-		builder.WriteString(*checkbox)
+
+		checkboxStyle := lipgloss.NewStyle().
+			Width(authWidth).
+			Background(colors.Background).
+			Foreground(colors.White)
+		if m.focusIndex == len(m.fields) {
+			checkboxStyle = checkboxStyle.Foreground(colors.Focus)
+		}
+
+		builder.WriteString(checkboxStyle.Render(checkbox))
 	}
 
-	var button *string
+	button := "[ sign-in ]"
 	if m.signup {
-		if m.focusIndex == m.ButtonIndex() {
-			button = &focusedSignupButton
-		} else {
-			button = &blurredSignupButton
-		}
-	} else {
-		if m.focusIndex == m.ButtonIndex() {
-			button = &focusedSigninButton
-		} else {
-			button = &blurredSigninButton
-		}
+		button = "[ sign-up ]"
 	}
+	buttonStyle := lipgloss.NewStyle().
+		Width(authWidth).Align(lipgloss.Center).
+		Background(colors.Background).
+		Foreground(colors.White)
+	if m.focusIndex == m.ButtonIndex() {
+		button = strings.ToUpper(button)
+		buttonStyle = buttonStyle.Foreground(colors.Focus)
+	}
+	button = buttonStyle.Render(button)
+
 	height := authHeight - lipgloss.Height(builder.String())
-	builder.WriteString(centerStyle.Height(height).AlignVertical(lipgloss.Bottom).Render(*button))
+	builder.WriteString(centerStyle.Height(height).AlignVertical(lipgloss.Bottom).Render(button))
 
 	result := lipgloss.NewStyle().
 		Width(authWidth).Height(authHeight).
+		MarginBackground(colors.Background).
+		Background(colors.Background).
 		Margin(0, 5).
 		Render(builder.String())
 
 	result = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
+		BorderBackground(colors.Background).
 		BorderForeground(colors.DarkCyan).
+		Background(colors.Background).
 		Render(result)
 
 	result = lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
 		result,
+		lipgloss.WithWhitespaceBackground(colors.Background),
 	)
 
 	if m.popup != nil {
@@ -567,9 +579,9 @@ func createPopup(content string, leftChoices, rightChoices []string) *choicepopu
 	popup.SetChoices(leftChoices, rightChoices)
 	popup.Cycle = true
 
-	popup.Style = popupStyle
-	popup.SelectedStyle = choiceSelectedStyle
-	popup.UnselectedStyle = choiceUnselectedStyle
+	popup.Style = popupStyle()
+	popup.SelectedStyle = choiceSelectedStyle()
+	popup.UnselectedStyle = choiceUnselectedStyle()
 
 	return &popup
 }

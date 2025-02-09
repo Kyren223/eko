@@ -160,7 +160,6 @@ func (m Model) View() string {
 	return lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
-		// spinner+content,
 		lipgloss.JoinVertical(lipgloss.Top, spinner, content),
 		lipgloss.WithWhitespaceBackground(colors.Background),
 	)
