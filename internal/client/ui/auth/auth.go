@@ -104,34 +104,11 @@ func New() Model {
 		fields: make([]authfield.Model, 4),
 	}
 
-	errorStyle := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
-
-	blurredTextStyle := lipgloss.NewStyle().
-		Background(colors.Background).Foreground(colors.White)
-	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
-
-	fieldBlurredStyle := lipgloss.NewStyle().
-		PaddingLeft(1).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(colors.DarkCyan).
-		BorderBackground(colors.Background).
-		Background(colors.Background)
-	fieldFocusedStyle := fieldBlurredStyle.
-		Border(lipgloss.ThickBorder()).
-		BorderForeground(colors.Focus)
-
 	for i := range m.fields {
 		field := authfield.New(48)
-		field.Input.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
-		field.FocusedStyle = fieldFocusedStyle
-		field.BlurredStyle = fieldBlurredStyle
-		field.FocusedTextStyle = focusedTextStyle
-		field.BlurredTextStyle = blurredTextStyle
-		field.ErrorStyle = errorStyle
 
 		switch i {
 		case usernameField:
-			field.Header = headerStyle().Render("Username")
 			field.Input.Placeholder = "Username"
 			field.Input.CharLimit = 48
 			field.Input.Validate = func(username string) error {
@@ -141,7 +118,6 @@ func New() Model {
 				return nil
 			}
 		case privateKeyField:
-			field.Header = headerStyle().Render("Private Key")
 			field.Input.Placeholder = "Path to Private Key"
 			field.Input.CharLimit = 100
 			field.Input.Validate = func(privKey string) error {
@@ -152,18 +128,12 @@ func New() Model {
 			}
 
 		case passphraseField:
-			field.Header = headerStyle().Render("Passphrase (Optional)")
 			field.Input.Placeholder = "Passphrase"
-			field.SetRevealIcon(revealIcon())
-			field.SetConcealIcon(concealIcon())
 			field.SetRevealed(false)
 			field.Input.EchoCharacter = '*'
 
 		case passphraseConfirmField:
-			field.Header = headerStyle().Render("Passphrase Confirm")
 			field.Input.Placeholder = "Repeated Passphrase"
-			field.SetRevealIcon(revealIcon())
-			field.SetConcealIcon(concealIcon())
 			field.SetRevealed(false)
 			field.Input.EchoCharacter = '*'
 		}
@@ -276,6 +246,9 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.UpdateFieldColors()
+	defer m.UpdateFieldColors()
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		key := msg.Type
@@ -314,7 +287,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if m.focusIndex == m.ButtonIndex() {
-				return m, m.ButtonPressed(msg)
+				cmd := m.ButtonPressed(msg)
+				return m, cmd
 			}
 
 		case tea.KeyShiftTab, tea.KeyUp:
@@ -611,4 +585,64 @@ func expandPath(path string) string {
 		return filepath.Join(home, path[2:])
 	}
 	return path
+}
+
+func (m *Model) UpdateFieldColors() {
+	if m.popup != nil {
+		colors.Darken()
+	}
+
+	errorStyle := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
+
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
+	for i, field := range m.fields {
+		field.Input.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
+		field.FocusedStyle = fieldFocusedStyle
+		field.BlurredStyle = fieldBlurredStyle
+		field.FocusedTextStyle = focusedTextStyle
+		field.BlurredTextStyle = blurredTextStyle
+		field.ErrorStyle = errorStyle
+
+		switch i {
+		case usernameField:
+			field.Header = headerStyle().Render("Username")
+
+		case privateKeyField:
+			field.Header = headerStyle().Render("Private Key")
+
+		case passphraseField:
+			field.Header = headerStyle().Render("Passphrase (Optional)")
+			field.SetRevealIcon(revealIcon())
+			field.SetConcealIcon(concealIcon())
+
+		case passphraseConfirmField:
+			field.Header = headerStyle().Render("Passphrase Confirm")
+			field.SetRevealIcon(revealIcon())
+			field.SetConcealIcon(concealIcon())
+		}
+
+		if field.Input.Focused() {
+			field.Focus()
+		} else {
+			field.Blur()
+		}
+		m.fields[i] = field
+	}
+
+	if m.popup != nil {
+		colors.Restore()
+	}
 }
