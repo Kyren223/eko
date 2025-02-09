@@ -8,11 +8,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
 var (
-	style         = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).Padding(1, 3).MarginTop(2)
+	style         = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).Padding(1, 3)
 	loadingFrames = circleTrail(4, 4, 0, true, "  ", "░░", "▒▒", "▓▓", "██")
 	loading       = spinner.Spinner{
 		Frames: loadingFrames,
@@ -135,12 +136,33 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	width := lipgloss.Width(m.content)
 	height := lipgloss.Height(m.content)
-	content := lipgloss.NewStyle().Width(width).Height(height).Render(m.content)
-	content = style.Render(content)
+	content := lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Render(m.content)
+	content = style.
+		MarginBackground(colors.Background).
+		Background(colors.Background).
+		Foreground(colors.White).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Render(content)
+
+	spinner := m.sp.View()
+	spinner = lipgloss.NewStyle().
+		Width(lipgloss.Width(content)).
+		Align(lipgloss.Center).
+		Background(colors.Background).
+		Foreground(colors.White).
+		PaddingTop(1).PaddingBottom(2).
+		Render(spinner)
+
 	return lipgloss.Place(
 		ui.Width, ui.Height,
 		lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, m.sp.View(), content),
+		// spinner+content,
+		lipgloss.JoinVertical(lipgloss.Top, spinner, content),
+		lipgloss.WithWhitespaceBackground(colors.Background),
 	)
 }
 
