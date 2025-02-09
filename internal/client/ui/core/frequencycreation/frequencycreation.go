@@ -19,38 +19,34 @@ import (
 var (
 	width = 48
 
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
+	padding = 4
 
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-	focusStyle  = lipgloss.NewStyle().Foreground(colors.Focus)
-
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(colors.Focus).
-				Border(lipgloss.ThickBorder())
-
-	underlineStyle = func(s string, width int, color lipgloss.Color) string {
-		underline := lipgloss.NewStyle().Foreground(color).
-			Render(strings.Repeat(lipgloss.ThickBorder().Bottom, width))
-		return lipgloss.JoinVertical(lipgloss.Left, s, underline)
+	headerStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Turquoise) }
+	focusStyle  = func() lipgloss.Style {
+		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Focus)
 	}
 
-	colorHeader = headerStyle.Bold(true).Render(" Color # ")
+	underlineStyle = func(s string, width int, color lipgloss.Color) string {
+		underline := strings.Repeat("━", width)
+		underline = lipgloss.NewStyle().Background(colors.Background).Foreground(color).
+			Render(underline + " ")
+		return lipgloss.NewStyle().Background(colors.Background).
+			Render(lipgloss.JoinVertical(lipgloss.Left, s, underline))
+	}
 
-	blurredCreate = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1).Render("Create Frequency")
-	focusedCreate = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1).Render("Create Frequency")
+	colorHeader = func() string { return headerStyle().Bold(true).Render(" Color # ") }
 
-	permsHeader = lipgloss.NewStyle().
-			Foreground(colors.Turquoise).
-			Render("Permissions for non-admins:")
+	blurredCreate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Gray).Foreground(colors.White).
+			Render("Create Frequency")
+	}
+	focusedCreate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Blue).Foreground(colors.White).
+			Render("Create Frequency")
+	}
+
 	leftpad = 1
 )
 
@@ -81,12 +77,28 @@ type Model struct {
 }
 
 func New(network snowflake.ID) Model {
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
 	name := field.New(width)
 	name.Header = "Frequency Name"
-	name.HeaderStyle = headerStyle
+	name.HeaderStyle = headerStyle()
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
-	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
+	name.FocusedTextStyle = focusedTextStyle
+	name.BlurredTextStyle = blurredTextStyle
+	name.ErrorStyle = lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
 	name.Input.CharLimit = packet.MaxFrequencyName
 	name.Focus()
 	name.Input.Validate = func(s string) error {
@@ -99,6 +111,10 @@ func New(network snowflake.ID) Model {
 	nameWidth := lipgloss.Width(name.View())
 
 	color := textinput.New()
+	color.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
+	color.TextStyle = blurredTextStyle
+	color.Cursor.Style = blurredTextStyle
+	color.Cursor.TextStyle = blurredTextStyle
 	color.Prompt = ""
 	color.CharLimit = MaxHexDigits
 	color.Placeholder = "000000"
@@ -115,11 +131,12 @@ func New(network snowflake.ID) Model {
 		color:     color,
 		lastColor: lipgloss.Color("#" + color.Value()),
 		perms:     packet.PermReadWrite,
-		create:    blurredCreate,
+		create:    blurredCreate(),
 		network:   network,
 
-		nameWidth:        nameWidth,
-		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3),
+		nameWidth: nameWidth,
+		precomputedStyle: lipgloss.NewStyle().PaddingRight(padding).
+			Background(colors.Background).Foreground(colors.White).MarginBackground(colors.Background),
 	}
 }
 
@@ -130,23 +147,28 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
+	colorStyle := lipgloss.NewStyle().Background(colors.Background).SetString("■\n ")
 	color := colors.Gray
 	if m.color.Err != nil {
 		color = colors.Error
 	} else if m.selected == ColorField {
 		color = colors.Focus
 	}
-	colorInput := underlineStyle(m.color.View(), MaxHexDigits, color)
-	colorInput = lipgloss.NewStyle().Width(MaxHexDigits + 1).Render(colorInput)
-	colorIndicator := lipgloss.NewStyle().Foreground(m.lastColor).Render("■")
-	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader, colorInput, colorIndicator)
+	c := lipgloss.NewStyle().Width(MaxHexDigits + 1).Background(colors.Background).Render(m.color.View())
+	colorInput := underlineStyle(c, MaxHexDigits, color)
+	colorInput = lipgloss.NewStyle().Render(colorInput)
+	colorIndicator := colorStyle.Foreground(m.lastColor).String()
+	colorText := lipgloss.JoinHorizontal(lipgloss.Top, colorHeader(), colorInput, colorIndicator)
+	colorText = m.precomputedStyle.Width(m.nameWidth).Render(colorText)
 
 	readWrite := "[ ] Read & Write"
 	if m.perms == packet.PermReadWrite {
 		readWrite = "[x] Read & Write"
 	}
 	if m.selected == ReadWriteField {
-		readWrite = focusStyle.Render(readWrite)
+		readWrite = m.precomputedStyle.Foreground(colors.Focus).Render(readWrite)
+	} else {
+		readWrite = m.precomputedStyle.Render(readWrite)
 	}
 
 	readOnly := "[ ] Read Only"
@@ -154,7 +176,9 @@ func (m Model) View() string {
 		readOnly = "[x] Read Only"
 	}
 	if m.selected == ReadOnlyField {
-		readOnly = focusStyle.Render(readOnly)
+		readOnly = m.precomputedStyle.Foreground(colors.Focus).Render(readOnly)
+	} else {
+		readOnly = m.precomputedStyle.Render(readOnly)
 	}
 
 	noAccess := "[ ] No Access"
@@ -162,7 +186,14 @@ func (m Model) View() string {
 		noAccess = "[x] No Access"
 	}
 	if m.selected == NoAccessField {
-		noAccess = focusStyle.Render(noAccess)
+		noAccess = m.precomputedStyle.
+			PaddingRight(1).
+			Foreground(colors.Focus).
+			Render(noAccess)
+	} else {
+		noAccess = m.precomputedStyle.
+			PaddingRight(1).
+			Render(noAccess)
 	}
 
 	width := lipgloss.Width(noAccess) + lipgloss.Width(readOnly) + lipgloss.Width(readWrite)
@@ -171,14 +202,33 @@ func (m Model) View() string {
 	readWrite = lipgloss.NewStyle().PaddingRight(padding).Render(readWrite)
 	readOnly = lipgloss.NewStyle().PaddingRight(padding).Render(readOnly)
 
-	perms := lipgloss.JoinHorizontal(lipgloss.Top, readWrite, readOnly, noAccess)
+	permsHeader := lipgloss.NewStyle().
+		Width(m.nameWidth - leftpad).
+		Background(colors.Background).
+		Foreground(colors.Turquoise).
+		Render("Permissions for non-admins:")
+	// perms := lipgloss.JoinHorizontal(lipgloss.Top, readWrite, readOnly, noAccess)
+	perms := readWrite + readOnly + noAccess
 	perms = lipgloss.JoinVertical(lipgloss.Left, permsHeader, perms)
 	perms = lipgloss.NewStyle().PaddingLeft(leftpad).Render(perms)
 
-	create := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.create)
+	create := lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Align(lipgloss.Center).
+		Background(colors.Background).
+		Render(m.create)
 
 	content := flex.NewVertical(name, perms, colorText, create).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -239,7 +289,7 @@ func (m *Model) cycle(step int) tea.Cmd {
 func (m *Model) updateFocus() tea.Cmd {
 	m.name.Blur()
 	m.color.Blur()
-	m.create = blurredCreate
+	m.create = blurredCreate()
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
@@ -248,7 +298,7 @@ func (m *Model) updateFocus() tea.Cmd {
 	case NoAccessField, ReadOnlyField, ReadWriteField:
 		return nil
 	case CreateField:
-		m.create = focusedCreate
+		m.create = focusedCreate()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)
