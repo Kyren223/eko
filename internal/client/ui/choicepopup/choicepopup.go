@@ -60,7 +60,9 @@ func (m Model) View() string {
 
 	paddingSize := m.Width - leftWidth - rightWidth
 	assert.Assert(paddingSize >= 0, "there should be enough space for all choices", "remaining", paddingSize)
-	padding := strings.Repeat(" ", paddingSize)
+	padding := lipgloss.NewStyle().
+		Background(m.Style.GetBackground()).
+		Render(strings.Repeat(" ", paddingSize))
 	choices := lipgloss.JoinHorizontal(lipgloss.Center, left, padding, right)
 	styledChoices := m.ChoicesStyle.MaxWidth(m.Width).MaxHeight(m.Height).Render(choices)
 

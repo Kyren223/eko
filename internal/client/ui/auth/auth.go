@@ -65,9 +65,18 @@ ___] | |__] | \|    | | \|`)
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White).PaddingLeft(1).Render("󰈉 ")
 	}
 
-	popupStyle            = func() lipgloss.Style { return lipgloss.NewStyle().Border(lipgloss.ThickBorder()) }
-	choiceSelectedStyle   = func() lipgloss.Style { return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Blue) }
-	choiceUnselectedStyle = func() lipgloss.Style { return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Gray) }
+	popupStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().
+			Background(colors.Background).Foreground(colors.White).
+			BorderBackground(colors.Background).BorderForeground(colors.White).
+			Border(lipgloss.ThickBorder())
+	}
+	choiceSelectedStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Blue).MarginBackground(colors.Background)
+	}
+	choiceUnselectedStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Padding(0, 1).Margin(0, 1).Background(colors.Gray).MarginBackground(colors.Background)
+	}
 
 	centerStyle = lipgloss.NewStyle().Width(authWidth).AlignHorizontal(lipgloss.Center)
 )
