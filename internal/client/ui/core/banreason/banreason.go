@@ -16,25 +16,14 @@ import (
 var (
 	width = 48
 
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(colors.Focus).
-				Border(lipgloss.ThickBorder())
-
-	blurredBanStyle = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1)
-	focusedBanStyle = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1)
+	blurredBanStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Gray).Foreground(colors.White)
+	}
+	focusedBanStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Blue).Foreground(colors.White)
+	}
 )
 
 const (
@@ -54,11 +43,29 @@ type Model struct {
 }
 
 func New(userId, networkId snowflake.ID) Model {
+	headerStyle := lipgloss.NewStyle().Foreground(colors.Turquoise)
+
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
 	banReason := field.New(width)
 	banReason.Header = "Ban Reason"
 	banReason.HeaderStyle = headerStyle
 	banReason.FocusedStyle = fieldFocusedStyle
 	banReason.BlurredStyle = fieldBlurredStyle
+	banReason.FocusedTextStyle = focusedTextStyle
+	banReason.BlurredTextStyle = blurredTextStyle
 	banReason.Input.CharLimit = packet.MaxBanReasonBytes
 	banReason.Focus()
 	nameWidth := lipgloss.Width(banReason.View())
@@ -67,7 +74,7 @@ func New(userId, networkId snowflake.ID) Model {
 		networkId: networkId,
 		userId:    userId,
 		banReason: banReason,
-		banStyle:  blurredBanStyle,
+		banStyle:  blurredBanStyle(),
 		selected:  0,
 		nameWidth: nameWidth,
 	}
@@ -79,12 +86,24 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	name := m.banReason.View()
+
 	ban := lipgloss.NewStyle().
-		Width(m.nameWidth).Align(lipgloss.Center).
+		Width(m.nameWidth).
+		Background(colors.Background).
+		Align(lipgloss.Center).
 		Render(m.banStyle.Render("Ban", state.State.Users[m.userId].Name))
 
 	content := flex.NewVertical(name, ban).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -122,12 +141,12 @@ func (m *Model) cycle(step int) tea.Cmd {
 
 func (m *Model) updateFocus() tea.Cmd {
 	m.banReason.Blur()
-	m.banStyle = blurredBanStyle
+	m.banStyle = blurredBanStyle()
 	switch m.selected {
 	case BanReasonField:
 		return m.banReason.Focus()
 	case BanField:
-		m.banStyle = focusedBanStyle
+		m.banStyle = focusedBanStyle()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)
