@@ -11,17 +11,7 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-var (
-	width = 48
-
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Focus)
-	grayStyle   = lipgloss.NewStyle().Foreground(colors.LightGray)
-)
+var width = 48
 
 const (
 	BanReasonField = iota
@@ -48,15 +38,36 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	headerStyle := lipgloss.NewStyle().
+		Width(width).
+		Background(colors.Background).
+		Foreground(colors.Focus)
+	grayStyle := lipgloss.NewStyle().
+		Width(width).
+		Background(colors.Background).
+		Foreground(colors.LightGray)
+
 	nameHeader := headerStyle.Render("Banned Username:")
 	name := m.name + grayStyle.Render(" ("+m.id+")")
-	name = lipgloss.NewStyle().Width(width).Render(name)
+	name = lipgloss.NewStyle().
+		Width(width).
+		Background(colors.Background).
+		Render(name)
 
 	banReasonHeader := headerStyle.Render("Ban Reason:")
 	banReason := lipgloss.NewStyle().Width(width).Render(m.banReason)
 
 	content := flex.NewVertical(nameHeader, name, banReasonHeader, banReason).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
