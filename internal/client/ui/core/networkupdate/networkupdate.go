@@ -21,35 +21,30 @@ import (
 var (
 	width = 48
 
-	style = lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder()).
-		Padding(1, 4).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	headerStyle = lipgloss.NewStyle().Foreground(colors.Turquoise)
-
-	fieldBlurredStyle = lipgloss.NewStyle().
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colors.DarkCyan)
-	fieldFocusedStyle = fieldBlurredStyle.
-				BorderForeground(colors.Focus).
-				Border(lipgloss.ThickBorder())
-
 	underlineStyle = func(s string, width int, color lipgloss.Color) string {
-		underline := lipgloss.NewStyle().Foreground(color).
-			Render(strings.Repeat(lipgloss.ThickBorder().Bottom, width))
-		return lipgloss.JoinVertical(lipgloss.Left, s, underline)
+		underline := strings.Repeat("━", width)
+		underline = lipgloss.NewStyle().Background(colors.Background).Foreground(color).
+			Render(underline + " ")
+		return lipgloss.NewStyle().Background(colors.Background).
+			Render(lipgloss.JoinVertical(lipgloss.Left, s, underline))
 	}
 
-	iconHeader    = headerStyle.Bold(true).Render("Icon: ")
-	bgColorHeader = headerStyle.Bold(true).Render("BG # ")
-	fgColorHeader = headerStyle.Bold(true).Render(" FG # ")
+	headerStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Turquoise) }
 
-	blurredUpdate = lipgloss.NewStyle().
-			Background(colors.Gray).Padding(0, 1).Render("Update Network")
-	focusedUpdate = lipgloss.NewStyle().
-			Background(colors.Blue).Padding(0, 1).Render("Update Network")
+	iconHeader    = func() string { return headerStyle().Bold(true).Render("Icon: ") }
+	bgColorHeader = func() string { return headerStyle().Bold(true).Render("BG # ") }
+	fgColorHeader = func() string { return headerStyle().Bold(true).Render(" FG # ") }
+
+	blurredUpdate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Gray).Foreground(colors.White).
+			Render("Update Network")
+	}
+	focusedUpdate = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Blue).Foreground(colors.White).
+			Render("Update Network")
+	}
 )
 
 const (
@@ -87,14 +82,30 @@ type Model struct {
 }
 
 func New(networkId snowflake.ID) Model {
+	blurredTextStyle := lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White)
+	focusedTextStyle := blurredTextStyle.Foreground(colors.Focus)
+
+	fieldBlurredStyle := lipgloss.NewStyle().
+		PaddingLeft(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colors.DarkCyan).
+		BorderBackground(colors.Background).
+		Background(colors.Background)
+	fieldFocusedStyle := fieldBlurredStyle.
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(colors.Focus)
+
 	network := state.State.Networks[networkId]
 
 	name := field.New(width)
 	name.Header = "Network Name"
-	name.HeaderStyle = headerStyle
+	name.HeaderStyle = headerStyle()
 	name.FocusedStyle = fieldFocusedStyle
 	name.BlurredStyle = fieldBlurredStyle
-	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
+	name.FocusedTextStyle = focusedTextStyle
+	name.BlurredTextStyle = blurredTextStyle
+	name.ErrorStyle = lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Error)
 	name.Input.CharLimit = width
 	name.Focus()
 	name.Input.Validate = func(s string) error {
@@ -108,6 +119,11 @@ func New(networkId snowflake.ID) Model {
 	nameWidth := lipgloss.Width(name.View())
 
 	icon := textinput.New()
+	icon.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
+	icon.PromptStyle = blurredTextStyle
+	icon.TextStyle = blurredTextStyle
+	icon.Cursor.Style = blurredTextStyle
+	icon.Cursor.TextStyle = blurredTextStyle
 	icon.Prompt = ""
 	icon.CharLimit = MaxIconLength
 	icon.Placeholder = "ic"
@@ -120,6 +136,10 @@ func New(networkId snowflake.ID) Model {
 	icon.SetValue(network.Icon)
 
 	bgColor := textinput.New()
+	bgColor.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
+	bgColor.TextStyle = blurredTextStyle
+	bgColor.Cursor.Style = blurredTextStyle
+	bgColor.Cursor.TextStyle = blurredTextStyle
 	bgColor.Prompt = ""
 	bgColor.CharLimit = MaxHexDigits
 	bgColor.Placeholder = "000000"
@@ -132,6 +152,10 @@ func New(networkId snowflake.ID) Model {
 	bgColor.SetValue(network.BgHexColor[1:])
 
 	fgColor := textinput.New()
+	fgColor.PlaceholderStyle = blurredTextStyle.Foreground(colors.Gray)
+	fgColor.TextStyle = blurredTextStyle
+	fgColor.Cursor.Style = blurredTextStyle
+	fgColor.Cursor.TextStyle = blurredTextStyle
 	fgColor.Prompt = ""
 	fgColor.CharLimit = MaxHexDigits
 	fgColor.Placeholder = "000000"
@@ -150,10 +174,11 @@ func New(networkId snowflake.ID) Model {
 		fgColor: fgColor,
 		lastBg:  lipgloss.Color("#" + bgColor.Value()),
 		lastFg:  lipgloss.Color("#" + fgColor.Value()),
-		update:  blurredUpdate,
+		update:  blurredUpdate(),
 
-		nameWidth:        nameWidth,
-		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3),
+		nameWidth: nameWidth,
+		precomputedStyle: lipgloss.NewStyle().Width(nameWidth / 3).
+			Background(colors.Background).Foreground(colors.White).MarginBackground(colors.Background),
 
 		networkId: networkId,
 	}
@@ -166,8 +191,16 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	name := m.name.View()
 
+	width := lipgloss.Width(name)
+
+	colorStyle := lipgloss.NewStyle().Background(colors.Background).SetString("■\n ")
+
 	iconPreview := ui.IconStyle(m.icon.Value(), m.lastFg, m.lastBg, colors.Background).String()
-	iconPreview = lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(iconPreview)
+	iconPreview = lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Align(lipgloss.Center).
+		Background(colors.Background).
+		Render(iconPreview)
 
 	color := colors.Gray
 	if m.icon.Err != nil {
@@ -175,8 +208,10 @@ func (m Model) View() string {
 	} else if m.selected == IconField {
 		color = colors.Focus
 	}
-	iconInput := underlineStyle(m.icon.View(), MaxIconLength, color)
-	iconText := m.precomputedStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, iconHeader, iconInput))
+	ic := lipgloss.NewStyle().Width(MaxIconLength + 1).Background(colors.Background).Render(m.icon.View())
+	iconInput := underlineStyle(ic, MaxIconLength, color)
+	iconInput = lipgloss.NewStyle().Background(colors.Background).Render(iconInput)
+	iconText := m.precomputedStyle.Render(lipgloss.JoinHorizontal(lipgloss.Top, iconHeader(), iconInput))
 
 	color = colors.Gray
 	if m.bgColor.Err != nil {
@@ -184,10 +219,11 @@ func (m Model) View() string {
 	} else if m.selected == BgColorField {
 		color = colors.Focus
 	}
-	bgColorInput := underlineStyle(m.bgColor.View(), MaxHexDigits, color)
-	bgColorInput = lipgloss.NewStyle().Width(MaxHexDigits + 1).Render(bgColorInput)
-	bgColorIndicator := lipgloss.NewStyle().Foreground(m.lastBg).Render("■")
-	bgColorText := lipgloss.JoinHorizontal(lipgloss.Top, bgColorHeader, bgColorInput, bgColorIndicator)
+	bg := lipgloss.NewStyle().Width(MaxHexDigits + 1).Background(colors.Background).Render(m.bgColor.View())
+	bgColorInput := underlineStyle(bg, MaxHexDigits, color)
+	bgColorInput = lipgloss.NewStyle().Render(bgColorInput)
+	bgColorIndicator := colorStyle.Foreground(m.lastBg).String()
+	bgColorText := lipgloss.JoinHorizontal(lipgloss.Top, bgColorHeader(), bgColorInput, bgColorIndicator)
 	bgColorText = m.precomputedStyle.Render(bgColorText)
 
 	color = colors.Gray
@@ -196,15 +232,22 @@ func (m Model) View() string {
 	} else if m.selected == FgColorField {
 		color = colors.Focus
 	}
-	fgColorInput := underlineStyle(m.fgColor.View(), MaxHexDigits, color)
+	fg := lipgloss.NewStyle().Width(7).Background(colors.Background).Render(m.fgColor.View())
+	fgColorInput := underlineStyle(fg, MaxHexDigits, color)
 	fgColorInput = lipgloss.NewStyle().Width(MaxHexDigits + 1).Render(fgColorInput)
-	fgColorIndicator := lipgloss.NewStyle().Foreground(m.lastFg).Render("■")
-	fgColorText := lipgloss.JoinHorizontal(lipgloss.Top, fgColorHeader, fgColorInput, fgColorIndicator)
+	fgColorIndicator := colorStyle.Foreground(m.lastFg).String()
+	fgColorText := lipgloss.JoinHorizontal(lipgloss.Top, fgColorHeader(), fgColorInput, fgColorIndicator)
 	fgColorText = m.precomputedStyle.Render(fgColorText)
 
 	icon := lipgloss.JoinHorizontal(lipgloss.Top, fgColorText, bgColorText, iconText)
+	icon = lipgloss.NewStyle().Width(width).Background(colors.Background).Render(icon)
 
-	privateStyle := lipgloss.NewStyle().PaddingLeft(1)
+	privateStyle := lipgloss.NewStyle().
+		Width(width).
+		PaddingLeft(1).
+		Background(colors.Background).
+		Foreground(colors.White)
+
 	if m.selected == PrivateField {
 		privateStyle = privateStyle.Foreground(colors.Focus)
 	}
@@ -214,10 +257,23 @@ func (m Model) View() string {
 	}
 	private = privateStyle.Render(private)
 
-	update := lipgloss.NewStyle().Width(m.nameWidth).Align(lipgloss.Center).Render(m.update)
+	update := lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Align(lipgloss.Center).
+		Background(colors.Background).
+		Render(m.update)
 
 	content := flex.NewVertical(iconPreview, name, icon, private, update).WithGap(1).View()
-	return style.Render(content)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		Padding(1, 4).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderBackground(colors.Background).
+		BorderForeground(colors.White).
+		Background(colors.Background).
+		Foreground(colors.White).
+		Render(content)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -303,7 +359,7 @@ func (m *Model) updateFocus() tea.Cmd {
 	m.icon.Blur()
 	m.bgColor.Blur()
 	m.fgColor.Blur()
-	m.update = blurredUpdate
+	m.update = blurredUpdate()
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
@@ -316,7 +372,7 @@ func (m *Model) updateFocus() tea.Cmd {
 	case PrivateField:
 		return nil
 	case UpdateField:
-		m.update = focusedUpdate
+		m.update = focusedUpdate()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)
