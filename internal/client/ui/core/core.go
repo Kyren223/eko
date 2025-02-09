@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/banreason"
 	"github.com/kyren223/eko/internal/client/ui/core/banview"
 	"github.com/kyren223/eko/internal/client/ui/core/chat"
@@ -126,6 +127,10 @@ func (m Model) View() string {
 		return m.loading.View()
 	}
 
+	if m.HasPopup() {
+		colors.Darken()
+	}
+
 	networkList := m.networkList.View()
 	var leftSidebar string
 	if m.networkList.Index() == networklist.SignalsIndex {
@@ -143,30 +148,31 @@ func (m Model) View() string {
 		result,
 	)
 
-	var popup string
-	if m.helpPopup != nil {
-		popup = m.helpPopup.View()
-	} else if m.userSettingsPopup != nil {
-		popup = m.userSettingsPopup.View()
-	} else if m.networkCreationPopup != nil {
-		popup = m.networkCreationPopup.View()
-	} else if m.networkUpdatePopup != nil {
-		popup = m.networkUpdatePopup.View()
-	} else if m.frequencyCreationPopup != nil {
-		popup = m.frequencyCreationPopup.View()
-	} else if m.frequencyUpdatePopup != nil {
-		popup = m.frequencyUpdatePopup.View()
-	} else if m.networkJoinPopup != nil {
-		popup = m.networkJoinPopup.View()
-	} else if m.banReasonPopup != nil {
-		popup = m.banReasonPopup.View()
-	} else if m.banViewPopup != nil {
-		popup = m.banViewPopup.View()
-	} else if m.signalAddPopup != nil {
-		popup = m.signalAddPopup.View()
-	}
+	if m.HasPopup() {
+		colors.Restore()
+		var popup string
+		if m.helpPopup != nil {
+			popup = m.helpPopup.View()
+		} else if m.userSettingsPopup != nil {
+			popup = m.userSettingsPopup.View()
+		} else if m.networkCreationPopup != nil {
+			popup = m.networkCreationPopup.View()
+		} else if m.networkUpdatePopup != nil {
+			popup = m.networkUpdatePopup.View()
+		} else if m.frequencyCreationPopup != nil {
+			popup = m.frequencyCreationPopup.View()
+		} else if m.frequencyUpdatePopup != nil {
+			popup = m.frequencyUpdatePopup.View()
+		} else if m.networkJoinPopup != nil {
+			popup = m.networkJoinPopup.View()
+		} else if m.banReasonPopup != nil {
+			popup = m.banReasonPopup.View()
+		} else if m.banViewPopup != nil {
+			popup = m.banViewPopup.View()
+		} else if m.signalAddPopup != nil {
+			popup = m.signalAddPopup.View()
+		}
 
-	if popup != "" {
 		x := (ui.Width - lipgloss.Width(popup)) / 2
 		y := (ui.Height - lipgloss.Height(popup)) / 2
 		result = ui.PlaceOverlay(x, y, popup, result)

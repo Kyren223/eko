@@ -250,3 +250,33 @@ func IsHex(color string) bool {
 	re := regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 	return re.MatchString(color)
 }
+
+func ToHexRGB(r, g, b uint8) string {
+	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
+}
+
+func Darken() {
+	Save()
+
+	colors := Get()
+	for i, color := range colors {
+		colors[i] = DarkenColor(color, 0.5)
+	}
+
+	Load(colors)
+}
+
+func DarkenColor(color lipgloss.Color, factor float64) lipgloss.Color {
+	r, g, b, _ := color.RGBA()
+
+	r8 := uint8(r >> 8)
+	g8 := uint8(g >> 8)
+	b8 := uint8(b >> 8)
+
+	// Apply darkening factor (clamping to avoid underflow)
+	darken := func(c uint8) uint8 {
+		return uint8(float64(c) * factor)
+	}
+
+	return lipgloss.Color(ToHexRGB(darken(r8), darken(g8), darken(b8)))
+}

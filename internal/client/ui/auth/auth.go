@@ -180,6 +180,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	if m.popup != nil {
+		colors.Darken()
+	}
+
 	var builder strings.Builder
 
 	var title string
@@ -260,6 +264,8 @@ func (m Model) View() string {
 	)
 
 	if m.popup != nil {
+		colors.Restore()
+
 		popup := m.popup.View()
 		x := (ui.Width - lipgloss.Width(popup)) / 2
 		y := (ui.Height - lipgloss.Height(popup)) / 2
