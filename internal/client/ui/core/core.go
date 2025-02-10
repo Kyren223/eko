@@ -247,7 +247,7 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 	}
 }
 
-func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
+func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 	totalWidth := max(ui.Width, ui.MinWidth)
 	totalWidth -= NetworkWidth
 	sidebarWidth := int(math.Round(float64(totalWidth) * SidebarPercentage))
@@ -263,7 +263,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	m.memberList.SetWidth(sidebarWidth)
 	m.chat.SetWidth(chatWidth)
 
-	switch msg := msg.(type) {
+	switch msg := message.(type) {
 	case ui.QuitMsg:
 		state.SendFinalData() // blocks
 		gateway.Disconnect()
@@ -355,7 +355,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if !m.HasPopup() {
 					popup := networkcreation.New()
 					m.networkCreationPopup = &popup
-					return nil
+					message = ui.EmptyMsg{}
 				}
 			case FocusLeftSidebar:
 				if !m.HasPopup() && m.networkList.Index() != networklist.SignalsIndex {
@@ -369,7 +369,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 					}
 					popup := frequencycreation.New(*networkId)
 					m.frequencyCreationPopup = &popup
-					return nil
+					message = ui.EmptyMsg{}
 				}
 			}
 
@@ -378,12 +378,12 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				if m.focus == FocusNetworkList {
 					popup := networkjoin.New()
 					m.networkJoinPopup = &popup
-					return nil
+					message = ui.EmptyMsg{}
 				}
 				if m.focus == FocusLeftSidebar && m.networkList.Index() == networklist.SignalsIndex {
 					popup := signaladd.New()
 					m.signalAddPopup = &popup
-					return nil
+					message = ui.EmptyMsg{}
 				}
 			}
 
@@ -412,6 +412,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				}
 				popup := networkupdate.New(*networkId)
 				m.networkUpdatePopup = &popup
+				message = ui.EmptyMsg{}
 			} else if !m.HasPopup() && frequencyFocus {
 				networkId := state.NetworkId(index)
 				if networkId == nil {
@@ -424,7 +425,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 				index := m.frequencyList.Index()
 				popup := frequencyupdate.New(*networkId, index)
 				m.frequencyUpdatePopup = &popup
-				return nil
+				message = ui.EmptyMsg{}
 			}
 
 		// user
@@ -433,7 +434,7 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 			if !m.HasPopup() && !isChatLocked {
 				popup := usersettings.New()
 				m.userSettingsPopup = &popup
-				return nil
+				message = ui.EmptyMsg{}
 			}
 
 		case "?":
@@ -461,7 +462,6 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 						m.helpPopup = NewHelpPopup(HelpMemberList)
 					}
 				}
-				return nil
 			}
 
 		case "esc":
@@ -550,26 +550,28 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	if m.HasPopup() {
-		cmd := m.updatePopups(msg)
-		return cmd
-	}
-
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.networkList, cmd = m.networkList.Update(msg)
+	if m.HasPopup() {
+		cmd := m.updatePopups(message)
+		cmds = append(cmds, cmd)
+		message = ui.EmptyMsg{}
+		colors.Darken()
+	}
+
+	m.networkList, cmd = m.networkList.Update(message)
 	cmds = append(cmds, cmd)
 
 	if m.networkList.Index() == networklist.SignalsIndex {
-		m.signalList, cmd = m.signalList.Update(msg)
+		m.signalList, cmd = m.signalList.Update(message)
 		cmds = append(cmds, cmd)
 
 		cmd = m.chat.SetReceiver(m.signalList.Index())
 		cmds = append(cmds, cmd)
 	} else {
 		m.frequencyList.SetNetworkIndex(m.networkList.Index())
-		m.frequencyList, cmd = m.frequencyList.Update(msg)
+		m.frequencyList, cmd = m.frequencyList.Update(message)
 		cmds = append(cmds, cmd)
 
 		cmd = m.chat.SetFrequency(m.networkList.Index(), m.frequencyList.Index())
@@ -577,13 +579,17 @@ func (m *Model) updateConnected(msg tea.Msg) tea.Cmd {
 	}
 
 	m.memberList.SetNetworkAndFrequency(m.networkList.Index(), m.frequencyList.Index())
-	m.memberList, cmd = m.memberList.Update(msg)
+	m.memberList, cmd = m.memberList.Update(message)
 	cmds = append(cmds, cmd)
 
-	m.chat, cmd = m.chat.Update(msg)
+	m.chat, cmd = m.chat.Update(message)
 	cmds = append(cmds, cmd)
 
 	calculateNotifications()
+
+	if m.HasPopup() {
+		colors.Restore()
+	}
 
 	return tea.Batch(cmds...)
 }

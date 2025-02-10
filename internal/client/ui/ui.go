@@ -41,6 +41,9 @@ var (
 
 var NewAuth func() tea.Model
 
+// Used to update a model with a "fake" message
+type EmptyMsg struct{}
+
 type ModelTransition struct {
 	Model tea.Model
 }
