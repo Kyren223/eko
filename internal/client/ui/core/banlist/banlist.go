@@ -82,7 +82,7 @@ func (m Model) View() string {
 		}
 
 		user := state.State.Users[member.UserID]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		var userStyle lipgloss.Style

@@ -26,12 +26,12 @@ type state struct {
 	ChatState     map[snowflake.ID]ChatState    // key is frequency id or receiver id
 	LastFrequency map[snowflake.ID]snowflake.ID // key is network id
 
-	Messages    map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
-	Networks    map[snowflake.ID]data.Network                 // key is network id
-	Frequencies map[snowflake.ID][]data.Frequency             // key is network id
-	Members     map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
-	Users       map[snowflake.ID]data.User                    // key is user id
-	Trusteds    map[snowflake.ID]ed25519.PublicKey            // key is user id
+	Messages     map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
+	Networks     map[snowflake.ID]data.Network                 // key is network id
+	Frequencies  map[snowflake.ID][]data.Frequency             // key is network id
+	Members      map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
+	Users        map[snowflake.ID]data.User                    // key is user id
+	TrustedUsers map[snowflake.ID]ed25519.PublicKey            // key is user id
 
 	LastReadMessages map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
 	Notifications    map[snowflake.ID]int           // key is frequency id or receiver id
@@ -45,7 +45,7 @@ var State state = state{
 	Frequencies:      map[snowflake.ID][]data.Frequency{},
 	Members:          map[snowflake.ID]map[snowflake.ID]data.Member{},
 	Users:            map[snowflake.ID]data.User{},
-	Trusteds:         map[snowflake.ID]ed25519.PublicKey{},
+	TrustedUsers:     map[snowflake.ID]ed25519.PublicKey{},
 	Notifications:    map[snowflake.ID]int{},
 	LastReadMessages: map[snowflake.ID]*snowflake.ID{},
 }
@@ -232,12 +232,12 @@ func FromJsonUserData(s string) {
 }
 
 func UpdateTrusteds(info *packet.TrustInfo) {
-	for _, removed := range info.RemovedTrusteds {
-		delete(State.Trusteds, removed)
+	for _, removed := range info.RemovedTrustedUsers {
+		delete(State.TrustedUsers, removed)
 	}
 
-	for i, trusted := range info.Trusteds {
-		State.Trusteds[trusted] = info.TrustedPublicKeys[i]
+	for i, trusted := range info.TrustedUsers {
+		State.TrustedUsers[trusted] = info.TrustedPublicKeys[i]
 	}
 }
 

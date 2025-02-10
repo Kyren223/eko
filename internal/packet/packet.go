@@ -83,6 +83,9 @@ const (
 	PacketSetLastReadMessages
 	PacketNotificationsInfo
 
+	PacketBlockUser
+	PacketBlockInfo
+
 	PacketMax
 )
 
@@ -252,6 +255,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &SetLastReadMessages{}
 	case PacketNotificationsInfo:
 		payload = &NotificationsInfo{}
+
+	case PacketBlockUser:
+		payload = &BlockUser{}
+	case PacketBlockInfo:
+		payload = &BlockInfo{}
 
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())

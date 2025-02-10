@@ -217,9 +217,9 @@ func (m *TrustUser) Type() PacketType {
 }
 
 type TrustInfo struct {
-	Trusteds          []snowflake.ID
-	TrustedPublicKeys []ed25519.PublicKey
-	RemovedTrusteds   []snowflake.ID
+	TrustedUsers        []snowflake.ID
+	TrustedPublicKeys   []ed25519.PublicKey
+	RemovedTrustedUsers []snowflake.ID
 }
 
 func (m *TrustInfo) Type() PacketType {
@@ -251,4 +251,22 @@ type NotificationsInfo struct {
 
 func (m *NotificationsInfo) Type() PacketType {
 	return PacketNotificationsInfo
+}
+
+type BlockUser struct {
+	User  snowflake.ID
+	Block bool
+}
+
+func (m *BlockUser) Type() PacketType {
+	return PacketBlockUser
+}
+
+type BlockInfo struct {
+	BlockedUsers        []snowflake.ID
+	RemovedBlockedUsers []snowflake.ID
+}
+
+func (m *BlockInfo) Type() PacketType {
+	return PacketBlockInfo
 }

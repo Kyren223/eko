@@ -439,7 +439,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 
-			_, isTrusting := state.State.Trusteds[senderId]
+			_, isTrusting := state.State.TrustedUsers[senderId]
 
 			return m, gateway.Send(&packet.TrustUser{
 				User:  senderId,
@@ -1339,7 +1339,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		members := state.State.Members[*networkId]
 		member := members[message.SenderID]
 		user := state.State.Users[message.SenderID]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		if isTrusted && !keysMatch {
@@ -1374,7 +1374,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 
 	} else if m.receiverIndex != -1 {
 		user := state.State.Users[message.SenderID]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		if isTrusted && !keysMatch {
@@ -1505,7 +1505,7 @@ func (m *Model) renderFrequencyName() string {
 	} else if m.receiverIndex != -1 {
 		signal := state.Data.Signals[m.receiverIndex]
 		user := state.State.Users[signal]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		color = colors.Purple

@@ -1170,9 +1170,9 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 		})
 		if err == nil {
 			return &packet.TrustInfo{
-				Trusteds:          []snowflake.ID{user.ID},
+				TrustedUsers:          []snowflake.ID{user.ID},
 				TrustedPublicKeys: []ed25519.PublicKey{publicKey},
-				RemovedTrusteds:   nil,
+				RemovedTrustedUsers:   nil,
 			}
 		}
 		if err != nil && err != sql.ErrNoRows {
@@ -1191,9 +1191,9 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 		}
 
 		return &packet.TrustInfo{
-			Trusteds:          []snowflake.ID{user.ID},
+			TrustedUsers:          []snowflake.ID{user.ID},
 			TrustedPublicKeys: []ed25519.PublicKey{user.PublicKey},
-			RemovedTrusteds:   nil,
+			RemovedTrustedUsers:   nil,
 		}
 	} else {
 		err = queries.UntrustUser(ctx, data.UntrustUserParams{
@@ -1202,9 +1202,9 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 		})
 		if err == sql.ErrNoRows {
 			return &packet.TrustInfo{
-				Trusteds:          nil,
+				TrustedUsers:          nil,
 				TrustedPublicKeys: nil,
-				RemovedTrusteds:   []snowflake.ID{user.ID},
+				RemovedTrustedUsers:   []snowflake.ID{user.ID},
 			}
 		}
 		if err != nil {
@@ -1213,9 +1213,9 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 		}
 
 		return &packet.TrustInfo{
-			Trusteds:          nil,
+			TrustedUsers:          nil,
 			TrustedPublicKeys: nil,
-			RemovedTrusteds:   []snowflake.ID{user.ID},
+			RemovedTrustedUsers:   []snowflake.ID{user.ID},
 		}
 	}
 }
@@ -1238,9 +1238,9 @@ func GetUserTrusteds(ctx context.Context, sess *session.Session) packet.Payload 
 	}
 
 	return &packet.TrustInfo{
-		Trusteds:          trusteds,
+		TrustedUsers:          trusteds,
 		TrustedPublicKeys: trustedPublicKeys,
-		RemovedTrusteds:   nil,
+		RemovedTrustedUsers:   nil,
 	}
 }
 

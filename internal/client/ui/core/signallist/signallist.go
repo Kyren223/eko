@@ -73,7 +73,7 @@ func (m Model) View() string {
 		maxUserWidth := maxUserWidth
 
 		user := state.State.Users[signal]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		var userStyle lipgloss.Style
@@ -191,7 +191,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			userId := state.Data.Signals[m.index]
 
-			_, isTrusting := state.State.Trusteds[userId]
+			_, isTrusting := state.State.TrustedUsers[userId]
 
 			return m, gateway.Send(&packet.TrustUser{
 				User:  userId,

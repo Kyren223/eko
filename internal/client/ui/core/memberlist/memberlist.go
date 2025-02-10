@@ -92,7 +92,7 @@ func (m Model) View() string {
 		}
 
 		user := state.State.Users[member.UserID]
-		trustedPublicKey, isTrusted := state.State.Trusteds[user.ID]
+		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
 		keysMatch := bytes.Equal(trustedPublicKey, user.PublicKey)
 
 		var userStyle lipgloss.Style
@@ -210,7 +210,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 
-			_, isTrusting := state.State.Trusteds[member.UserID]
+			_, isTrusting := state.State.TrustedUsers[member.UserID]
 
 			return m, gateway.Send(&packet.TrustUser{
 				User:  member.UserID,
