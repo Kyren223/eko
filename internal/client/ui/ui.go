@@ -37,6 +37,7 @@ var (
 	TrustedAdminStyle  = func() lipgloss.Style { return AdminStyle().SetString("󱄻") }
 	TrustedOwnerStyle  = func() lipgloss.Style { return OwnerStyle().SetString("󱢼") }
 	UntrustedSymbol    = func() string { return lipgloss.NewStyle().Foreground(colors.Red).Render("󱈸") }
+	BlockedSymbol      = func() string { return lipgloss.NewStyle().Foreground(colors.Red).Render("󱑙") }
 )
 
 var NewAuth func() tea.Model

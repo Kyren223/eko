@@ -1418,6 +1418,11 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 
 		sender := senderStyle.Render(user.Name)
 		buf = append(buf, sender...)
+
+		if _, ok := state.State.BlockedUsers[user.ID]; ok {
+			buf = append(buf, ' ')
+			buf = append(buf, ui.BlockedSymbol()...)
+		}
 	}
 
 	// Render header time format
