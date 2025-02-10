@@ -75,23 +75,13 @@ var (
 	MutedPlaceholder        = "You have been muted by a network adminstrator"
 	SelectSignalOrFrequency = "Cannot send messages, select a signal or frequency first"
 
-	EditedIndicator = func() string {
-		return lipgloss.NewStyle().Background(colors.Background).
+	EditedIndicator = func(bg lipgloss.Color) string {
+		return lipgloss.NewStyle().Background(bg).
 			Foreground(colors.LightGray).SetString(" (edited)").String()
 	}
-	EditedIndicatorNL = func() string {
-		return lipgloss.NewStyle().Background(colors.Background).
+	EditedIndicatorNL = func(bg lipgloss.Color) string {
+		return lipgloss.NewStyle().Background(bg).
 			Foreground(colors.LightGray).SetString(" (edited)").String()
-	}
-	SelectedEditedIndicator = func() string {
-		return lipgloss.NewStyle().
-			Foreground(colors.LightGray).Background(colors.BackgroundDim).
-			SetString(" (edited)").String()
-	}
-	SelectedEditedIndicatorNL = func() string {
-		return lipgloss.NewStyle().
-			Foreground(colors.LightGray).Background(colors.BackgroundDim).
-			SetString("\n(edited)").String()
 	}
 
 	WidthWithoutVi = PaddingCount*2 + lipgloss.Width(LeftCorner) + lipgloss.Width(RightCorner)
@@ -1167,11 +1157,12 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		content := messageStyle.Render(rawContent)
 		heights[i] = lipgloss.Height(content)
 		if group[i].Edited {
+			color := backgroundStyle.GetBackground().(lipgloss.Color)
 			before := heights[i]
-			content = messageStyle.Render(rawContent + EditedIndicator())
+			content = messageStyle.Render(rawContent + EditedIndicator(color))
 			heights[i] = lipgloss.Height(content)
 			if before != heights[i] {
-				content = messageStyle.Render(rawContent + EditedIndicatorNL())
+				content = messageStyle.Render(rawContent + EditedIndicatorNL(color))
 				heights[i] = lipgloss.Height(content)
 			}
 		}
@@ -1252,11 +1243,12 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		rawContent = extra + rawContent
 		content := selectedStyle.Render(rawContent)
 		if group[selectedIndex].Edited {
+			color := selectedBackgroundStyle.GetBackground().(lipgloss.Color)
 			before := lipgloss.Height(content)
-			content = selectedStyle.Render(rawContent + SelectedEditedIndicator())
+			content = selectedStyle.Render(rawContent + EditedIndicator(color))
 			after := lipgloss.Height(content)
 			if before != after {
-				content = selectedStyle.Render(rawContent + SelectedEditedIndicatorNL())
+				content = selectedStyle.Render(rawContent + EditedIndicatorNL(color))
 			}
 		}
 
@@ -1305,11 +1297,12 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			content := messageStyle.Render(rawContent)
 			heights[i] = lipgloss.Height(content)
 			if group[i].Edited {
+				color := backgroundStyle.GetBackground().(lipgloss.Color)
 				before := heights[i]
-				content = messageStyle.Render(rawContent + EditedIndicator())
+				content = messageStyle.Render(rawContent + EditedIndicator(color))
 				heights[i] = lipgloss.Height(content)
 				if before != heights[i] {
-					content = messageStyle.Render(rawContent + EditedIndicatorNL())
+					content = messageStyle.Render(rawContent + EditedIndicatorNL(color))
 					heights[i] = lipgloss.Height(content)
 				}
 			}
