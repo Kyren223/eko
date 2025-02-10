@@ -429,9 +429,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.style = editStyle()
 
 		case "T":
-			if m.selectedMessage == nil || m.receiverIndex != -1 {
+			if m.selectedMessage == nil {
 				return m, nil
 			}
+
 			senderId := m.selectedMessage.SenderID
 
 			if senderId == *state.UserID {
@@ -513,68 +514,77 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "U":
-			if m.selectedMessage == nil || m.receiverIndex != -1 {
-				return m, nil
-			}
-			networkId := state.NetworkId(m.networkIndex)
-			network := state.State.Networks[*networkId]
-			senderId := m.selectedMessage.SenderID
-			member := state.State.Members[*networkId][senderId]
-
-			if !member.IsMuted {
+			if m.selectedMessage == nil {
 				return m, nil
 			}
 
-			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
-				return m, nil
-			}
+			if m.receiverIndex != -1 {
+				// TODO: unlock user
+			} else {
+				networkId := state.NetworkId(m.networkIndex)
+				network := state.State.Networks[*networkId]
+				senderId := m.selectedMessage.SenderID
+				member := state.State.Members[*networkId][senderId]
 
-			if member.UserID == *state.UserID {
-				return m, nil
-			}
-
-			if member.IsAdmin && network.OwnerID != *state.UserID {
-				return m, nil
-			}
-
-			no := false
-			return m, gateway.Send(&packet.SetMember{
-				Member:    nil,
-				Admin:     nil,
-				Muted:     &no,
-				Banned:    nil,
-				BanReason: nil,
-				Network:   *state.NetworkId(m.networkIndex),
-				User:      member.UserID,
-			})
-		case "B":
-			if m.selectedMessage == nil || m.receiverIndex != -1 {
-				return m, nil
-			}
-			networkId := state.NetworkId(m.networkIndex)
-			network := state.State.Networks[*networkId]
-			senderId := m.selectedMessage.SenderID
-			member := state.State.Members[*networkId][senderId]
-
-			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
-				return m, nil
-			}
-
-			if member.UserID == *state.UserID {
-				return m, nil
-			}
-
-			if member.IsAdmin && network.OwnerID != *state.UserID {
-				return m, nil
-			}
-
-			cmd := func() tea.Msg {
-				return ui.BanReasonPopupMsg{
-					Network: *state.NetworkId(m.networkIndex),
-					User:    member.UserID,
+				if !member.IsMuted {
+					return m, nil
 				}
+
+				if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+					return m, nil
+				}
+
+				if member.UserID == *state.UserID {
+					return m, nil
+				}
+
+				if member.IsAdmin && network.OwnerID != *state.UserID {
+					return m, nil
+				}
+
+				no := false
+				return m, gateway.Send(&packet.SetMember{
+					Member:    nil,
+					Admin:     nil,
+					Muted:     &no,
+					Banned:    nil,
+					BanReason: nil,
+					Network:   *state.NetworkId(m.networkIndex),
+					User:      member.UserID,
+				})
 			}
-			return m, cmd
+		case "B":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+			if m.receiverIndex != -1 {
+				// TODO: block user
+			} else {
+				networkId := state.NetworkId(m.networkIndex)
+				network := state.State.Networks[*networkId]
+				senderId := m.selectedMessage.SenderID
+				member := state.State.Members[*networkId][senderId]
+
+				if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+					return m, nil
+				}
+
+				if member.UserID == *state.UserID {
+					return m, nil
+				}
+
+				if member.IsAdmin && network.OwnerID != *state.UserID {
+					return m, nil
+				}
+
+				cmd := func() tea.Msg {
+					return ui.BanReasonPopupMsg{
+						Network: *state.NetworkId(m.networkIndex),
+						User:    member.UserID,
+					}
+				}
+				return m, cmd
+			}
 
 		// Owner
 		case "D":
