@@ -12,6 +12,50 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
+const blockUser = `-- name: BlockUser :exec
+INSERT OR IGNORE INTO blocked_users (
+  blocking_user_id, blocked_user_id
+) VALUES (?, ?)
+`
+
+type BlockUserParams struct {
+	BlockingUserID snowflake.ID
+	BlockedUserID  snowflake.ID
+}
+
+func (q *Queries) BlockUser(ctx context.Context, arg BlockUserParams) error {
+	_, err := q.db.ExecContext(ctx, blockUser, arg.BlockingUserID, arg.BlockedUserID)
+	return err
+}
+
+const getBlockedUsers = `-- name: GetBlockedUsers :many
+SELECT blocked_user_id FROM blocked_users
+WHERE blocking_user_id = ?
+`
+
+func (q *Queries) GetBlockedUsers(ctx context.Context, blockingUserID snowflake.ID) ([]snowflake.ID, error) {
+	rows, err := q.db.QueryContext(ctx, getBlockedUsers, blockingUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []snowflake.ID
+	for rows.Next() {
+		var blocked_user_id snowflake.ID
+		if err := rows.Scan(&blocked_user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, blocked_user_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTrustedPublicKey = `-- name: GetTrustedPublicKey :one
 SELECT trusted_public_key FROM trusted_users
 WHERE trusting_user_id = ? AND trusted_user_id = ?
@@ -29,25 +73,25 @@ func (q *Queries) GetTrustedPublicKey(ctx context.Context, arg GetTrustedPublicK
 	return trusted_public_key, err
 }
 
-const getUserTrusteds = `-- name: GetUserTrusteds :many
+const getTrustedUsers = `-- name: GetTrustedUsers :many
 SELECT trusted_user_id, trusted_public_key FROM trusted_users
 WHERE trusting_user_id = ?
 `
 
-type GetUserTrustedsRow struct {
+type GetTrustedUsersRow struct {
 	TrustedUserID    snowflake.ID
 	TrustedPublicKey ed25519.PublicKey
 }
 
-func (q *Queries) GetUserTrusteds(ctx context.Context, trustingUserID snowflake.ID) ([]GetUserTrustedsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserTrusteds, trustingUserID)
+func (q *Queries) GetTrustedUsers(ctx context.Context, trustingUserID snowflake.ID) ([]GetTrustedUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTrustedUsers, trustingUserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserTrustedsRow
+	var items []GetTrustedUsersRow
 	for rows.Next() {
-		var i GetUserTrustedsRow
+		var i GetTrustedUsersRow
 		if err := rows.Scan(&i.TrustedUserID, &i.TrustedPublicKey); err != nil {
 			return nil, err
 		}
@@ -60,6 +104,23 @@ func (q *Queries) GetUserTrusteds(ctx context.Context, trustingUserID snowflake.
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserBlocked = `-- name: IsUserBlocked :one
+SELECT blocked_user_id FROM blocked_users
+WHERE blocking_user_id = ? AND blocked_user_id = ?
+`
+
+type IsUserBlockedParams struct {
+	BlockingUserID snowflake.ID
+	BlockedUserID  snowflake.ID
+}
+
+func (q *Queries) IsUserBlocked(ctx context.Context, arg IsUserBlockedParams) (snowflake.ID, error) {
+	row := q.db.QueryRowContext(ctx, isUserBlocked, arg.BlockingUserID, arg.BlockedUserID)
+	var blocked_user_id snowflake.ID
+	err := row.Scan(&blocked_user_id)
+	return blocked_user_id, err
 }
 
 const trustUser = `-- name: TrustUser :exec
@@ -76,6 +137,21 @@ type TrustUserParams struct {
 
 func (q *Queries) TrustUser(ctx context.Context, arg TrustUserParams) error {
 	_, err := q.db.ExecContext(ctx, trustUser, arg.TrustingUserID, arg.TrustedUserID, arg.TrustedPublicKey)
+	return err
+}
+
+const unblockUser = `-- name: UnblockUser :exec
+DELETE FROM blocked_users
+WHERE blocking_user_id = ? AND blocked_user_id = ?
+`
+
+type UnblockUserParams struct {
+	BlockingUserID snowflake.ID
+	BlockedUserID  snowflake.ID
+}
+
+func (q *Queries) UnblockUser(ctx context.Context, arg UnblockUserParams) error {
+	_, err := q.db.ExecContext(ctx, unblockUser, arg.BlockingUserID, arg.BlockedUserID)
 	return err
 }
 

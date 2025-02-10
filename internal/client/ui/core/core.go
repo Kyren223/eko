@@ -327,7 +327,7 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		state.UpdateMessages(msg)
 
 	case *packet.TrustInfo:
-		state.UpdateTrusteds(msg)
+		state.UpdateTrustedUsers(msg)
 
 	case *packet.NotificationsInfo:
 		signals := state.UpdateNotifications(msg)

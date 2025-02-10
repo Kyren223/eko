@@ -231,7 +231,7 @@ func FromJsonUserData(s string) {
 	log.Println("Updated user data:", Data)
 }
 
-func UpdateTrusteds(info *packet.TrustInfo) {
+func UpdateTrustedUsers(info *packet.TrustInfo) {
 	for _, removed := range info.RemovedTrustedUsers {
 		delete(State.TrustedUsers, removed)
 	}

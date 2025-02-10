@@ -371,6 +371,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	case *packet.SetLastReadMessages:
 		response = timeout(50*time.Millisecond, api.SetLastReadMessages, ctx, sess, request)
 
+	case *packet.BlockUser:
+		response = timeout(10*time.Millisecond, api.BlockUser, ctx, sess, request)
+
 	default:
 		response = &packet.Error{Error: "use of disallowed packet type for request"}
 	}
@@ -418,7 +421,15 @@ func (server *server) sendInitialPackets(ctx context.Context, sess *session.Sess
 	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 	sess.Write(ctx, pkt)
 
-	payload = api.GetUserTrusteds(ctx, sess)
+	payload = api.GetTrustedUsers(ctx, sess)
+	if payload == &api.ErrInternalError {
+		return false
+	}
+	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
+	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, pkt)
+
+	payload = api.GetBlockedUsers(ctx, sess)
 	if payload == &api.ErrInternalError {
 		return false
 	}
