@@ -13,7 +13,6 @@ import (
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
-	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -43,12 +42,6 @@ func Run() {
 		fmt.Printf("Config file at '%v' was unable to load successfully\n%v\n", config.ConfigFile, err)
 		os.Exit(1)
 	}
-
-	config.Use(func(config *config.Config) {
-		if config.Colors != nil {
-			colors.LoadStrings(config.Colors)
-		}
-	})
 
 	program := tea.NewProgram(initialModel(dump), tea.WithAltScreen())
 	assert.AddFlush(BubbleTeaCloser{program})

@@ -21,22 +21,13 @@ type Config struct {
 }
 
 func Default() Config {
-	colors.Save()
-	cols := colors.Get()
-	sColors := make([]string, 0, colors.Count)
-	for _, color := range cols {
-		if color != "" {
-			sColors = append(sColors, colors.ToHex(color))
-		}
-	}
-
 	return Config{
 		ServerName:             "eko.kyren.codes",
 		PrivateKeyPath:         "",
 		InsertModeTabToSpace:   true,
 		InsertModeSpacesPerTab: 4,
 		InsecureDebugMode:      false,
-		Colors:                 sColors,
+		Colors:                 nil,
 	}
 }
 
@@ -59,6 +50,7 @@ func VerifyAndFix(config *Config) error {
 			)
 		}
 
+		colors.LoadStrings(config.Colors)
 	}
 
 	return nil
