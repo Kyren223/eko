@@ -258,7 +258,7 @@ func ToHexRGB(r, g, b uint8) string {
 
 var isDarkened = false
 
-const DarkeningFactor = 0.5
+const DarkeningFactor = 0.3
 
 func Darken() {
 	Save()
