@@ -519,7 +519,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			if m.receiverIndex != -1 {
-				// TODO: unlock user
+				userId := state.Data.Signals[m.receiverIndex]
+
+				if userId == *state.UserID {
+					return m, nil
+				}
+
+				if _, ok := state.State.BlockedUsers[userId]; !ok {
+					return m, nil
+				}
+
+				return m, gateway.Send(&packet.BlockUser{
+					User:  userId,
+					Block: false,
+				})
+
 			} else {
 				networkId := state.NetworkId(m.networkIndex)
 				network := state.State.Networks[*networkId]
@@ -558,7 +572,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.receiverIndex != -1 {
-				// TODO: block user
+				userId := state.Data.Signals[m.receiverIndex]
+
+				if userId == *state.UserID {
+					return m, nil
+				}
+
+				if _, ok := state.State.BlockedUsers[userId]; ok {
+					return m, nil
+				}
+
+				return m, gateway.Send(&packet.BlockUser{
+					User:  userId,
+					Block: true,
+				})
+
 			} else {
 				networkId := state.NetworkId(m.networkIndex)
 				network := state.State.Networks[*networkId]

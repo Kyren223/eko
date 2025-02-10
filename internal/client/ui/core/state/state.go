@@ -32,6 +32,7 @@ type state struct {
 	Members      map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
 	Users        map[snowflake.ID]data.User                    // key is user id
 	TrustedUsers map[snowflake.ID]ed25519.PublicKey            // key is user id
+	BlockedUsers map[snowflake.ID]struct{}                     // key is user id
 
 	LastReadMessages map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
 	Notifications    map[snowflake.ID]int           // key is frequency id or receiver id
@@ -46,8 +47,9 @@ var State state = state{
 	Members:          map[snowflake.ID]map[snowflake.ID]data.Member{},
 	Users:            map[snowflake.ID]data.User{},
 	TrustedUsers:     map[snowflake.ID]ed25519.PublicKey{},
-	Notifications:    map[snowflake.ID]int{},
+	BlockedUsers:     map[snowflake.ID]struct{}{},
 	LastReadMessages: map[snowflake.ID]*snowflake.ID{},
+	Notifications:    map[snowflake.ID]int{},
 }
 
 type UserData struct {
@@ -335,5 +337,15 @@ func SendFinalData() {
 	select {
 	case <-ctx.Done():
 	case <-ch2:
+	}
+}
+
+func UpdateBlockedUsers(info *packet.BlockInfo) {
+	for _, removed := range info.RemovedBlockedUsers {
+		delete(State.BlockedUsers, removed)
+	}
+
+	for _, trusted := range info.BlockedUsers {
+		State.BlockedUsers[trusted] = struct{}{}
 	}
 }
