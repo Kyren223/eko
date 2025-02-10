@@ -171,6 +171,8 @@ func (m Model) View() string {
 			popup = m.banViewPopup.View()
 		} else if m.signalAddPopup != nil {
 			popup = m.signalAddPopup.View()
+		} else {
+			assert.Never("missing handling of a popup!")
 		}
 
 		x := (ui.Width - lipgloss.Width(popup)) / 2

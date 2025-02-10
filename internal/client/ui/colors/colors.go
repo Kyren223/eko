@@ -156,6 +156,7 @@ func Save() {
 
 func Restore() {
 	Load(colors)
+	isDarkened = false
 }
 
 func Load(colors []lipgloss.Color) {
@@ -255,15 +256,25 @@ func ToHexRGB(r, g, b uint8) string {
 	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
 }
 
+var isDarkened = false
+
+const DarkeningFactor = 0.5
+
 func Darken() {
 	Save()
 
 	colors := Get()
 	for i, color := range colors {
-		colors[i] = DarkenColor(color, 0.5)
+		colors[i] = DarkenColor(color, DarkeningFactor)
 	}
 
 	Load(colors)
+
+	isDarkened = true
+}
+
+func IsDarkened() bool {
+	return isDarkened
 }
 
 func DarkenColor(color lipgloss.Color, factor float64) lipgloss.Color {

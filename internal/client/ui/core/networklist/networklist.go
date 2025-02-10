@@ -75,6 +75,13 @@ func (m Model) View() string {
 	networks = networks[m.base:upper]
 	for i, networkId := range networks {
 		network := state.State.Networks[networkId]
+		fg := lipgloss.Color(network.FgHexColor)
+		bg := lipgloss.Color(network.BgHexColor)
+
+		if colors.IsDarkened() {
+			fg = colors.DarkenColor(fg, colors.DarkeningFactor)
+			bg = colors.DarkenColor(bg, colors.DarkeningFactor)
+		}
 
 		pings, ok := 0, false
 		frequencies := state.State.Frequencies[networkId]
@@ -86,17 +93,9 @@ func (m Model) View() string {
 
 		var icon lipgloss.Style
 		if ok && pings != 0 {
-			icon = ui.IconStyleNotif(network.Icon,
-				lipgloss.Color(network.FgHexColor),
-				lipgloss.Color(network.BgHexColor),
-				colors.BackgroundDimmer, pings,
-			)
+			icon = ui.IconStyleNotif(network.Icon, fg, bg, colors.BackgroundDimmer, pings)
 		} else {
-			icon = ui.IconStyle(network.Icon,
-				lipgloss.Color(network.FgHexColor),
-				lipgloss.Color(network.BgHexColor),
-				colors.BackgroundDimmer,
-			)
+			icon = ui.IconStyle(network.Icon, fg, bg, colors.BackgroundDimmer)
 		}
 
 		if m.index == m.base+i {
