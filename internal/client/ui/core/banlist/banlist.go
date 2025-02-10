@@ -141,6 +141,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.height -= lipgloss.Height(m.renderHeader())
 	m.height -= 1
 
+	members := m.Members()
+
+	if m.index == -1 && len(members) != 0 {
+		m.index = 0
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		key := msg.String()
@@ -162,7 +168,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// TODO: profile
 
 		case "v", "V":
-			members := m.Members()
 			if 0 <= m.index && m.index < len(members) {
 				member := members[m.index]
 				return m, func() tea.Msg {
@@ -174,7 +179,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case "U":
-			members := m.Members()
 			if 0 <= m.index && m.index < len(members) {
 				member := members[m.index]
 				no := false
