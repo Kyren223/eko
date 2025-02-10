@@ -680,9 +680,12 @@ func (m *Model) sendMessage() tea.Cmd {
 				value := message[len(PingPrefix):index]
 				switch value {
 				case "everyone":
-					pingValue := packet.PingEveryone
-					ping = &pingValue
-					message = message[index+1:]
+					member := state.State.Members[*networkId][*state.UserID]
+					if member.IsAdmin {
+						pingValue := packet.PingEveryone
+						ping = &pingValue
+						message = message[index+1:]
+					}
 				case "admins":
 					pingValue := packet.PingAdmins
 					ping = &pingValue
