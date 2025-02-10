@@ -62,7 +62,7 @@ func (m HelpPopup) View() string {
 
 	keyStyle := lipgloss.NewStyle().
 		Padding(0, 1).
-		Background(colors.DarkPurple).
+		Background(colors.DarkerCyan).
 		Foreground(colors.White)
 
 	keymapLists := [][]Keymap{}

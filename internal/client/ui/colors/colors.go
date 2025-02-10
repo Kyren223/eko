@@ -9,7 +9,7 @@ import (
 	"github.com/kyren223/eko/pkg/assert"
 )
 
-const Count = 32
+const Count = 31
 
 var (
 	DefaultLightGray          = lipgloss.Color("#939AA3")
@@ -31,7 +31,6 @@ var (
 	DefaultBlack              = lipgloss.Color("#000000")
 	DefaultGreen              = lipgloss.Color("#46d46c")
 	DefaultPurple             = lipgloss.Color("#BB91F0")
-	DefaultDarkPurple         = lipgloss.Color("#87123d")
 	DefaultMutedPurple        = lipgloss.Color("#403744")
 	DefaultDarkMutedPurple    = lipgloss.Color("#382d40")
 	DefaultOrange             = lipgloss.Color("#F5A670")
@@ -67,7 +66,6 @@ var (
 	Black              = DefaultBlack
 	Green              = DefaultGreen
 	Purple             = DefaultPurple
-	DarkPurple         = DefaultDarkPurple
 	MutedPurple        = DefaultMutedPurple
 	DarkMutedPurple    = DefaultDarkMutedPurple
 	Orange             = DefaultOrange
@@ -124,8 +122,6 @@ func Save() {
 	colors[i] = Green
 	i++
 	colors[i] = Purple
-	i++
-	colors[i] = DarkPurple
 	i++
 	colors[i] = MutedPurple
 	i++
@@ -198,8 +194,6 @@ func Load(colors []lipgloss.Color) {
 	Green = colors[i]
 	i++
 	Purple = colors[i]
-	i++
-	DarkPurple = colors[i]
 	i++
 	MutedPurple = colors[i]
 	i++
