@@ -89,8 +89,13 @@ func (m Model) View() string {
 	for i, frequency := range frequencies {
 		maxFrequencyWidth := maxFrequencyWidth
 
+		color := lipgloss.Color(frequency.HexColor)
+		if colors.IsDarkened() {
+			color = colors.DarkenColor(color, colors.DarkeningFactor)
+		}
+
 		frequencyStyle := frequencyStyle.
-			Foreground(lipgloss.Color(frequency.HexColor))
+			Foreground(color)
 		if m.index == m.base+i {
 			frequencyStyle = frequencyStyle.Background(colors.BackgroundHighlight)
 		}
@@ -331,6 +336,11 @@ func (m *Model) SetIndex(index int) {
 func (m Model) renderNetworkName() string {
 	bg := lipgloss.Color(m.Network().BgHexColor)
 	fg := lipgloss.Color(m.Network().FgHexColor)
+
+	if colors.IsDarkened() {
+		bg = colors.DarkenColor(bg, colors.DarkeningFactor)
+		fg = colors.DarkenColor(fg, colors.DarkeningFactor)
+	}
 
 	nameStyle := lipgloss.NewStyle().Width(m.width).
 		Padding(1).Align(lipgloss.Center).
