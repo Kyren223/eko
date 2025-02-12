@@ -19,6 +19,10 @@ WHERE trusting_user_id = ? AND trusted_user_id = ?;
 SELECT blocked_user_id FROM blocked_users
 WHERE blocking_user_id = ?;
 
+-- name: GetBlockingUsers :many
+SELECT blocking_user_id FROM blocked_users
+WHERE blocked_user_id = ?;
+
 -- name: IsUserBlocked :one
 SELECT blocked_user_id FROM blocked_users
 WHERE blocking_user_id = ? AND blocked_user_id = ?;

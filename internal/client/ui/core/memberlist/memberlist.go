@@ -212,6 +212,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			_, isTrusting := state.State.TrustedUsers[member.UserID]
 
+			_, isBlocked := state.State.BlockedUsers[member.UserID]
+			if !isTrusting && isBlocked {
+				return m, nil
+			}
+
 			return m, gateway.Send(&packet.TrustUser{
 				User:  member.UserID,
 				Trust: !isTrusting,

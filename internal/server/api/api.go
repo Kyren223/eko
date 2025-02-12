@@ -1204,8 +1204,20 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 				RemovedTrustedUsers: nil,
 			}
 		}
-		if err != nil && err != sql.ErrNoRows {
+		if err != sql.ErrNoRows {
 			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		_, err = queries.IsUserBlocked(ctx, data.IsUserBlockedParams{
+			BlockingUserID: sess.ID(),
+			BlockedUserID:  user.ID,
+		})
+		if err == nil {
+			return &packet.Error{Error: "cannot trust blocked user, unblock them first"}
+		}
+		if err != sql.ErrNoRows {
+			log.Println("database error 2:", err)
 			return &ErrInternalError
 		}
 
@@ -1215,7 +1227,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			TrustedPublicKey: user.PublicKey,
 		})
 		if err != nil {
-			log.Println("database error 2:", err)
+			log.Println("database error 3:", err)
 			return &ErrInternalError
 		}
 
@@ -1230,7 +1242,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			TrustedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("database error 3:", err)
+			log.Println("database error 4:", err)
 			return &ErrInternalError
 		}
 
@@ -1417,12 +1429,23 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 		})
 		if err == nil {
 			return &packet.BlockInfo{
-				BlockedUsers:        []snowflake.ID{user.ID},
-				RemovedBlockedUsers: nil,
+				BlockedUsers:         []snowflake.ID{user.ID},
+				RemovedBlockedUsers:  nil,
+				BlockingUsers:        nil,
+				RemovedBlockingUsers: nil,
 			}
 		}
-		if err != nil && err != sql.ErrNoRows {
+		if err != sql.ErrNoRows {
 			log.Println("database error 1:", err)
+			return &ErrInternalError
+		}
+
+		err = queries.UntrustUser(ctx, data.UntrustUserParams{
+			TrustingUserID: sess.ID(),
+			TrustedUserID:  user.ID,
+		})
+		if err != nil {
+			log.Println("database error 2:", err)
 			return &ErrInternalError
 		}
 
@@ -1431,27 +1454,62 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			BlockedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("database error 2:", err)
-			return &ErrInternalError
-		}
-
-		return &packet.BlockInfo{
-			BlockedUsers:        []snowflake.ID{user.ID},
-			RemovedBlockedUsers: nil,
-		}
-	} else {
-		err = queries.UntrustUser(ctx, data.UntrustUserParams{
-			TrustingUserID: sess.ID(),
-			TrustedUserID:  user.ID,
-		})
-		if err != nil {
 			log.Println("database error 3:", err)
 			return &ErrInternalError
 		}
 
+		UserPropagate(ctx, sess, user.ID, &packet.BlockInfo{
+			BlockedUsers:         nil,
+			RemovedBlockedUsers:  nil,
+			BlockingUsers:        []snowflake.ID{sess.ID()},
+			RemovedBlockingUsers: nil,
+		})
+
 		return &packet.BlockInfo{
-			BlockedUsers:        nil,
-			RemovedBlockedUsers: []snowflake.ID{user.ID},
+			BlockedUsers:         []snowflake.ID{user.ID},
+			RemovedBlockedUsers:  nil,
+			BlockingUsers:        nil,
+			RemovedBlockingUsers: nil,
+		}
+	} else {
+		_, err := queries.IsUserBlocked(ctx, data.IsUserBlockedParams{
+			BlockingUserID: sess.ID(),
+			BlockedUserID:  user.ID,
+		})
+		if err == sql.ErrNoRows {
+			return &packet.BlockInfo{
+				BlockedUsers:         nil,
+				RemovedBlockedUsers:  []snowflake.ID{user.ID},
+				BlockingUsers:        nil,
+				RemovedBlockingUsers: nil,
+			}
+		}
+		if err != nil {
+			log.Println("database error 4:", err)
+			return &ErrInternalError
+		}
+
+		err = queries.UnblockUser(ctx, data.UnblockUserParams{
+			BlockingUserID: sess.ID(),
+			BlockedUserID:  user.ID,
+		})
+		if err != nil {
+			log.Println("database error 5:", err)
+			return &ErrInternalError
+		}
+
+		UserPropagate(ctx, sess, user.ID, &packet.BlockInfo{
+			BlockedUsers:         nil,
+			RemovedBlockedUsers:  nil,
+			BlockingUsers:        nil,
+			RemovedBlockingUsers: []snowflake.ID{sess.ID()},
+		})
+
+		return &packet.BlockInfo{
+			BlockedUsers:         nil,
+			RemovedBlockedUsers:  []snowflake.ID{user.ID},
+			BlockingUsers:        nil,
+			RemovedBlockingUsers: nil,
 		}
 	}
 }
@@ -1465,8 +1523,16 @@ func GetBlockedUsers(ctx context.Context, sess *session.Session) packet.Payload 
 		return &ErrInternalError
 	}
 
+	blockingUsers, err := queries.GetBlockingUsers(ctx, sess.ID())
+	if err != nil && err != sql.ErrNoRows {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
 	return &packet.BlockInfo{
-		BlockedUsers:        blockedUsers,
-		RemovedBlockedUsers: nil,
+		BlockedUsers:         blockedUsers,
+		RemovedBlockedUsers:  nil,
+		BlockingUsers:        blockingUsers,
+		RemovedBlockingUsers: nil,
 	}
 }

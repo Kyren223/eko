@@ -26,13 +26,14 @@ type state struct {
 	ChatState     map[snowflake.ID]ChatState    // key is frequency id or receiver id
 	LastFrequency map[snowflake.ID]snowflake.ID // key is network id
 
-	Messages     map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
-	Networks     map[snowflake.ID]data.Network                 // key is network id
-	Frequencies  map[snowflake.ID][]data.Frequency             // key is network id
-	Members      map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
-	Users        map[snowflake.ID]data.User                    // key is user id
-	TrustedUsers map[snowflake.ID]ed25519.PublicKey            // key is user id
-	BlockedUsers map[snowflake.ID]struct{}                     // key is user id
+	Messages      map[snowflake.ID]*btree.BTreeG[data.Message]  // key is frequency id or receiver id
+	Networks      map[snowflake.ID]data.Network                 // key is network id
+	Frequencies   map[snowflake.ID][]data.Frequency             // key is network id
+	Members       map[snowflake.ID]map[snowflake.ID]data.Member // key is network id then user id
+	Users         map[snowflake.ID]data.User                    // key is user id
+	TrustedUsers  map[snowflake.ID]ed25519.PublicKey            // key is user id
+	BlockedUsers  map[snowflake.ID]struct{}                     // key is user id
+	BlockingUsers map[snowflake.ID]struct{}                     // key is user id
 
 	LastReadMessages map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
 	Notifications    map[snowflake.ID]int           // key is frequency id or receiver id
@@ -48,6 +49,7 @@ var State state = state{
 	Users:            map[snowflake.ID]data.User{},
 	TrustedUsers:     map[snowflake.ID]ed25519.PublicKey{},
 	BlockedUsers:     map[snowflake.ID]struct{}{},
+	BlockingUsers:    map[snowflake.ID]struct{}{},
 	LastReadMessages: map[snowflake.ID]*snowflake.ID{},
 	Notifications:    map[snowflake.ID]int{},
 }
@@ -345,7 +347,16 @@ func UpdateBlockedUsers(info *packet.BlockInfo) {
 		delete(State.BlockedUsers, removed)
 	}
 
-	for _, trusted := range info.BlockedUsers {
-		State.BlockedUsers[trusted] = struct{}{}
+	for _, blocked := range info.BlockedUsers {
+		State.BlockedUsers[blocked] = struct{}{}
+		delete(State.TrustedUsers, blocked)
+	}
+
+	for _, removed := range info.RemovedBlockingUsers {
+		delete(State.BlockingUsers, removed)
+	}
+
+	for _, blocking := range info.BlockingUsers {
+		State.BlockingUsers[blocking] = struct{}{}
 	}
 }

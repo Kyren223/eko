@@ -263,8 +263,10 @@ func (m *BlockUser) Type() PacketType {
 }
 
 type BlockInfo struct {
-	BlockedUsers        []snowflake.ID
-	RemovedBlockedUsers []snowflake.ID
+	BlockedUsers         []snowflake.ID
+	RemovedBlockedUsers  []snowflake.ID
+	BlockingUsers        []snowflake.ID
+	RemovedBlockingUsers []snowflake.ID
 }
 
 func (m *BlockInfo) Type() PacketType {

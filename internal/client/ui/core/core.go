@@ -431,8 +431,8 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 				message = ui.EmptyMsg{}
 			}
 
-		// user
-		case "u":
+		// user [s]ettings
+		case "s":
 			isChatLocked := m.focus == FocusChat && m.chat.Locked()
 			if !m.HasPopup() && !isChatLocked {
 				popup := usersettings.New()

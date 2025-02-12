@@ -29,10 +29,10 @@ var (
 	focusStyle = func() lipgloss.Style {
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Focus)
 	}
-	readOnlyStyle = func() lipgloss.Style {
+	grayStyle = func() lipgloss.Style {
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gray)
 	}
-	mutedStyle = func() lipgloss.Style { return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Red) }
+	redStyle = func() lipgloss.Style { return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Red) }
 	editStyle  = func() lipgloss.Style {
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gold)
 	}
@@ -45,8 +45,8 @@ var (
 			Padding(0, 1)
 	}
 	ViFocusedBorder  = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Focus) }
-	ViReadOnlyBorder = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gray) }
-	ViMutedBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Red) }
+	ViGrayBorder = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gray) }
+	ViRedBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Red) }
 	ViEditBorder     = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gold) }
 
 	PaddingCount = 1
@@ -74,6 +74,8 @@ var (
 	ReadOnlyPlaceholder     = "You do not have permission to send messages in this frequency"
 	MutedPlaceholder        = "You have been muted by a network adminstrator"
 	SelectSignalOrFrequency = "Cannot send messages, select a signal or frequency first"
+	BlockedPlaceholder      = "You have blocked this user"
+	BlockingPlaceholder     = "You have been blocked by this user"
 
 	EditedIndicator = func(bg lipgloss.Color) string {
 		return lipgloss.NewStyle().Background(bg).
@@ -230,14 +232,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		if member.IsMuted {
 			m.vi.Placeholder = MutedPlaceholder
-			m.borderStyle = ViMutedBorder()
-			m.style = mutedStyle()
+			m.borderStyle = ViRedBorder()
+			m.style = redStyle()
 			m.vi.SetInactive(true)
 			m.locked = false
 		} else if frequency.Perms != packet.PermReadWrite && !member.IsAdmin {
 			m.vi.Placeholder = ReadOnlyPlaceholder
-			m.borderStyle = ViReadOnlyBorder()
-			m.style = readOnlyStyle()
+			m.borderStyle = ViGrayBorder()
+			m.style = grayStyle()
 			m.vi.SetInactive(true)
 			m.locked = false
 		} else if m.locked {
@@ -277,9 +279,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		m.hasReadAccess = true
-		m.hasWriteAccess = true // TODO: implement blocking users
+		m.hasWriteAccess = true
 
-		if m.locked {
+		if _, ok := state.State.BlockedUsers[receiverId]; ok {
+			m.hasWriteAccess = false
+			m.vi.Placeholder = BlockedPlaceholder
+			m.borderStyle = ViRedBorder()
+			m.style = redStyle()
+			m.vi.SetInactive(true)
+			m.locked = false
+		} else if _, ok := state.State.BlockingUsers[receiverId]; ok {
+			m.hasWriteAccess = false
+			m.vi.Placeholder = BlockingPlaceholder
+			m.borderStyle = ViRedBorder()
+			m.style = redStyle()
+			m.vi.SetInactive(true)
+			m.locked = false
+		} else if m.locked {
 			m.vi.Placeholder = SendMessagePlaceholder
 			m.borderStyle = ViFocusedBorder()
 			m.style = focusStyle()
@@ -301,8 +317,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.hasWriteAccess = false // TODO: implement blocking users
 
 		m.vi.Placeholder = SelectSignalOrFrequency
-		m.borderStyle = ViReadOnlyBorder()
-		m.style = readOnlyStyle()
+		m.borderStyle = ViGrayBorder()
+		m.style = grayStyle()
 		m.vi.SetInactive(true)
 	}
 
@@ -441,9 +457,53 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			_, isTrusting := state.State.TrustedUsers[senderId]
 
+			_, isBlocked := state.State.BlockedUsers[senderId]
+			if !isTrusting && isBlocked {
+				return m, nil
+			}
+
 			return m, gateway.Send(&packet.TrustUser{
 				User:  senderId,
 				Trust: !isTrusting,
+			})
+
+		case "b":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+
+			userId := m.selectedMessage.SenderID
+
+			if userId == *state.UserID {
+				return m, nil
+			}
+
+			if _, ok := state.State.BlockedUsers[userId]; ok {
+				return m, nil
+			}
+
+			return m, gateway.Send(&packet.BlockUser{
+				User:  userId,
+				Block: true,
+			})
+		case "u":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+
+			userId := m.selectedMessage.SenderID
+
+			if userId == *state.UserID {
+				return m, nil
+			}
+
+			if _, ok := state.State.BlockedUsers[userId]; !ok {
+				return m, nil
+			}
+
+			return m, gateway.Send(&packet.BlockUser{
+				User:  userId,
+				Block: false,
 			})
 
 		// Admin
@@ -514,105 +574,69 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				User:      member.UserID,
 			})
 		case "U":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
+				return m, nil
+			}
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
+
+			if !member.IsMuted {
 				return m, nil
 			}
 
-			if m.receiverIndex != -1 {
-				userId := state.Data.Signals[m.receiverIndex]
-
-				if userId == *state.UserID {
-					return m, nil
-				}
-
-				if _, ok := state.State.BlockedUsers[userId]; !ok {
-					return m, nil
-				}
-
-				return m, gateway.Send(&packet.BlockUser{
-					User:  userId,
-					Block: false,
-				})
-
-			} else {
-				networkId := state.NetworkId(m.networkIndex)
-				network := state.State.Networks[*networkId]
-				senderId := m.selectedMessage.SenderID
-				member := state.State.Members[*networkId][senderId]
-
-				if !member.IsMuted {
-					return m, nil
-				}
-
-				if !state.State.Members[*networkId][*state.UserID].IsAdmin {
-					return m, nil
-				}
-
-				if member.UserID == *state.UserID {
-					return m, nil
-				}
-
-				if member.IsAdmin && network.OwnerID != *state.UserID {
-					return m, nil
-				}
-
-				no := false
-				return m, gateway.Send(&packet.SetMember{
-					Member:    nil,
-					Admin:     nil,
-					Muted:     &no,
-					Banned:    nil,
-					BanReason: nil,
-					Network:   *state.NetworkId(m.networkIndex),
-					User:      member.UserID,
-				})
+			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+				return m, nil
 			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			no := false
+			return m, gateway.Send(&packet.SetMember{
+				Member:    nil,
+				Admin:     nil,
+				Muted:     &no,
+				Banned:    nil,
+				BanReason: nil,
+				Network:   *state.NetworkId(m.networkIndex),
+				User:      member.UserID,
+			})
+
 		case "B":
-			if m.selectedMessage == nil {
+			if m.selectedMessage == nil || m.receiverIndex != -1 {
 				return m, nil
 			}
-			if m.receiverIndex != -1 {
-				userId := state.Data.Signals[m.receiverIndex]
+			networkId := state.NetworkId(m.networkIndex)
+			network := state.State.Networks[*networkId]
+			senderId := m.selectedMessage.SenderID
+			member := state.State.Members[*networkId][senderId]
 
-				if userId == *state.UserID {
-					return m, nil
-				}
-
-				if _, ok := state.State.BlockedUsers[userId]; ok {
-					return m, nil
-				}
-
-				return m, gateway.Send(&packet.BlockUser{
-					User:  userId,
-					Block: true,
-				})
-
-			} else {
-				networkId := state.NetworkId(m.networkIndex)
-				network := state.State.Networks[*networkId]
-				senderId := m.selectedMessage.SenderID
-				member := state.State.Members[*networkId][senderId]
-
-				if !state.State.Members[*networkId][*state.UserID].IsAdmin {
-					return m, nil
-				}
-
-				if member.UserID == *state.UserID {
-					return m, nil
-				}
-
-				if member.IsAdmin && network.OwnerID != *state.UserID {
-					return m, nil
-				}
-
-				cmd := func() tea.Msg {
-					return ui.BanReasonPopupMsg{
-						Network: *state.NetworkId(m.networkIndex),
-						User:    member.UserID,
-					}
-				}
-				return m, cmd
+			if !state.State.Members[*networkId][*state.UserID].IsAdmin {
+				return m, nil
 			}
+
+			if member.UserID == *state.UserID {
+				return m, nil
+			}
+
+			if member.IsAdmin && network.OwnerID != *state.UserID {
+				return m, nil
+			}
+
+			cmd := func() tea.Msg {
+				return ui.BanReasonPopupMsg{
+					Network: *state.NetworkId(m.networkIndex),
+					User:    member.UserID,
+				}
+			}
+			return m, cmd
 
 		// Owner
 		case "D":
@@ -1194,6 +1218,13 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 			}
 		}
 
+		if _, ok := state.State.BlockedUsers[group[i].SenderID]; ok {
+			messageStyle = pingedMessageStyle.
+				BorderForeground(colors.Gray).
+				Background(colors.DarkGray)
+			backgroundStyle = backgroundStyle.Background(colors.DarkGray).Foreground(colors.DarkGray)
+		}
+
 		rawContent := extra + backgroundStyle.Render(group[i].Content)
 		content := messageStyle.Render(rawContent)
 		heights[i] = lipgloss.Height(content)
@@ -1400,6 +1431,10 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 			buf = append(buf, []byte(MutedSymbol())...)
 		}
 
+		if _, ok := state.State.BlockedUsers[user.ID]; ok {
+			buf = append(buf, ui.BlockedSymbol()...)
+		}
+
 	} else if m.receiverIndex != -1 {
 		user := state.State.Users[message.SenderID]
 		trustedPublicKey, isTrusted := state.State.TrustedUsers[user.ID]
@@ -1420,7 +1455,6 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		buf = append(buf, sender...)
 
 		if _, ok := state.State.BlockedUsers[user.ID]; ok {
-			buf = append(buf, ' ')
 			buf = append(buf, ui.BlockedSymbol()...)
 		}
 	}

@@ -91,7 +91,6 @@ func (m Model) View() string {
 				Foreground(colors.Red).Background(colors.BackgroundDim).
 				Render(notif)
 			maxUserWidth -= notifWidth
-
 		}
 
 		if m.index == m.base+i {
@@ -107,6 +106,12 @@ func (m Model) View() string {
 			username = ui.UntrustedSymbol() + username
 		}
 
+		blockSymbol := ""
+		if _, ok := state.State.BlockedUsers[user.ID]; ok {
+			maxUserWidth -= 2 // blocked symbol width
+			blockSymbol = ui.BlockedSymbol()
+		}
+
 		if lipgloss.Width(username) <= maxUserWidth {
 			username = lipgloss.NewStyle().
 				MaxWidth(maxUserWidth).
@@ -120,11 +125,15 @@ func (m Model) View() string {
 				Render(username) + ellipsisStyle.Render(ellipsis)
 		}
 		if m.index == m.base+i {
+			blockSymbol = lipgloss.NewStyle().
+				Background(colors.BackgroundHighlight).Render(blockSymbol)
 			username = lipgloss.NewStyle().Width(maxUserWidth).
-				Background(colors.BackgroundHighlight).Render(username)
+				Background(colors.BackgroundHighlight).Render(username + blockSymbol)
 		} else {
+			blockSymbol = lipgloss.NewStyle().
+				Background(colors.BackgroundDim).Render(blockSymbol)
 			username = lipgloss.NewStyle().Width(maxUserWidth).
-				Background(colors.BackgroundDim).Render(username)
+				Background(colors.BackgroundDim).Render(username + blockSymbol)
 		}
 
 		signal := signalStyle.Render(username + notif)
@@ -193,9 +202,51 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			_, isTrusting := state.State.TrustedUsers[userId]
 
+			_, isBlocked := state.State.BlockedUsers[userId]
+			if !isTrusting && isBlocked {
+				return m, nil
+			}
+
 			return m, gateway.Send(&packet.TrustUser{
 				User:  userId,
 				Trust: !isTrusting,
+			})
+
+		case "b":
+			if m.index == -1 {
+				return m, nil
+			}
+			userId := state.Data.Signals[m.index]
+
+			if userId == *state.UserID {
+				return m, nil
+			}
+
+			if _, ok := state.State.BlockedUsers[userId]; ok {
+				return m, nil
+			}
+
+			return m, gateway.Send(&packet.BlockUser{
+				User:  userId,
+				Block: true,
+			})
+		case "u":
+			if m.index == -1 {
+				return m, nil
+			}
+			userId := state.Data.Signals[m.index]
+
+			if userId == *state.UserID {
+				return m, nil
+			}
+
+			if _, ok := state.State.BlockedUsers[userId]; !ok {
+				return m, nil
+			}
+
+			return m, gateway.Send(&packet.BlockUser{
+				User:  userId,
+				Block: false,
 			})
 
 		}

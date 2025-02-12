@@ -56,6 +56,34 @@ func (q *Queries) GetBlockedUsers(ctx context.Context, blockingUserID snowflake.
 	return items, nil
 }
 
+const getBlockingUsers = `-- name: GetBlockingUsers :many
+SELECT blocking_user_id FROM blocked_users
+WHERE blocked_user_id = ?
+`
+
+func (q *Queries) GetBlockingUsers(ctx context.Context, blockedUserID snowflake.ID) ([]snowflake.ID, error) {
+	rows, err := q.db.QueryContext(ctx, getBlockingUsers, blockedUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []snowflake.ID
+	for rows.Next() {
+		var blocking_user_id snowflake.ID
+		if err := rows.Scan(&blocking_user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, blocking_user_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTrustedPublicKey = `-- name: GetTrustedPublicKey :one
 SELECT trusted_public_key FROM trusted_users
 WHERE trusting_user_id = ? AND trusted_user_id = ?
