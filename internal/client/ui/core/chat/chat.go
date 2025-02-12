@@ -1219,6 +1219,7 @@ func (m *Model) renderMessageGroup(group []data.Message, remaining *int, height 
 		}
 
 		if _, ok := state.State.BlockedUsers[group[i].SenderID]; ok {
+			extra = ""
 			messageStyle = pingedMessageStyle.
 				BorderForeground(colors.Gray).
 				Background(colors.DarkGray)
