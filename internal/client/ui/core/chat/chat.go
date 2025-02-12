@@ -32,8 +32,8 @@ var (
 	grayStyle = func() lipgloss.Style {
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gray)
 	}
-	redStyle = func() lipgloss.Style { return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Red) }
-	editStyle  = func() lipgloss.Style {
+	redStyle  = func() lipgloss.Style { return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Red) }
+	editStyle = func() lipgloss.Style {
 		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Gold)
 	}
 
@@ -44,10 +44,10 @@ var (
 			Border(lipgloss.RoundedBorder(), true, true, false).
 			Padding(0, 1)
 	}
-	ViFocusedBorder  = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Focus) }
-	ViGrayBorder = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gray) }
-	ViRedBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Red) }
-	ViEditBorder     = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gold) }
+	ViFocusedBorder = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Focus) }
+	ViGrayBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gray) }
+	ViRedBorder     = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Red) }
+	ViEditBorder    = func() lipgloss.Style { return ViBlurredBorder().BorderForeground(colors.Gold) }
 
 	PaddingCount = 1
 	Padding      = strings.Repeat(" ", PaddingCount)
@@ -1392,6 +1392,11 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 	var buf []byte
 	buf = append(buf, Padding...)
 
+	blockStyle := lipgloss.NewStyle().Background(colors.Background)
+	if selected {
+		blockStyle = blockStyle.Background(colors.BackgroundDim)
+	}
+
 	networkId := state.NetworkId(m.networkIndex)
 	if networkId != nil {
 		ownerId := state.State.Networks[*networkId].OwnerID
@@ -1432,7 +1437,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		}
 
 		if _, ok := state.State.BlockedUsers[user.ID]; ok {
-			buf = append(buf, ui.BlockedSymbol()...)
+			buf = append(buf, blockStyle.Render(ui.BlockedSymbol())...)
 		}
 
 	} else if m.receiverIndex != -1 {
@@ -1455,7 +1460,7 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 		buf = append(buf, sender...)
 
 		if _, ok := state.State.BlockedUsers[user.ID]; ok {
-			buf = append(buf, ui.BlockedSymbol()...)
+			buf = append(buf, blockStyle.Render(ui.BlockedSymbol())...)
 		}
 	}
 
