@@ -13,6 +13,7 @@ const (
 	MaxUsernameBytes        = 32
 	MaxUserDescriptionBytes = 200
 	MaxBanReasonBytes       = 64
+	MaxUsersInGetUsers      = 64
 )
 
 const (

@@ -40,3 +40,7 @@ RETURNING *;
 -- name: GetUserData :one
 SELECT data FROM user_data
 WHERE user_id = ?;
+
+-- name: GetUsersByIds :many
+SELECT * FROM users
+WHERE id IN (sqlc.slice('ids'));

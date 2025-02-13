@@ -7,6 +7,7 @@ package data
 
 import (
 	"context"
+	"strings"
 
 	"crypto/ed25519"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -100,6 +101,51 @@ func (q *Queries) GetUserData(ctx context.Context, userID snowflake.ID) (string,
 	var data string
 	err := row.Scan(&data)
 	return data, err
+}
+
+const getUsersByIds = `-- name: GetUsersByIds :many
+SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) GetUsersByIds(ctx context.Context, ids []snowflake.ID) ([]User, error) {
+	query := getUsersByIds
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.PublicKey,
+			&i.Description,
+			&i.IsPublicDM,
+			&i.IsDeleted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setUserData = `-- name: SetUserData :one

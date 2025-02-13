@@ -86,6 +86,9 @@ const (
 	PacketBlockUser
 	PacketBlockInfo
 
+	PacketGetUsers
+	PacketUsersInfo
+
 	PacketMax
 )
 
@@ -260,6 +263,11 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &BlockUser{}
 	case PacketBlockInfo:
 		payload = &BlockInfo{}
+
+	case PacketGetUsers:
+		payload = &GetUsers{}
+	case PacketUsersInfo:
+		payload = &UsersInfo{}
 
 	default:
 		assert.Never("unexpected packet.PacketType", "type", p.Type())

@@ -144,6 +144,7 @@ func UpdateMessages(info *packet.MessagesInfo) {
 		}
 	}
 
+	unknownUsers := []snowflake.ID{}
 	for _, message := range info.Messages {
 		msgSource := message.FrequencyID
 		if msgSource == nil {
@@ -160,7 +161,15 @@ func UpdateMessages(info *packet.MessagesInfo) {
 			State.Messages[*msgSource] = bt
 		}
 		bt.ReplaceOrInsert(message)
+
+		if _, ok := State.Users[message.SenderID]; !ok {
+			unknownUsers = append(unknownUsers, message.SenderID)
+		}
 	}
+
+	gateway.SendAsync(&packet.GetUsers{
+		Users: unknownUsers,
+	})
 
 	// Note: this is a naive approach
 	// Ideally we check each message that was added/removed
@@ -358,5 +367,11 @@ func UpdateBlockedUsers(info *packet.BlockInfo) {
 
 	for _, blocking := range info.BlockingUsers {
 		State.BlockingUsers[blocking] = struct{}{}
+	}
+}
+
+func UpdateUsersInfo(info *packet.UsersInfo) {
+	for _, user := range info.Users {
+		State.Users[user.ID] = user
 	}
 }

@@ -332,6 +332,9 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 	case *packet.BlockInfo:
 		state.UpdateBlockedUsers(msg)
 
+	case *packet.UsersInfo:
+		state.UpdateUsersInfo(msg)
+
 	case *packet.NotificationsInfo:
 		signals := state.UpdateNotifications(msg)
 		if m.networkList.Index() == networklist.SignalsIndex {

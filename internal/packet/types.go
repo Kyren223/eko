@@ -272,3 +272,19 @@ type BlockInfo struct {
 func (m *BlockInfo) Type() PacketType {
 	return PacketBlockInfo
 }
+
+type GetUsers struct {
+	Users []snowflake.ID
+}
+
+func (m *GetUsers) Type() PacketType {
+	return PacketGetUsers
+}
+
+type UsersInfo struct {
+	Users []data.User
+}
+
+func (m *UsersInfo) Type() PacketType {
+	return PacketUsersInfo
+}

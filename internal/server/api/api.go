@@ -288,6 +288,11 @@ func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.P
 }
 
 func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.CreateNetwork) packet.Payload {
+	// TODO: implement private servers
+	if !request.IsPublic {
+		return &ErrNotImplemented
+	}
+
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return &packet.Error{Error: "server name must not be blank"}
@@ -1534,5 +1539,24 @@ func GetBlockedUsers(ctx context.Context, sess *session.Session) packet.Payload 
 		RemovedBlockedUsers:  nil,
 		BlockingUsers:        blockingUsers,
 		RemovedBlockingUsers: nil,
+	}
+}
+
+func GetUsers(ctx context.Context, sess *session.Session, request *packet.GetUsers) packet.Payload {
+	if len(request.Users) > packet.MaxUsersInGetUsers {
+		return &packet.Error{Error: fmt.Sprintf(
+			"Max users per request may not exceed %v", packet.MaxUsersInGetUsers,
+		)}
+	}
+
+	queries := data.New(db)
+	users, err := queries.GetUsersByIds(ctx, request.Users)
+	if err != nil {
+		log.Println("database error 1:", err)
+		return &ErrInternalError
+	}
+
+	return &packet.UsersInfo{
+		Users: users,
 	}
 }
