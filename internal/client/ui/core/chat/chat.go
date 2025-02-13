@@ -1417,16 +1417,20 @@ func (m *Model) renderHeader(message data.Message, selected bool) []byte {
 				senderStyle = ui.TrustedOwnerStyle()
 			} else if member.IsAdmin {
 				senderStyle = ui.TrustedAdminStyle()
-			} else {
+			} else if member.IsMember {
 				senderStyle = ui.TrustedMemberStyle()
+			} else {
+				senderStyle = ui.TrustedMemberStyle().Foreground(colors.White)
 			}
 		} else {
 			if ownerId == member.UserID {
 				senderStyle = ui.OwnerStyle()
 			} else if member.IsAdmin {
 				senderStyle = ui.AdminStyle()
-			} else {
+			} else if member.IsMember {
 				senderStyle = ui.UserStyle()
+			} else {
+				senderStyle = ui.UserStyle().Foreground(colors.White)
 			}
 		}
 
