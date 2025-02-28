@@ -76,7 +76,7 @@ func New() Model {
 	name.FocusedTextStyle = focusedTextStyle
 	name.BlurredTextStyle = blurredTextStyle
 	name.ErrorStyle = lipgloss.NewStyle().Foreground(colors.Error)
-	name.Input.CharLimit = width
+	name.Input.CharLimit = packet.MaxUsernameBytes
 	name.Focus()
 	name.Input.Validate = func(s string) error {
 		if strings.TrimSpace(s) == "" {
