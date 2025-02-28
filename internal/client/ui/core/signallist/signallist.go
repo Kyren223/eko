@@ -185,6 +185,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "i":
 			_ = clipboard.WriteAll(strconv.FormatInt(int64(*state.UserID), 10))
 
+		case "p":
+			if m.index == -1 {
+				return m, nil
+			}
+			userId := state.Data.Signals[m.index]
+
+			return m, func() tea.Msg {
+				return ui.ProfilePopupMsg{
+					User: userId,
+				}
+			}
+
 		case "c":
 			if m.index == -1 {
 				return m, nil

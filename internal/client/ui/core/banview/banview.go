@@ -13,12 +13,6 @@ import (
 
 var width = 48
 
-const (
-	BanReasonField = iota
-	BanField
-	FieldCount
-)
-
 type Model struct {
 	banReason string
 	name      string

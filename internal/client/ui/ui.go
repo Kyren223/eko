@@ -57,7 +57,11 @@ func Transition(model tea.Model) tea.Cmd {
 
 type QuitMsg struct{}
 
-type BanViewPopupmsg struct {
+type ProfilePopupMsg struct {
+	User snowflake.ID
+}
+
+type BanViewPopupMsg struct {
 	Network snowflake.ID
 	User    snowflake.ID
 }

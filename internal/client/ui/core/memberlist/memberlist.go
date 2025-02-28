@@ -200,7 +200,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(m.index + m.height/2)
 
 		case "p":
-			// TODO: profile
+			member := m.Members()[m.index]
+
+			return m, func() tea.Msg {
+				return ui.ProfilePopupMsg{
+					User: member.UserID,
+				}
+			}
 
 		// Normal
 		case "T":

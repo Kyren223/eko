@@ -413,6 +413,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.SetIndex(Unselected)
 			}
 
+		case "p":
+			if m.selectedMessage == nil {
+				return m, nil
+			}
+
+			return m, func() tea.Msg {
+				return ui.ProfilePopupMsg{
+					User: m.selectedMessage.SenderID,
+				}
+			}
+
 		case "x", "d":
 			if m.selectedMessage == nil {
 				return m, nil

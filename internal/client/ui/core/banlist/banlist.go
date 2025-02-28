@@ -165,13 +165,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SetIndex(m.index + m.height/2)
 
 		case "p":
-			// TODO: profile
+			if 0 <= m.index && m.index < len(members) {
+				member := members[m.index]
+				return m, func() tea.Msg {
+					return ui.ProfilePopupMsg{
+						User: member.UserID,
+					}
+				}
+			}
 
 		case "v", "V":
 			if 0 <= m.index && m.index < len(members) {
 				member := members[m.index]
 				return m, func() tea.Msg {
-					return ui.BanViewPopupmsg{
+					return ui.BanViewPopupMsg{
 						Network: m.networkId,
 						User:    member.UserID,
 					}

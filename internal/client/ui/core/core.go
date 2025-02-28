@@ -27,6 +27,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/networkjoin"
 	"github.com/kyren223/eko/internal/client/ui/core/networklist"
 	"github.com/kyren223/eko/internal/client/ui/core/networkupdate"
+	"github.com/kyren223/eko/internal/client/ui/core/profile"
 	"github.com/kyren223/eko/internal/client/ui/core/signaladd"
 	"github.com/kyren223/eko/internal/client/ui/core/signallist"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
@@ -80,6 +81,7 @@ type Model struct {
 	banReasonPopup         *banreason.Model
 	banViewPopup           *banview.Model
 	signalAddPopup         *signaladd.Model
+	profilePopup           *profile.Model
 	networkList            networklist.Model
 	signalList             signallist.Model
 	frequencyList          frequencylist.Model
@@ -171,6 +173,8 @@ func (m Model) View() string {
 			popup = m.banViewPopup.View()
 		} else if m.signalAddPopup != nil {
 			popup = m.signalAddPopup.View()
+		} else if m.profilePopup != nil {
+			popup = m.profilePopup.View()
 		} else {
 			assert.Never("missing handling of a popup!")
 		}
@@ -349,9 +353,13 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		popup := banreason.New(msg.User, msg.Network)
 		m.banReasonPopup = &popup
 
-	case ui.BanViewPopupmsg:
+	case ui.BanViewPopupMsg:
 		popup := banview.New(msg.User, msg.Network)
 		m.banViewPopup = &popup
+
+	case ui.ProfilePopupMsg:
+		popup := profile.New(msg.User)
+		m.profilePopup = &popup
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -482,6 +490,7 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 				m.banReasonPopup = nil
 				m.banViewPopup = nil
 				m.signalAddPopup = nil
+				m.profilePopup = nil
 			}
 
 		case "enter":
@@ -538,6 +547,8 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 					m.signalList.SetIndex(i)
 				}
 				return cmd
+			} else if m.profilePopup != nil {
+				m.profilePopup = nil
 			}
 
 		default:
@@ -689,6 +700,10 @@ func (m *Model) updatePopups(msg tea.Msg) tea.Cmd {
 		popup, cmd := m.signalAddPopup.Update(msg)
 		m.signalAddPopup = &popup
 		return cmd
+	} else if m.profilePopup != nil {
+		popup, cmd := m.profilePopup.Update(msg)
+		m.profilePopup = &popup
+		return cmd
 	}
 	return nil
 }
@@ -703,7 +718,8 @@ func (m *Model) HasPopup() bool {
 		m.networkJoinPopup != nil ||
 		m.banReasonPopup != nil ||
 		m.banViewPopup != nil ||
-		m.signalAddPopup != nil
+		m.signalAddPopup != nil ||
+		m.profilePopup != nil
 }
 
 func calculateNotifications() {
