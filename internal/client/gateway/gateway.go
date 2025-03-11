@@ -196,8 +196,8 @@ func handlePacketStream() {
 
 func Disconnect() {
 	if conn != nil {
-		_ = conn.Close()
 		closed = true
+		_ = conn.Close()
 	}
 }
 
