@@ -161,7 +161,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	pubKey, err := handleAuth(conn)
 	if err != nil {
 		initialCancel()
-		log.Println(addr, err)
+		log.Println(addr, "auth error:", err)
 		_ = conn.Close()
 		log.Println(addr, "disconnected")
 		return
@@ -205,7 +205,7 @@ func (server *server) handleConnection(conn net.Conn) {
 		if sameAddress {
 			server.RemoveSession(sess.ID())
 		}
-		log.Println(addr, "disconnected")
+		log.Println(addr, "disconnected gracefully")
 	}()
 
 	go func() {
@@ -251,6 +251,8 @@ func (server *server) handleConnection(conn net.Conn) {
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				log.Println(addr, err)
+			} else {
+				log.Println(addr, "disconnecting gracefully...")
 			}
 			break
 		}
@@ -264,6 +266,7 @@ func (server *server) handleConnection(conn net.Conn) {
 			payload := packet.Error{Error: err.Error()}
 			pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
 			sess.Write(ctx, pkt)
+			log.Println(addr, "received malformed packet:", err)
 			break
 		}
 	}
