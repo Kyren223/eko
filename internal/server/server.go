@@ -216,6 +216,11 @@ func (server *server) handleConnection(conn net.Conn) {
 			}
 			log.Println(addr, "sending packet:", packet)
 			if _, err := packet.Into(conn); err != nil {
+				// TODO: probably should add this to prevent the
+				// "use of closed connection" error, as it's intended to happen
+				// if !errors.Is(err, net.ErrClosed) {
+				// 	log.Println(addr, err)
+				// }
 				log.Println(addr, err)
 				return
 			}
@@ -384,6 +389,8 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 		response = &packet.Error{Error: "use of disallowed packet type for request"}
 	}
 
+	// TODO: Isn't this weird? shouldn't it always be packet.ErrorPacket type?
+	// rather than copying the pkt type of the request?
 	if response, ok := response.(*packet.Error); ok {
 		response.PktType = request.Type()
 	}

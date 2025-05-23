@@ -84,7 +84,7 @@ func (m Model) View() string {
 		}
 
 		notif := ""
-		pings := state.State.Notifications[signal]
+		pings, _ := state.MergedNotification(signal)
 		if pings != 0 {
 			notif = notifs[min(pings, 10)-1]
 			notif = lipgloss.NewStyle().Inline(true).

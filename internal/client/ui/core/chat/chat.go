@@ -124,8 +124,9 @@ type Model struct {
 	index           int
 	selectedMessage *data.Message
 	editingMessage  *data.Message
-	lastReadMsg     *snowflake.ID
-	keepLastRead    bool
+
+	previousLastReadMsg  *snowflake.ID
+	keepPreviousLastRead bool
 
 	messagesHeight    int
 	maxMessagesHeight int
@@ -142,27 +143,27 @@ func New() Model {
 	vi := viminput.New()
 
 	return Model{
-		vi:                vi,
-		focus:             false,
-		locked:            false,
-		hasReadAccess:     false,
-		hasWriteAccess:    false,
-		networkIndex:      -1,
-		receiverIndex:     -1,
-		frequencyIndex:    -1,
-		base:              SnapToBottom,
-		index:             Unselected,
-		selectedMessage:   nil,
-		editingMessage:    nil,
-		lastReadMsg:       nil,
-		keepLastRead:      false,
-		messagesHeight:    0,
-		maxMessagesHeight: -1,
-		messagesCache:     nil,
-		prerender:         "",
-		width:             -1,
-		style:             blurStyle(),
-		borderStyle:       ViBlurredBorder(),
+		vi:                   vi,
+		focus:                false,
+		locked:               false,
+		hasReadAccess:        false,
+		hasWriteAccess:       false,
+		networkIndex:         -1,
+		receiverIndex:        -1,
+		frequencyIndex:       -1,
+		base:                 SnapToBottom,
+		index:                Unselected,
+		selectedMessage:      nil,
+		editingMessage:       nil,
+		previousLastReadMsg:  nil,
+		keepPreviousLastRead: false,
+		messagesHeight:       0,
+		maxMessagesHeight:    -1,
+		messagesCache:        nil,
+		prerender:            "",
+		width:                -1,
+		style:                blurStyle(),
+		borderStyle:          ViBlurredBorder(),
 	}
 }
 
@@ -215,16 +216,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		lastMsg := state.GetLastMessage(frequency.ID)
-		if m.base != SnapToBottom {
-			m.keepLastRead = false
-		} else if lastMsg != nil {
-			lastReadMsg := state.State.LastReadMessages[frequency.ID]
-			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
-				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
-				m.keepLastRead = false
-			}
+		if lastMsg != nil {
+			if m.base == SnapToBottom && lastMsg != nil {
+				// lastReadMsg := state.State.LastReadMessages[frequency.ID]
+				// if m.keepPreviousLastRead && m.previousLastReadMsg != nil && lastReadMsg != nil &&
+				// 	*lastReadMsg != *lastMsg && *lastReadMsg != *m.previousLastReadMsg {
+				// 	m.keepPreviousLastRead = false
+				// }
 
-			state.State.LastReadMessages[frequency.ID] = lastMsg
+				log.Println("HIT")
+				state.State.LastReadMessages[frequency.ID] = lastMsg
+				delete(state.State.RemoteNotifications, frequency.ID)
+			} else if m.base == SnapToBottom {
+				assert.Never("lastMsg is nil")
+			}
+			if m.base != SnapToBottom {
+				assert.Assert(
+					m.keepPreviousLastRead, "debug reached m.keep",
+					"m.base", m.base,
+					"lastMsg", lastMsg,
+					"lastReadMessage", state.State.LastReadMessages[frequency.ID],
+					"m.previousLastReadMessage", m.previousLastReadMsg,
+				)
+				m.keepPreviousLastRead = false
+			}
 		}
 
 		m.hasReadAccess = frequency.Perms != packet.PermNoAccess || member.IsAdmin
@@ -267,12 +282,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		lastMsg := state.GetLastMessage(receiverId)
 		if m.base != SnapToBottom {
-			m.keepLastRead = false
+			m.keepPreviousLastRead = false
 		} else if lastMsg != nil {
 			lastReadMsg := state.State.LastReadMessages[receiverId]
-			if m.keepLastRead && m.lastReadMsg != nil && lastReadMsg != nil &&
-				*lastReadMsg != *lastMsg && *lastReadMsg != *m.lastReadMsg {
-				m.keepLastRead = false
+			if m.keepPreviousLastRead && m.previousLastReadMsg != nil && lastReadMsg != nil &&
+				*lastReadMsg != *lastMsg && *lastReadMsg != *m.previousLastReadMsg {
+				m.keepPreviousLastRead = false
 			}
 
 			state.State.LastReadMessages[receiverId] = lastMsg
@@ -820,7 +835,8 @@ func (m *Model) ResetBeforeSwitch() {
 		m.base = SnapToBottom
 		m.SetIndex(Unselected)
 		m.maxMessagesHeight = -1
-		m.lastReadMsg = nil
+		m.previousLastReadMsg = nil
+		m.keepPreviousLastRead = false
 	}()
 
 	networkId := state.NetworkId(m.networkIndex)
@@ -856,10 +872,10 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
 
-		m.lastReadMsg = state.State.LastReadMessages[frequency.ID]
+		m.previousLastReadMsg = state.State.LastReadMessages[frequency.ID]
 		lastMsg := state.GetLastMessage(frequency.ID)
-		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
-			m.keepLastRead = true
+		if m.previousLastReadMsg != nil && lastMsg != nil && *m.previousLastReadMsg != *lastMsg {
+			m.keepPreviousLastRead = true
 		}
 
 		if val, ok := msgs[frequency.ID]; ok {
@@ -881,10 +897,10 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
-		m.lastReadMsg = state.State.LastReadMessages[receiverId]
+		m.previousLastReadMsg = state.State.LastReadMessages[receiverId]
 		lastMsg := state.GetLastMessage(receiverId)
-		if m.lastReadMsg != nil && lastMsg != nil && *m.lastReadMsg != *lastMsg {
-			m.keepLastRead = true
+		if m.previousLastReadMsg != nil && lastMsg != nil && *m.previousLastReadMsg != *lastMsg {
+			m.keepPreviousLastRead = true
 		}
 
 		if val, ok := msgs[receiverId]; ok {
@@ -1025,8 +1041,8 @@ func (m *Model) renderMessages(screenHeight int) string {
 	group := []data.Message{}
 
 	lastReadId := state.State.LastReadMessages[*id]
-	if m.keepLastRead {
-		lastReadId = m.lastReadMsg
+	if m.keepPreviousLastRead {
+		lastReadId = m.previousLastReadMsg
 	}
 
 	last := snowflake.ID(0)

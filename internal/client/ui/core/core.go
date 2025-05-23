@@ -729,7 +729,7 @@ func calculateNotifications() {
 		}
 
 		pings := getSignalNotification(signal)
-		state.State.Notifications[signal] = pings
+		state.State.LocalNotifications[signal] = pings
 	}
 
 	for networkId := range state.State.Networks {
@@ -740,9 +740,9 @@ func calculateNotifications() {
 
 			pings, hasNotif := getFrequencyNotification(networkId, frequency.ID)
 			if hasNotif {
-				state.State.Notifications[frequency.ID] = pings
+				state.State.LocalNotifications[frequency.ID] = pings
 			} else {
-				delete(state.State.Notifications, frequency.ID)
+				delete(state.State.LocalNotifications, frequency.ID)
 			}
 		}
 	}

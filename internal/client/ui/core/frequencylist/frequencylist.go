@@ -114,7 +114,7 @@ func (m Model) View() string {
 		}
 
 		notif := ""
-		pings, hasNotif := state.State.Notifications[frequency.ID]
+		pings, hasNotif := state.MergedNotification(frequency.ID)
 		if hasNotif {
 			notifSymbol := lipgloss.NewStyle().
 				Foreground(colors.White).Render(notifSymbol)

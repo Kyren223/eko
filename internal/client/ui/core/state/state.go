@@ -35,23 +35,25 @@ type state struct {
 	BlockedUsers  map[snowflake.ID]struct{}                     // key is user id
 	BlockingUsers map[snowflake.ID]struct{}                     // key is user id
 
-	LastReadMessages map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
-	Notifications    map[snowflake.ID]int           // key is frequency id or receiver id
+	LastReadMessages    map[snowflake.ID]*snowflake.ID // key is frequency id or receiver id
+	RemoteNotifications map[snowflake.ID]int           // key is frequency id or receiver id
+	LocalNotifications  map[snowflake.ID]int           // key is frequency id or receiver id
 }
 
 var State state = state{
-	ChatState:        map[snowflake.ID]ChatState{},
-	LastFrequency:    map[snowflake.ID]snowflake.ID{},
-	Messages:         map[snowflake.ID]*btree.BTreeG[data.Message]{},
-	Networks:         map[snowflake.ID]data.Network{},
-	Frequencies:      map[snowflake.ID][]data.Frequency{},
-	Members:          map[snowflake.ID]map[snowflake.ID]data.Member{},
-	Users:            map[snowflake.ID]data.User{},
-	TrustedUsers:     map[snowflake.ID]ed25519.PublicKey{},
-	BlockedUsers:     map[snowflake.ID]struct{}{},
-	BlockingUsers:    map[snowflake.ID]struct{}{},
-	LastReadMessages: map[snowflake.ID]*snowflake.ID{},
-	Notifications:    map[snowflake.ID]int{},
+	ChatState:           map[snowflake.ID]ChatState{},
+	LastFrequency:       map[snowflake.ID]snowflake.ID{},
+	Messages:            map[snowflake.ID]*btree.BTreeG[data.Message]{},
+	Networks:            map[snowflake.ID]data.Network{},
+	Frequencies:         map[snowflake.ID][]data.Frequency{},
+	Members:             map[snowflake.ID]map[snowflake.ID]data.Member{},
+	Users:               map[snowflake.ID]data.User{},
+	TrustedUsers:        map[snowflake.ID]ed25519.PublicKey{},
+	BlockedUsers:        map[snowflake.ID]struct{}{},
+	BlockingUsers:       map[snowflake.ID]struct{}{},
+	LastReadMessages:    map[snowflake.ID]*snowflake.ID{},
+	RemoteNotifications: map[snowflake.ID]int{},
+	LocalNotifications:  map[snowflake.ID]int{},
 }
 
 type UserData struct {
@@ -292,15 +294,13 @@ func UpdateNotifications(info *packet.NotificationsInfo) []snowflake.ID {
 
 		ping := info.Pings[i]
 		if ping != nil {
-			// log.Println(source, *ping)
-			State.Notifications[source] = int(*ping)
+			State.RemoteNotifications[source] = int(*ping)
+
 			if !IsFrequency(source) && !slices.Contains(Data.Signals, source) {
 				signals = append(signals, source)
-				// log.Println("Signals:", Data.Signals)
 			}
 		} else {
-			// log.Println(source, "deleted")
-			delete(State.Notifications, info.Source[i])
+			delete(State.RemoteNotifications, info.Source[i])
 		}
 	}
 
@@ -309,10 +309,10 @@ func UpdateNotifications(info *packet.NotificationsInfo) []snowflake.ID {
 
 func SendFinalData() {
 	data := JsonUserData()
-	ch1 := gateway.SendAsync(&packet.SetUserData{
-		Data: &data,
-		User: nil,
-	})
+	// ch1 := gateway.SendAsync(&packet.SetUserData{
+	// 	Data: &data,
+	// 	User: nil,
+	// })
 
 	sources := []snowflake.ID{}
 
@@ -332,6 +332,10 @@ func SendFinalData() {
 		}
 	}
 
+	ch1 := gateway.SendAsync(&packet.SetUserData{
+		Data: &data,
+		User: nil,
+	})
 	ch2 := gateway.SendAsync(&packet.SetLastReadMessages{
 		Source:   sources,
 		LastRead: lastReads,
@@ -340,15 +344,55 @@ func SendFinalData() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	select {
-	case <-ctx.Done():
-	case <-ch1:
-	}
+	done := make(chan struct{})
+	go func() {
+		<-ch1
+		<-ch2
+		close(done)
+	}()
 
 	select {
 	case <-ctx.Done():
-	case <-ch2:
+		log.Println("Timeout while waiting for final writes to complete")
+	case <-done:
+		log.Println("All final writes completed successfully")
 	}
+
+	// HACK: Give a small grace period for the writes to be processed
+	// Tweak this value as needed
+	time.Sleep(20 * time.Millisecond)
+
+	// TODO:
+	// I think the issue is that it's random which of these 2 requests goes
+	// first (bcz it only does the first request after the client disconnects)
+	// I could fix it server side but eh maybe not
+	// this should instead use a method that blocks until a response was
+	// received, which may need a new gateway method to do that as currently
+	// it just always sends to the prograg
+	// If this is tedious enough it might be worth it to just do it on the
+	// server side
+
+	// Also later on I should probably remove the calculate notifs in core
+	// it can be replaced with just diff-ing incoming notifs
+	// this will most likely work fine although there are some issues with
+	// scopes like becoming an admin/no longer being admin or gaining
+	// or losing access to frequencies and of course msg deletions
+	// But it's probably the right approach (also WAYYYYYY faster)
+
+	// Then there is also the issue of when switching to a frequency
+	// not yet receiving the history so it says "no keep" bcz it's not loaded
+	// but with history it would've said "yes keep" so the solutin would
+	// be to rework it quite a bit to make it stateless or smthing
+	// Then that should be most issues when it comes to notifications
+	// just need to make sure local/remote notifs reset properly when
+	// reaching the bottom
+
+	// log.Println("BLOCKING...")
+	// <-ctx.Done()
+	// log.Println("CTX DANZO")
+
+	// TODO: remove this before release
+	// assert.NoError(ctx.Err(), "context has ran out of time!")
 }
 
 func UpdateBlockedUsers(info *packet.BlockInfo) {
@@ -374,4 +418,10 @@ func UpdateUsersInfo(info *packet.UsersInfo) {
 	for _, user := range info.Users {
 		State.Users[user.ID] = user
 	}
+}
+
+func MergedNotification(id snowflake.ID) (pings int, ok bool) {
+	remotePings, remoteOk := State.RemoteNotifications[id]
+	localPings, localOk := State.LocalNotifications[id]
+	return remotePings + localPings, remoteOk || localOk
 }

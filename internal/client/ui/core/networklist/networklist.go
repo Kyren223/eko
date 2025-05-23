@@ -45,7 +45,8 @@ func (m Model) View() string {
 
 	pings := 0
 	for _, signal := range state.Data.Signals {
-		pings += state.State.Notifications[signal]
+		p, _ := state.MergedNotification(signal)
+		pings += p
 	}
 	var signalsIcon lipgloss.Style
 	if pings == 0 {
@@ -86,7 +87,7 @@ func (m Model) View() string {
 		pings, ok := 0, false
 		frequencies := state.State.Frequencies[networkId]
 		for _, frequency := range frequencies {
-			fpings, fok := state.State.Notifications[frequency.ID]
+			fpings, fok := state.MergedNotification(frequency.ID)
 			pings += fpings
 			ok = ok || fok
 		}
