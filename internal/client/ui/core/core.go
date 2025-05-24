@@ -328,6 +328,7 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		}
 
 	case *packet.MessagesInfo:
+		m.chat.OnNewMessagesReceived(msg) // MUST BE BEFORE STATE UPDATE
 		state.UpdateMessages(msg)
 
 	case *packet.TrustInfo:
