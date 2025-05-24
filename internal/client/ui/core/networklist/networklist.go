@@ -44,8 +44,8 @@ func (m Model) View() string {
 	var builder strings.Builder
 
 	pings := 0
-	for _, signal := range state.Data.Signals {
-		p, _ := state.MergedNotification(signal)
+	for _, signalId := range state.Data.Signals {
+		p, _ := state.MergedNotification(signalId)
 		pings += p
 	}
 	var signalsIcon lipgloss.Style

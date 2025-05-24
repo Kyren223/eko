@@ -269,10 +269,13 @@ func GetLastMessage(id snowflake.ID) *snowflake.ID {
 }
 
 func IsFrequency(id snowflake.ID) bool {
-	// Note this is very expensive and inefficient
+	// OPTIMIZE: this is very expensive and inefficient
 	// A map is better but as most of the time frequencies are iterated
 	// over based on a network id, this would add overhead
 	// And this function is only used once in notifications
+	// Maybe there should be a special bit in the snowflake to determine this?
+	// This could work if frequencies, user IDs, network IDs etc would all have
+	// their own "pool" to generate from (using the "machine id" bits)
 
 	for _, frequencies := range State.Frequencies {
 		for _, frequency := range frequencies {
@@ -296,7 +299,10 @@ func UpdateNotifications(info *packet.NotificationsInfo) []snowflake.ID {
 		if ping != nil {
 			State.RemoteNotifications[source] = int(*ping)
 
-			if !IsFrequency(source) && !slices.Contains(Data.Signals, source) {
+			// When someone messages you, and you don't have a signal with him
+			// already, add a signal with him so you see his messages
+			// PERF: IsFrequency is expensive so contains is checked first
+			if !slices.Contains(Data.Signals, source) && !IsFrequency(source) {
 				signals = append(signals, source)
 			}
 		} else {
@@ -420,8 +426,8 @@ func UpdateUsersInfo(info *packet.UsersInfo) {
 	}
 }
 
-func MergedNotification(id snowflake.ID) (pings int, ok bool) {
-	remotePings, remoteOk := State.RemoteNotifications[id]
-	localPings, localOk := State.LocalNotifications[id]
+func MergedNotification(chatId snowflake.ID) (pings int, ok bool) {
+	remotePings, remoteOk := State.RemoteNotifications[chatId]
+	localPings, localOk := State.LocalNotifications[chatId]
 	return remotePings + localPings, remoteOk || localOk
 }

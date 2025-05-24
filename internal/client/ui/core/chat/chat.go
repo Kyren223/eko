@@ -224,7 +224,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				// 	m.keepPreviousLastRead = false
 				// }
 
-				log.Println("HIT")
 				state.State.LastReadMessages[frequency.ID] = lastMsg
 				delete(state.State.RemoteNotifications, frequency.ID)
 			} else if m.base == SnapToBottom {
@@ -1005,21 +1004,21 @@ func (m *Model) renderMessages(screenHeight int) string {
 		return NoAccess().Width(m.width).Height(screenHeight).String() + "\n"
 	}
 
-	var id *snowflake.ID
+	var chatId *snowflake.ID
 	var btree *btree.BTreeG[data.Message]
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {
 		frequencies := state.State.Frequencies[*networkId]
 		frequencyId := frequencies[m.frequencyIndex].ID
-		id = &frequencyId
+		chatId = &frequencyId
 		btree = state.State.Messages[frequencyId]
 	} else if m.receiverIndex != -1 {
 		receiverId := state.Data.Signals[m.receiverIndex]
-		id = &receiverId
+		chatId = &receiverId
 		btree = state.State.Messages[receiverId]
 	}
 
-	if btree == nil || btree.Len() == 0 || id == nil {
+	if btree == nil || btree.Len() == 0 || chatId == nil {
 		if m.frequencyIndex != -1 {
 			return NoMessagesFrequency().Width(m.width).Height(screenHeight).String() + "\n"
 		} else if m.receiverIndex != -1 {
@@ -1040,7 +1039,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 	renderedGroups := []string{}
 	group := []data.Message{}
 
-	lastReadId := state.State.LastReadMessages[*id]
+	lastReadId := state.State.LastReadMessages[*chatId]
 	if m.keepPreviousLastRead {
 		lastReadId = m.previousLastReadMsg
 	}
@@ -1050,12 +1049,12 @@ func (m *Model) renderMessages(screenHeight int) string {
 		last = message.ID
 		// >= is needed so if the message was deleted
 		// Any prior messages will still be separated by "new"
-		isLastRead := lastReadId != nil && *lastReadId >= message.ID
+		isThisLastReadMsg := lastReadId != nil && *lastReadId >= message.ID
 
 		if len(group) == 0 {
 			group = append(group, message)
 
-			if isLastRead {
+			if isThisLastReadMsg {
 				lastReadId = nil
 			}
 
@@ -1065,7 +1064,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		lastMsg := group[0]
 		sameSender := lastMsg.SenderID == message.SenderID
 		withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
-		if sameSender && withinTime && len(group) < MaxViewableMessages && !isLastRead {
+		if sameSender && withinTime && len(group) < MaxViewableMessages && !isThisLastReadMsg {
 			group = append(group, message)
 			return true
 		}
@@ -1074,7 +1073,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 		renderedGroups = append(renderedGroups, renderedGroup)
 		group = []data.Message{message}
 
-		if isLastRead {
+		if isThisLastReadMsg {
 			lineWidth := m.width - lipgloss.Width(NewText)
 			line := strings.Repeat(NewSymbol, lineWidth)
 
@@ -1104,11 +1103,11 @@ func (m *Model) renderMessages(screenHeight int) string {
 	if ok && last == first.ID {
 		m.maxMessagesHeight = height - remainingHeight
 		m.SetIndex(m.index)
-		if s, ok := state.State.ChatState[*id]; ok {
+		if s, ok := state.State.ChatState[*chatId]; ok {
 			s.MaxHeight = m.maxMessagesHeight
-			state.State.ChatState[*id] = s
+			state.State.ChatState[*chatId] = s
 		} else {
-			state.State.ChatState[*id] = state.ChatState{
+			state.State.ChatState[*chatId] = state.ChatState{
 				MaxHeight: m.maxMessagesHeight,
 			}
 		}
