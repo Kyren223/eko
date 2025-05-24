@@ -125,7 +125,7 @@ type Model struct {
 	selectedMessage *data.Message
 	editingMessage  *data.Message
 
-	oudatedLastReadMsg   *snowflake.ID
+	outdatedLastReadMsg   *snowflake.ID
 	keepPreviousLastRead bool
 
 	messagesHeight    int
@@ -155,7 +155,7 @@ func New() Model {
 		index:                Unselected,
 		selectedMessage:      nil,
 		editingMessage:       nil,
-		oudatedLastReadMsg:   nil,
+		outdatedLastReadMsg:   nil,
 		keepPreviousLastRead: false,
 		messagesHeight:       0,
 		maxMessagesHeight:    -1,
@@ -285,8 +285,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.keepPreviousLastRead = false
 		} else if lastMsg != nil {
 			lastReadMsg := state.State.LastReadMessages[receiverId]
-			if m.keepPreviousLastRead && m.oudatedLastReadMsg != nil && lastReadMsg != nil &&
-				*lastReadMsg != *lastMsg && *lastReadMsg != *m.oudatedLastReadMsg {
+			if m.keepPreviousLastRead && m.outdatedLastReadMsg != nil && lastReadMsg != nil &&
+				*lastReadMsg != *lastMsg && *lastReadMsg != *m.outdatedLastReadMsg {
 				m.keepPreviousLastRead = false
 			}
 
@@ -835,7 +835,7 @@ func (m *Model) ResetBeforeSwitch() {
 		m.base = SnapToBottom
 		m.SetIndex(Unselected)
 		m.maxMessagesHeight = -1
-		m.oudatedLastReadMsg = nil
+		m.outdatedLastReadMsg = nil
 		m.keepPreviousLastRead = false
 	}()
 
@@ -872,9 +872,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
 
-		m.oudatedLastReadMsg = state.State.LastReadMessages[frequency.ID]
+		m.outdatedLastReadMsg = state.State.LastReadMessages[frequency.ID]
 		lastMsg := state.GetLastMessage(frequency.ID)
-		if m.oudatedLastReadMsg != nil && lastMsg != nil && *m.oudatedLastReadMsg != *lastMsg {
+		if m.outdatedLastReadMsg != nil && lastMsg != nil && *m.outdatedLastReadMsg != *lastMsg {
 			m.keepPreviousLastRead = true
 		}
 
@@ -897,9 +897,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
-		m.oudatedLastReadMsg = state.State.LastReadMessages[receiverId]
+		m.outdatedLastReadMsg = state.State.LastReadMessages[receiverId]
 		lastMsg := state.GetLastMessage(receiverId)
-		if m.oudatedLastReadMsg != nil && lastMsg != nil && *m.oudatedLastReadMsg != *lastMsg {
+		if m.outdatedLastReadMsg != nil && lastMsg != nil && *m.outdatedLastReadMsg != *lastMsg {
 			m.keepPreviousLastRead = true
 		}
 
@@ -1042,7 +1042,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 
 	lastMsgId, notEmpty := btree.Max()
 	assert.Assert(notEmpty, "Empty btree should've been handled earlier in this function")
-	readThreshold := m.oudatedLastReadMsg
+	readThreshold := m.outdatedLastReadMsg
 
 	lastRenderedMsgId := snowflake.ID(0)
 	btree.Descend(func(message data.Message) bool {
