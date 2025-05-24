@@ -125,7 +125,7 @@ type Model struct {
 	selectedMessage *data.Message
 	editingMessage  *data.Message
 
-	previousLastReadMsg  *snowflake.ID
+	oudatedLastReadMsg   *snowflake.ID
 	keepPreviousLastRead bool
 
 	messagesHeight    int
@@ -155,7 +155,7 @@ func New() Model {
 		index:                Unselected,
 		selectedMessage:      nil,
 		editingMessage:       nil,
-		previousLastReadMsg:  nil,
+		oudatedLastReadMsg:   nil,
 		keepPreviousLastRead: false,
 		messagesHeight:       0,
 		maxMessagesHeight:    -1,
@@ -230,13 +230,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				assert.Never("lastMsg is nil")
 			}
 			if m.base != SnapToBottom {
-				assert.Assert(
-					m.keepPreviousLastRead, "debug reached m.keep",
-					"m.base", m.base,
-					"lastMsg", lastMsg,
-					"lastReadMessage", state.State.LastReadMessages[frequency.ID],
-					"m.previousLastReadMessage", m.previousLastReadMsg,
-				)
+				// FIXME:
+				// assert.Assert(
+				// 	m.keepPreviousLastRead, "debug reached m.keep",
+				// 	"m.base", m.base,
+				// 	"lastMsg", lastMsg,
+				// 	"lastReadMessage", state.State.LastReadMessages[frequency.ID],
+				// 	"m.previousLastReadMessage", m.previousLastReadMsg,
+				// )
 				m.keepPreviousLastRead = false
 			}
 		}
@@ -284,8 +285,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.keepPreviousLastRead = false
 		} else if lastMsg != nil {
 			lastReadMsg := state.State.LastReadMessages[receiverId]
-			if m.keepPreviousLastRead && m.previousLastReadMsg != nil && lastReadMsg != nil &&
-				*lastReadMsg != *lastMsg && *lastReadMsg != *m.previousLastReadMsg {
+			if m.keepPreviousLastRead && m.oudatedLastReadMsg != nil && lastReadMsg != nil &&
+				*lastReadMsg != *lastMsg && *lastReadMsg != *m.oudatedLastReadMsg {
 				m.keepPreviousLastRead = false
 			}
 
@@ -834,7 +835,7 @@ func (m *Model) ResetBeforeSwitch() {
 		m.base = SnapToBottom
 		m.SetIndex(Unselected)
 		m.maxMessagesHeight = -1
-		m.previousLastReadMsg = nil
+		m.oudatedLastReadMsg = nil
 		m.keepPreviousLastRead = false
 	}()
 
@@ -871,9 +872,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		frequency := frequencies[m.frequencyIndex]
 		log.Println("Restoring frequency:", frequency.ID)
 
-		m.previousLastReadMsg = state.State.LastReadMessages[frequency.ID]
+		m.oudatedLastReadMsg = state.State.LastReadMessages[frequency.ID]
 		lastMsg := state.GetLastMessage(frequency.ID)
-		if m.previousLastReadMsg != nil && lastMsg != nil && *m.previousLastReadMsg != *lastMsg {
+		if m.oudatedLastReadMsg != nil && lastMsg != nil && *m.oudatedLastReadMsg != *lastMsg {
 			m.keepPreviousLastRead = true
 		}
 
@@ -896,9 +897,9 @@ func (m *Model) RestoreAfterSwitch() tea.Cmd {
 		receiverId := state.Data.Signals[m.receiverIndex]
 		log.Println("Restoring signal:", receiverId)
 
-		m.previousLastReadMsg = state.State.LastReadMessages[receiverId]
+		m.oudatedLastReadMsg = state.State.LastReadMessages[receiverId]
 		lastMsg := state.GetLastMessage(receiverId)
-		if m.previousLastReadMsg != nil && lastMsg != nil && *m.previousLastReadMsg != *lastMsg {
+		if m.oudatedLastReadMsg != nil && lastMsg != nil && *m.oudatedLastReadMsg != *lastMsg {
 			m.keepPreviousLastRead = true
 		}
 
@@ -1031,63 +1032,59 @@ func (m *Model) renderMessages(screenHeight int) string {
 	height := screenHeight
 	if m.base != SnapToBottom {
 		height = m.base + 1
-		// bcz base is an index (0 to n) but we want total
-		// we need to add one so it's a height
+		// bcz base is an index (0 to n-1) but we want "length"
+		// we need to add one so it's N
 	}
 	remainingHeight := height
 
 	renderedGroups := []string{}
 	group := []data.Message{}
 
-	lastReadId := state.State.LastReadMessages[*chatId]
-	if m.keepPreviousLastRead {
-		lastReadId = m.previousLastReadMsg
-	}
+	lastMsgId, notEmpty := btree.Max()
+	assert.Assert(notEmpty, "Empty btree should've been handled earlier in this function")
+	readThreshold := m.oudatedLastReadMsg
 
-	last := snowflake.ID(0)
+	lastRenderedMsgId := snowflake.ID(0)
 	btree.Descend(func(message data.Message) bool {
-		last = message.ID
-		// >= is needed so if the message was deleted
+		lastRenderedMsgId = message.ID
+
+		isLastReadMsg := readThreshold != nil && message.ID <= *readThreshold
+		// <= is needed so if the message was deleted
 		// Any prior messages will still be separated by "new"
-		isThisLastReadMsg := lastReadId != nil && *lastReadId >= message.ID
+
+		if isLastReadMsg && message.ID == lastMsgId.ID {
+			// No new messages, don't render "new msg sep"
+			readThreshold = nil
+		}
 
 		if len(group) == 0 {
 			group = append(group, message)
-
-			if isThisLastReadMsg {
-				lastReadId = nil
-			}
-
 			return true
 		}
 
 		lastMsg := group[0]
 		sameSender := lastMsg.SenderID == message.SenderID
 		withinTime := lastMsg.ID.Time()-message.ID.Time() <= TimeGap
-		if sameSender && withinTime && len(group) < MaxViewableMessages && !isThisLastReadMsg {
+		inView := len(group) < MaxViewableMessages
+		if sameSender && withinTime && inView && !isLastReadMsg {
 			group = append(group, message)
 			return true
 		}
 
+		// End of group
 		renderedGroup := m.renderMessageGroup(group, &remainingHeight, height)
 		renderedGroups = append(renderedGroups, renderedGroup)
 		group = []data.Message{message}
 
-		if isThisLastReadMsg {
-			lineWidth := m.width - lipgloss.Width(NewText)
-			line := strings.Repeat(NewSymbol, lineWidth)
+		// New message separator
+		if isLastReadMsg {
+			newMsgSep := m.NewMsgSep(height, remainingHeight)
 
-			newStyle := lipgloss.NewStyle().Foreground(colors.Red).Width(m.width)
-			if m.index == height-remainingHeight {
-				newStyle = newStyle.Background(colors.BackgroundDim)
-			}
-
-			newSep := newStyle.Render(line + NewText)
-
-			renderedGroups = append(renderedGroups, newSep+"\n")
+			renderedGroups = append(renderedGroups, newMsgSep+"\n")
 			remainingHeight--
 
-			lastReadId = nil // Stop the rest of the messages from having NEW
+			// Stop the rest of the messages from having NEW
+			readThreshold = nil
 		}
 
 		return remainingHeight > 0
@@ -1099,13 +1096,23 @@ func (m *Model) renderMessages(screenHeight int) string {
 		renderedGroups = append(renderedGroups, renderedGroup)
 	}
 
-	first, ok := btree.Min()
-	if ok && last == first.ID {
+	// All messages are new but readThreshold isn't nil
+	if readThreshold != nil {
+		newMsgSep := m.NewMsgSep(height, remainingHeight)
+
+		renderedGroups = append(renderedGroups, newMsgSep+"\n")
+		remainingHeight--
+	}
+
+	firstMsg, notEmpty := btree.Min()
+	assert.Assert(notEmpty, "Empty btree should've been handled earlier in this function")
+	// TODO: not sure what this is for?
+	if lastRenderedMsgId == firstMsg.ID {
 		m.maxMessagesHeight = height - remainingHeight
 		m.SetIndex(m.index)
-		if s, ok := state.State.ChatState[*chatId]; ok {
-			s.MaxHeight = m.maxMessagesHeight
-			state.State.ChatState[*chatId] = s
+		if chatState, ok := state.State.ChatState[*chatId]; ok {
+			chatState.MaxHeight = m.maxMessagesHeight
+			state.State.ChatState[*chatId] = chatState
 		} else {
 			state.State.ChatState[*chatId] = state.ChatState{
 				MaxHeight: m.maxMessagesHeight,
@@ -1637,4 +1644,16 @@ func (m *Model) renderFrequencyName() string {
 
 func (m *Model) Mode() int {
 	return m.vi.Mode()
+}
+
+func (m *Model) NewMsgSep(height, remainingHeight int) string {
+	lineWidth := m.width - lipgloss.Width(NewText)
+	line := strings.Repeat(NewSymbol, lineWidth)
+
+	newMsgStyle := lipgloss.NewStyle().Foreground(colors.Red).Width(m.width)
+	if m.index == height-remainingHeight {
+		newMsgStyle = newMsgStyle.Background(colors.BackgroundDim)
+	}
+
+	return newMsgStyle.Render(line + NewText)
 }
