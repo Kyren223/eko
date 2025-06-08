@@ -87,16 +87,18 @@ func (m Model) View() string {
 		pings, _ := state.MergedNotification(signal)
 		if pings != 0 {
 			notif = notifs[min(pings, 10)-1]
-			notif = lipgloss.NewStyle().Inline(true).
-				Foreground(colors.Red).Background(colors.BackgroundDim).
-				Render(notif)
 			maxUserWidth -= notifWidth
 		}
 
 		if m.index == m.base+i {
 			signalStyle = signalStyle.Background(colors.BackgroundHighlight)
 			userStyle = userStyle.Background(colors.BackgroundHighlight)
-			notif = lipgloss.NewStyle().Background(colors.BackgroundHighlight).
+			notif = lipgloss.NewStyle().Inline(true).
+				Foreground(colors.Red).Background(colors.BackgroundHighlight).
+				Render(notif)
+		} else {
+			notif = lipgloss.NewStyle().Inline(true).
+				Foreground(colors.Red).Background(colors.BackgroundDim).
 				Render(notif)
 		}
 
