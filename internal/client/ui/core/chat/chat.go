@@ -1623,7 +1623,9 @@ func (m *Model) NewMsgSep(height, remainingHeight int) string {
 	return newMsgStyle.Render(line + NewText)
 }
 
-func (m *Model) OnNewMessagesReceived(info *packet.MessagesInfo) {
+func (m *Model) OnNewMessageReceived(info *packet.MessagesInfo) {
+	assert.Assert(len(info.Messages) == 1, "expected only a single message", "len", len(info.Messages))
+
 	var chatId *snowflake.ID = nil
 	if m.receiverIndex != -1 {
 		chatId = &state.Data.Signals[m.receiverIndex]
@@ -1638,18 +1640,18 @@ func (m *Model) OnNewMessagesReceived(info *packet.MessagesInfo) {
 		return
 	}
 
-	for _, msg := range info.Messages {
-		if msg.SenderID == *state.UserID {
-			m.outdatedLastReadMsg = &msg.ID
-			return
-		}
+	msg := info.Messages[0]
 
-		if m.base == SnapToBottom {
-			lastMsg := state.GetLastMessage(*chatId)
-			if lastMsg != nil && m.outdatedLastReadMsg != nil &&
-				*lastMsg == *m.outdatedLastReadMsg {
-				m.outdatedLastReadMsg = &msg.ID
-			}
+	if msg.SenderID == *state.UserID {
+		m.outdatedLastReadMsg = &msg.ID
+		return
+	}
+
+	if m.base == SnapToBottom {
+		lastMsg := state.GetLastMessage(*chatId)
+		if lastMsg != nil && m.outdatedLastReadMsg != nil &&
+			*lastMsg == *m.outdatedLastReadMsg {
+			m.outdatedLastReadMsg = &msg.ID
 		}
 	}
 }
