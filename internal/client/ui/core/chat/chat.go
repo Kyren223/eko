@@ -1570,7 +1570,7 @@ func (m *Model) SetWidth(width int) {
 
 func (m *Model) renderFrequencyName() string {
 	name := ""
-	color := colors.White
+	var color lipgloss.Color
 
 	networkId := state.NetworkId(m.networkIndex)
 	if m.frequencyIndex != -1 && networkId != nil {

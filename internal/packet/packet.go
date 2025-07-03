@@ -97,7 +97,7 @@ func Init() {
 }
 
 func (e PacketType) IsSupported() bool {
-	return 0 <= e && e < PacketMax
+	return e < PacketMax
 }
 
 func (e PacketType) String() string {

@@ -39,13 +39,13 @@ func VerifyAndFix(config *Config) error {
 	if config.Colors != nil {
 		for i, color := range config.Colors {
 			if !colors.IsHex(color) {
-				return fmt.Errorf("Color at %v is not a valid hex color", i)
+				return fmt.Errorf("color at %v is not a valid hex color", i)
 			}
 		}
 
 		if len(config.Colors) != colors.Count {
 			return fmt.Errorf(
-				"Expected %v colors, got %v colors, set this value to null to use the default colors",
+				"expected %v colors, got %v colors, set this value to null to use the default colors",
 				colors.Count, len(config.Colors),
 			)
 		}

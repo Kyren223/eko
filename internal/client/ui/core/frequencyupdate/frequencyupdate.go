@@ -23,9 +23,6 @@ var (
 	padding = 4
 
 	headerStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Turquoise) }
-	focusStyle  = func() lipgloss.Style {
-		return lipgloss.NewStyle().Background(colors.Background).Foreground(colors.Focus)
-	}
 
 	underlineStyle = func(s string, width int, color lipgloss.Color) string {
 		underline := strings.Repeat("━", width)
