@@ -274,9 +274,9 @@ func IsDarkened() bool {
 func DarkenColor(color lipgloss.Color, factor float64) lipgloss.Color {
 	r, g, b, _ := color.RGBA()
 
-	r8 := uint8(r >> 8)
-	g8 := uint8(g >> 8)
-	b8 := uint8(b >> 8)
+	r8 := uint8(r >> 8) // #nosec G115
+	g8 := uint8(g >> 8) // #nosec G115
+	b8 := uint8(b >> 8) // #nosec G115
 
 	// Apply darkening factor (clamping to avoid underflow)
 	darken := func(c uint8) uint8 {
