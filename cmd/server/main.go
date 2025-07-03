@@ -23,7 +23,11 @@ func main() {
 	stdout := flag.Bool("stdout", false, "enable logging to stdout")
 	flag.Parse()
 
-	logDir := "logs"
+	logDir := os.Getenv("EKO_SERVER_LOG_DIR")
+	if logDir == "" {
+		logDir = "logs"
+	}
+
 	err := os.MkdirAll(logDir, 0750)
 	if err != nil {
 		log.Fatalln(err)

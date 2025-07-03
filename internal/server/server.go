@@ -30,7 +30,7 @@ var (
 )
 
 func init() {
-	path, ok := os.LookupEnv("SERVER_CERT_KEY_FILE")
+	path, ok := os.LookupEnv("EKO_SERVER_CERT_FILE")
 	if !ok {
 		path = "certs/server.key"
 	}
