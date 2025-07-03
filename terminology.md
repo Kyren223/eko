@@ -6,6 +6,8 @@ TODO
 
 ID - A snowflake ID, a snowflake ID is a unique identifier used across the client and server, it embeds metadata including the date it was generated which can be retrieved for display purposes.
 
+User ID - A snowflake ID for a user, used as the primary way to refer to a user in a unique way (like opening a signal with a user)
+
 Receiver ID - usually refers to the "other" person's ID in a 1:1 messaging, but can also refer to the literal `receiver_id` SQL field on the `messages` table which may be either the "other" person, or the user itself.
 
 Frequency ID

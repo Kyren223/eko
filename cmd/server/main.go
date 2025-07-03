@@ -12,6 +12,7 @@ import (
 
 	"github.com/kyren223/eko/internal/server"
 	"github.com/kyren223/eko/internal/server/api"
+	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/pkg/assert"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -26,6 +27,8 @@ func main() {
 	prod = !(*prodFlag)
 
 	setupLogging()
+
+	log.Println("Debugging prod", "prod", prod)
 
 	api.ConnectToDatabase()
 	assert.AddFlush(api.DB())
@@ -68,10 +71,11 @@ func setupLogging() {
 	if prod {
 		level = slog.LevelInfo
 	}
-	handler := slog.NewJSONHandler(rotator, &slog.HandlerOptions{
+	baseHandler := slog.NewJSONHandler(rotator, &slog.HandlerOptions{
 		AddSource: true,
 		Level:     level,
 	})
+	handler := ctxkeys.WrapLogHandler(baseHandler)
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)

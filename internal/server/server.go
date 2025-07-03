@@ -19,6 +19,7 @@ import (
 	"github.com/kyren223/eko/certs"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/api"
+	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -151,6 +152,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	log.Println(addr, "accepted")
 
 	initialCtx, initialCancel := context.WithTimeout(server.ctx, 5*time.Second)
+	initialCtx = context.WithValue(initialCtx, ctxkeys.IpAddr, addr)
 	deadline, _ := initialCtx.Deadline()
 	err := conn.SetDeadline(deadline)
 	assert.NoError(err, "setting read deadline should not error")
@@ -175,8 +177,13 @@ func (server *server) handleConnection(conn net.Conn) {
 		log.Println(addr, "disconnected")
 		return
 	}
+
 	ctx, cancel := context.WithCancel(server.ctx)
 	defer cancel()
+
+	ctx = context.WithValue(ctx, ctxkeys.UserID, user.ID)
+	ctx = context.WithValue(ctx, ctxkeys.IpAddr, addr)
+
 	sess := session.NewSession(server, addr, cancel, user.ID, pubKey)
 	server.AddSession(sess)
 	framer := packet.NewFramer()
