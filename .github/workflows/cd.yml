@@ -56,7 +56,7 @@ jobs:
           SOURCE: "eko-server"
           REMOTE_HOST: eko.kyren.codes
           REMOTE_USER: eko
-          TARGET: "/srv/eko"
+          TARGET: "/var/lib/eko"
           SCRIPT_BEFORE: |
             whoami
             ls -al
