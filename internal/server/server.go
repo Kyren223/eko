@@ -324,7 +324,6 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 	}
 
 	assert.NotNil(response, "response must always be assigned to")
-	log.Println(sess.Addr(), "sending", response.Type(), "response:", response)
 	return packet.NewPacket(packet.NewMsgPackEncoder(response))
 }
 

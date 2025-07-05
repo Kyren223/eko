@@ -60,6 +60,9 @@ const (
 
 	PacketAuthenticate
 
+	PacketUsersInfo
+	PacketGetUsers
+
 	PacketSetUserData
 	PacketGetUserData
 
@@ -93,9 +96,6 @@ const (
 
 	PacketBlockUser
 	PacketBlockInfo
-
-	PacketGetUsers
-	PacketUsersInfo
 
 	PacketMax
 )
@@ -269,6 +269,19 @@ func (p Packet) DecodedPayload() (Payload, error) {
 	case PacketError:
 		payload = &Error{}
 
+	case PacketTosInfo:
+		payload = &TosInfo{}
+	case PacketAcceptTos:
+		payload = &AcceptTos{}
+
+	case PacketGetNonce:
+		payload = &GetNonce{}
+	case PacketNonceInfo:
+		payload = &NonceInfo{}
+
+	case PacketAuthenticate:
+		payload = &Authenticate{}
+
 	case PacketSetUserData:
 		payload = &SetUserData{}
 	case PacketGetUserData:
@@ -335,7 +348,8 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &UsersInfo{}
 
 	default:
-		assert.Never("unexpected packet.PacketType", "type", p.Type())
+		assert.Assert(!p.Type().IsSupported(), "supported PackeType wasn't handled", "type", p.Type())
+		return nil, fmt.Errorf("unsupported PackeType: %v", p.Type().String())
 	}
 	err := p.DecodePayloadInto(payload)
 	return payload, err
