@@ -12,9 +12,10 @@ type key int
 const (
 	UserID key = iota
 	IpAddr
-	KeyMax
 	Evicted
 	EvictedBy
+
+	KeyMax
 )
 
 var keyNames = map[key]string{
@@ -24,7 +25,7 @@ var keyNames = map[key]string{
 	EvictedBy: "evicted_by",
 }
 
-func Init() {
+func init() {
 	assert.Assert(len(keyNames) == int(KeyMax), "Keys in keyNames mismatch amount of keys", "len(keyNames)", len(keyNames), "KeyMax", int(KeyMax))
 }
 

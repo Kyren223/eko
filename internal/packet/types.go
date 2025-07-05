@@ -193,8 +193,9 @@ func (m *MembersInfo) Type() PacketType {
 }
 
 type SetUserData struct {
-	Data *string
-	User *data.User
+	Data  *string
+	User  *data.User
+	Nonce []byte // optional
 }
 
 func (m *SetUserData) Type() PacketType {
@@ -287,4 +288,45 @@ type UsersInfo struct {
 
 func (m *UsersInfo) Type() PacketType {
 	return PacketUsersInfo
+}
+
+type TosInfo struct {
+	Tos           string
+	PrivacyPolicy string
+	Date          string // 2025-07-05
+}
+
+func (m *TosInfo) Type() PacketType {
+	return PacketTosInfo
+}
+
+type AcceptTos struct {
+	IAgreeToTheTermsOfServiceAndPrivacyPolicy bool
+}
+
+func (m *AcceptTos) Type() PacketType {
+	return PacketAcceptTos
+}
+
+type GetNonce struct{}
+
+func (m *GetNonce) Type() PacketType {
+	return PacketGetNonce
+}
+
+type NonceInfo struct {
+	Nonce []byte
+}
+
+func (m *NonceInfo) Type() PacketType {
+	return PacketNonceInfo
+}
+
+type Authenticate struct {
+	PubKey    ed25519.PublicKey
+	Signature []byte
+}
+
+func (m *Authenticate) Type() PacketType {
+	return PacketAuthenticate
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -1343,7 +1344,7 @@ func SetLastReadMessages(ctx context.Context, sess *session.Session, request *pa
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		log.Println("database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	defer func() { _ = tx.Rollback() }()
@@ -1351,25 +1352,28 @@ func SetLastReadMessages(ctx context.Context, sess *session.Session, request *pa
 	queries := data.New(db)
 	qtx := queries.WithTx(tx)
 
+	// OPTIMIZE: Convert this loop into a SQL query
 	for i := 0; i < len(request.Source); i++ {
 		_, err := qtx.GetUserById(ctx, request.Source[i])
 		if err == nil {
+			// ID is signal
 			err = qtx.SetLastReadMessage(ctx, data.SetLastReadMessageParams{
 				UserID:   sess.ID(),
 				SourceID: request.Source[i],
 				LastRead: request.LastRead[i],
 			})
 			if err != nil {
-				log.Println("api.go:1362 database error:", err)
+				slog.ErrorContext(ctx, "database error", "error", err)
 				return &ErrInternalError
 			}
 			continue
 		}
-		if err != nil && err != sql.ErrNoRows {
-			log.Println("api.go:1368 database error:", err)
+		if err != sql.ErrNoRows {
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
+		// ID is frequency
 		frequency, err := qtx.GetFrequencyById(ctx, request.Source[i])
 		if err == sql.ErrNoRows {
 			return &packet.Error{Error: fmt.Sprintf(
@@ -1377,13 +1381,13 @@ func SetLastReadMessages(ctx context.Context, sess *session.Session, request *pa
 			)}
 		}
 		if err != nil {
-			log.Println("api.go:1379 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		if frequency.Perms == packet.PermNoAccess {
 			isAdmin, err := IsNetworkAdmin(ctx, qtx, sess.ID(), frequency.NetworkID)
 			if err != nil {
-				log.Println("api.go:1385 database error:", err)
+				slog.ErrorContext(ctx, "database error", "error", err)
 				return &ErrInternalError
 			}
 			if !isAdmin {
@@ -1397,7 +1401,7 @@ func SetLastReadMessages(ctx context.Context, sess *session.Session, request *pa
 			LastRead: request.LastRead[i],
 		})
 		if err != nil {
-			log.Println("api.go:1399 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		continue
@@ -1405,7 +1409,7 @@ func SetLastReadMessages(ctx context.Context, sess *session.Session, request *pa
 
 	err = tx.Commit()
 	if err != nil {
-		log.Println("api.go:1407 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 

@@ -186,11 +186,11 @@ func (server *server) handleConnection(conn net.Conn) {
 	defer slog.InfoContext(ctx, "connection closed")
 	defer conn.Close()
 
-	var writerWg *sync.WaitGroup
+	var writerWg sync.WaitGroup
 	done := make(chan struct{})
 	framer := packet.NewFramer()
 
-	sess := session.NewSession(server, addr, cancel, writerWg)
+	sess := session.NewSession(server, addr, cancel, &writerWg)
 	go func() {
 		<-ctx.Done()
 		// Remove session after cancellation

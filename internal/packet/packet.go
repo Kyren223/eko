@@ -52,6 +52,14 @@ type PacketType uint8
 const (
 	PacketError PacketType = iota
 
+	PacketTosInfo
+	PacketAcceptTos
+
+	PacketGetNonce
+	PacketNonceInfo
+
+	PacketAuthenticate
+
 	PacketSetUserData
 	PacketGetUserData
 
@@ -92,7 +100,57 @@ const (
 	PacketMax
 )
 
-func Init() {
+var packetNames = map[PacketType]string{
+	PacketError: "PacketError",
+
+	PacketTosInfo:   "PacketTosInfo",
+	PacketAcceptTos: "PacketAcceptTos",
+
+	PacketGetNonce:  "PacketGetNonce",
+	PacketNonceInfo: "PacketNonceInfo",
+
+	PacketAuthenticate: "PacketAuthenticate",
+
+	PacketSetUserData: "PacketSetUserData",
+	PacketGetUserData: "PacketGetUserData",
+
+	PacketCreateNetwork:   "PacketCreateNetwork",
+	PacketUpdateNetwork:   "PacketUpdateNetwork",
+	PacketTransferNetwork: "PacketTransferNetwork",
+	PacketDeleteNetwork:   "PacketDeleteNetwork",
+	PacketNetworksInfo:    "PacketNetworksInfo",
+
+	PacketCreateFrequency: "PacketCreateFrequency",
+	PacketUpdateFrequency: "PacketUpdateFrequency",
+	PacketDeleteFrequency: "PacketDeleteFrequency",
+	PacketSwapFrequencies: "PacketSwapFrequencies",
+	PacketFrequenciesInfo: "PacketFrequenciesInfo",
+
+	PacketSendMessage:     "PacketSendMessage",
+	PacketEditMessage:     "PacketEditMessage",
+	PacketDeleteMessage:   "PacketDeleteMessage",
+	PacketRequestMessages: "PacketRequestMessages",
+	PacketMessagesInfo:    "PacketMessagesInfo",
+
+	PacketGetBannedMembers: "PacketGetBannedMembers",
+	PacketSetMember:        "PacketSetMember",
+	PacketMembersInfo:      "PacketMembersInfo",
+
+	PacketTrustUser: "PacketTrustUser",
+	PacketTrustInfo: "PacketTrustInfo",
+
+	PacketSetLastReadMessages: "PacketSetLastReadMessages",
+	PacketNotificationsInfo:   "PacketNotificationsInfo",
+
+	PacketBlockUser: "PacketBlockUser",
+	PacketBlockInfo: "PacketBlockInfo",
+
+	PacketGetUsers:  "PacketGetUsers",
+	PacketUsersInfo: "PacketUsersInfo",
+}
+
+func init() {
+	assert.Assert(len(packetNames) == int(PacketMax), "packetName length mismatches with PacketMax", "len(packetNames)", len(packetNames), "PacketMax", int(PacketMax))
 	assert.Assert(PacketMax <= 64, "packet types exceeded allowed limit of 64 types")
 }
 
@@ -101,71 +159,10 @@ func (e PacketType) IsSupported() bool {
 }
 
 func (e PacketType) String() string {
-	switch e {
-	case PacketBlockInfo:
-		return "PacketBlockInfo"
-	case PacketBlockUser:
-		return "PacketBlockUser"
-	case PacketCreateFrequency:
-		return "PacketCreateFrequency"
-	case PacketCreateNetwork:
-		return "PacketCreateNetwork"
-	case PacketDeleteFrequency:
-		return "PacketDeleteFrequency"
-	case PacketDeleteMessage:
-		return "PacketDeleteMessage"
-	case PacketDeleteNetwork:
-		return "PacketDeleteNetwork"
-	case PacketEditMessage:
-		return "PacketEditMessage"
-	case PacketError:
-		return "PacketError"
-	case PacketFrequenciesInfo:
-		return "PacketFrequenciesInfo"
-	case PacketGetBannedMembers:
-		return "PacketGetBannedMembers"
-	case PacketGetUserData:
-		return "PacketGetUserData"
-	case PacketGetUsers:
-		return "PacketGetUsers"
-	case PacketMax:
-		return "PacketMax"
-	case PacketMembersInfo:
-		return "PacketMembersInfo"
-	case PacketMessagesInfo:
-		return "PacketMessagesInfo"
-	case PacketNetworksInfo:
-		return "PacketNetworksInfo"
-	case PacketNotificationsInfo:
-		return "PacketNotificationsInfo"
-	case PacketRequestMessages:
-		return "PacketRequestMessages"
-	case PacketSendMessage:
-		return "PacketSendMessage"
-	case PacketSetLastReadMessages:
-		return "PacketSetLastReadMessages"
-	case PacketSetMember:
-		return "PacketSetMember"
-	case PacketSetUserData:
-		return "PacketSetUserData"
-	case PacketSwapFrequencies:
-		return "PacketSwapFrequencies"
-	case PacketTransferNetwork:
-		return "PacketTransferNetwork"
-	case PacketTrustInfo:
-		return "PacketTrustInfo"
-	case PacketTrustUser:
-		return "PacketTrustUser"
-	case PacketUpdateFrequency:
-		return "PacketUpdateFrequency"
-	case PacketUpdateNetwork:
-		return "PacketUpdateNetwork"
-	case PacketUsersInfo:
-		return "PacketUsersInfo"
-	default:
-		assert.Assert(!e.IsSupported(), "missing string for supported packet type", "type", e)
+	if !e.IsSupported() {
 		return fmt.Sprintf("UnsupportedPacket(%d)", e)
 	}
+	return packetNames[e]
 }
 
 const (
