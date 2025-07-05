@@ -158,12 +158,6 @@ func (m Model) View() string {
 		Width(m.nameWidth).
 		Render(legalNote)
 
-	// content := flex.NewVertical(
-	// 	name, description, private,
-	// 	configFile, analyticsOptOut, legalNote,
-	// 	update,
-	// ).WithGap(1).View()
-
 	content := flex.NewVertical(
 		legalNote, analyticsOptOut,
 		configFile, name, description, private, update,
