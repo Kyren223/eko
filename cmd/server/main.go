@@ -28,7 +28,7 @@ func main() {
 
 	setupLogging()
 
-	log.Println("Debugging prod", "prod", prod)
+	slog.Info("starting eko-server...")
 
 	api.ConnectToDatabase()
 	assert.AddFlush(api.DB())
@@ -41,13 +41,13 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		signal := <-signalChan
-		log.Println("signal:", signal.String())
+		slog.Info("received signal", "signal", signal)
 		cancel()
 	}()
 
 	server := server.NewServer(ctx, port)
 	if err := server.Run(); err != nil {
-		log.Println(err)
+		// slog.Error(err)
 	}
 }
 

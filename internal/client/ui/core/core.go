@@ -375,7 +375,8 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 					message = ui.EmptyMsg{}
 				}
 			case FocusLeftSidebar:
-				if !m.HasPopup() && m.networkList.Index() != networklist.SignalsIndex {
+				IsFrequenciesSidebar := m.networkList.Index() != networklist.SignalsIndex
+				if !m.HasPopup() && IsFrequenciesSidebar {
 					networkId := state.NetworkId(m.networkList.Index())
 					if networkId == nil {
 						return nil
@@ -397,7 +398,8 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 					m.networkJoinPopup = &popup
 					message = ui.EmptyMsg{}
 				}
-				if m.focus == FocusLeftSidebar && m.networkList.Index() == networklist.SignalsIndex {
+				IsSignalsSidebar := m.networkList.Index() == networklist.SignalsIndex
+				if m.focus == FocusLeftSidebar && IsSignalsSidebar {
 					popup := signaladd.New()
 					m.signalAddPopup = &popup
 					message = ui.EmptyMsg{}
@@ -406,8 +408,9 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 
 		case "i":
 			index := m.networkList.Index()
-			networkFocus := m.focus == FocusNetworkList
-			if !m.HasPopup() && networkFocus && index != networklist.SignalsIndex {
+			isNetworkListFocused := m.focus == FocusNetworkList
+			isFrequenciesSidebar := index != networklist.SignalsIndex
+			if !m.HasPopup() && isNetworkListFocused && isFrequenciesSidebar {
 				networkId := state.NetworkId(index)
 				if networkId != nil {
 					_ = clipboard.WriteAll(networkId.String())

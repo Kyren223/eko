@@ -173,9 +173,9 @@ func (m HelpPopup) Title() string {
 func (m HelpPopup) HelpGlobal() [][]Keymap {
 	return [][]Keymap{{
 		{"ctrl+c", "Exit eko"},
-		{"H", "Move focus to the right"},
-		{"L", "Move focus to the left"},
-		{"u", "Edit your user profile"},
+		{"H", "Move focus to the left"},
+		{"L", "Move focus to the right"},
+		{"s", "User profile settings"},
 		{"?", "Show a help popup"},
 	}, {
 		{"esc", "Close popup"},

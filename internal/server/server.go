@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
@@ -121,15 +122,20 @@ func (s *server) Run() error {
 		_ = listener.Close()
 	}()
 
-	log.Println("started listening on port", s.Port)
+	slog.Info("server started accepting new connections", "port", s.Port)
 	var wg sync.WaitGroup
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
-				log.Println("error accepting connection:", err)
+				slog.Error("failed accepting new connection", "error", err)
 			}
-			break
+
+			if s.ctx.Err() != nil {
+				slog.Info("server context expired", "error", s.ctx.Err())
+				break
+			}
+			continue // Ignore and skip (don't connect)
 		}
 		wg.Add(1)
 		go func() {
@@ -137,11 +143,11 @@ func (s *server) Run() error {
 			wg.Done()
 		}()
 	}
-	log.Println("stopped listening on port", s.Port)
+	slog.Info("server stopped accepting new connections", "port", s.Port)
 
-	log.Println("waiting for all active connections to close...")
+	slog.Info("waiting for all active connections to close...")
 	wg.Wait()
-	log.Println("server shutdown complete")
+	slog.Info("completed server shutdown")
 	return nil
 }
 
@@ -149,41 +155,38 @@ func (server *server) handleConnection(conn net.Conn) {
 	addr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	assert.Assert(ok, "getting tcp address should never fail as we are using tcp connections")
 
-	log.Println(addr, "accepted")
-
-	initialCtx, initialCancel := context.WithTimeout(server.ctx, 5*time.Second)
-	initialCtx = context.WithValue(initialCtx, ctxkeys.IpAddr, addr)
-	deadline, _ := initialCtx.Deadline()
-	err := conn.SetDeadline(deadline)
-	assert.NoError(err, "setting read deadline should not error")
-
-	err = conn.SetDeadline(time.Time{})
-	assert.NoError(err, "unsetting read deadline should not error")
-
-	pubKey, err := handleAuth(conn)
-	if err != nil {
-		initialCancel()
-		log.Println(addr, "auth error:", err)
-		_ = conn.Close()
-		log.Println(addr, "disconnected")
-		return
-	}
-
-	user, err := api.CreateOrGetUser(initialCtx, server.Node(), pubKey)
-	if err != nil {
-		initialCancel()
-		log.Println(addr, "user creation/fetching error:", err)
-		_ = conn.Close()
-		log.Println(addr, "disconnected")
-		return
-	}
-
 	ctx, cancel := context.WithCancel(server.ctx)
 	defer cancel()
 
-	ctx = context.WithValue(ctx, ctxkeys.UserID, user.ID)
 	ctx = context.WithValue(ctx, ctxkeys.IpAddr, addr)
 
+	slog.InfoContext(ctx, "connection accepted")
+	defer slog.InfoContext(ctx, "connection closed")
+
+	// Set deadline before auth
+	deadline := time.Now().Add(5 * time.Second)
+	err := conn.SetDeadline(deadline)
+	assert.NoError(err, "setting deadline should not error")
+
+	pubKey, err := handleAuth(conn)
+	if err != nil {
+		slog.Info("user authentication failed", "error", err)
+		_ = conn.Close()
+		return
+	}
+
+	// Reset deadline after auth
+	err = conn.SetDeadline(time.Time{})
+	assert.NoError(err, "unsetting deadline should not error")
+
+	user, err := api.CreateOrGetUser(ctx, server.Node(), pubKey)
+	if err != nil {
+		log.Println(addr, "user creation/fetching error:", err)
+		_ = conn.Close()
+		return
+	}
+
+	ctx = context.WithValue(ctx, ctxkeys.UserID, user.ID)
 	sess := session.NewSession(server, addr, cancel, user.ID, pubKey)
 	server.AddSession(sess)
 	framer := packet.NewFramer()
@@ -193,14 +196,11 @@ func (server *server) handleConnection(conn net.Conn) {
 	binary.BigEndian.PutUint64(id[:], uint64(user.ID)) // #nosec G115 -- sign bit is always 0 in snowflake IDs
 	_, err = conn.Write(id[:])
 	if err != nil {
-		initialCancel()
 		log.Println(addr, "failed to write user id")
 		_ = conn.Close()
 		log.Println(addr, "disconnected")
 		return
 	}
-
-	initialCancel()
 
 	go func() {
 		<-ctx.Done()

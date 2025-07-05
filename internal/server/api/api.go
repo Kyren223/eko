@@ -270,6 +270,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 
 func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.PublicKey) (data.User, error) {
 	queries := data.New(db)
+
 	user, err := queries.GetUserByPublicKey(ctx, pubKey)
 	if err == sql.ErrNoRows {
 		id := node.Generate()

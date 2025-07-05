@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
@@ -27,6 +28,11 @@ var (
 		return lipgloss.NewStyle().Padding(0, 1).
 			Background(colors.Blue).Foreground(colors.White).
 			Render("Update User Settings")
+	}
+
+	highlightedStyle = func() lipgloss.Style {
+		return lipgloss.NewStyle().Padding(0, 0).
+			Background(colors.BackgroundHighlight).Foreground(colors.White)
 	}
 )
 
@@ -136,7 +142,32 @@ func (m Model) View() string {
 		Align(lipgloss.Center).
 		Render(m.update)
 
-	content := flex.NewVertical(name, description, private, update).WithGap(1).View()
+	configFile := "Config File: " + highlightedStyle().Render(config.ConfigFile)
+	configFile = lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Render(configFile)
+
+	option := highlightedStyle().Render("\"anonymous_device_analytics\": false")
+	analyticsOptOut := "Anonymous device analytics can be disabled by setting " + option + " in your config file"
+	analyticsOptOut = lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Render(analyticsOptOut)
+
+	legalNote := "Official instance Terms of Service & Privacy Policy: " + highlightedStyle().Render("https://kyren.codes/eko/legal")
+	legalNote = lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Render(legalNote)
+
+	// content := flex.NewVertical(
+	// 	name, description, private,
+	// 	configFile, analyticsOptOut, legalNote,
+	// 	update,
+	// ).WithGap(1).View()
+
+	content := flex.NewVertical(
+		legalNote, analyticsOptOut,
+		configFile, name, description, private, update,
+	).WithGap(1).View()
 
 	return lipgloss.NewStyle().
 		Border(lipgloss.ThickBorder()).
