@@ -280,7 +280,7 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 
 	case *packet.Error:
 		err := "new connection from another location, closing this one"
-		if msg.PktType == packet.PacketError && err == msg.Error {
+		if err == msg.Error {
 			return ui.Transition(ui.NewAuth())
 		}
 

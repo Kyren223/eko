@@ -36,8 +36,9 @@ type Session struct {
 	issuedTime time.Time
 	challenge  []byte
 
-	pubKey ed25519.PublicKey
-	id     snowflake.ID
+	isTosAccepted bool
+	pubKey        ed25519.PublicKey
+	id            snowflake.ID
 
 	mu sync.Mutex
 }
@@ -50,16 +51,18 @@ func NewSession(
 	assert.NotNil(addr, "tcp address should be valid")
 	assert.NotNil(manager, "session manager should be valid")
 	session := &Session{
-		manager:    manager,
-		addr:       addr,
-		cancel:     cancel,
-		writeQueue: make(chan packet.Packet, WriteQueueSize),
-		writerWg:   writerWg,
-		issuedTime: time.Time{},
-		challenge:  make([]byte, 32),
-		pubKey:     ed25519.PublicKey{},
-		id:         snowflake.InvalidID,
-		mu:         sync.Mutex{},
+		manager:       manager,
+		addr:          addr,
+		cancel:        cancel,
+		writeQueue:    make(chan packet.Packet, WriteQueueSize),
+		writerWg:      writerWg,
+		writeMu:       sync.RWMutex{},
+		issuedTime:    time.Time{},
+		challenge:     make([]byte, 32),
+		pubKey:        ed25519.PublicKey{},
+		id:            snowflake.InvalidID,
+		mu:            sync.Mutex{},
+		isTosAccepted: false,
 	}
 	return session
 }
@@ -67,6 +70,14 @@ func NewSession(
 func (s *Session) Addr() *net.TCPAddr {
 	assert.NotNil(s.addr, "tcp address should be valid")
 	return s.addr
+}
+
+func (s *Session) IsTosAccepted() bool {
+	return s.isTosAccepted
+}
+
+func (s *Session) ReceivedTosAcceptance() {
+	s.isTosAccepted = true
 }
 
 func (s *Session) IsAuthenticated() bool {

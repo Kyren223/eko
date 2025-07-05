@@ -14,15 +14,23 @@ const (
 	IpAddr
 	Evicted
 	EvictedBy
+	Request
+	RequestType
 
 	KeyMax
 )
 
 var keyNames = map[key]string{
-	UserID:    "user_id",
-	IpAddr:    "ip_addr",
-	Evicted:   "evicted",
-	EvictedBy: "evicted_by",
+	UserID:      "user_id",
+	IpAddr:      "ip_addr",
+	Evicted:     "evicted",
+	EvictedBy:   "evicted_by",
+	Request:     "request",
+	RequestType: "request_type",
+}
+
+func (k key) String() string {
+	return keyNames[k]
 }
 
 func init() {

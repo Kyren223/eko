@@ -8,8 +8,7 @@ import (
 )
 
 type Error struct {
-	Error   string
-	PktType PacketType
+	Error string
 }
 
 func (m *Error) Type() PacketType {

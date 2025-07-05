@@ -34,6 +34,7 @@ The first time a connection is established, the following packets are exchanged.
   - If the client sends any other type of packet, or the boolean is false, the server may close the connection
 
 After the handshake, the client may send any unauthenticated packets.
+And the server may stream any additional packets.
 
 ### Authentication
 
