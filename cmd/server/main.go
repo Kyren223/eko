@@ -46,9 +46,7 @@ func main() {
 	}()
 
 	server := server.NewServer(ctx, port)
-	if err := server.Run(); err != nil {
-		// slog.Error(err)
-	}
+	server.Run() // blocks
 }
 
 func setupLogging() {

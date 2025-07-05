@@ -24,6 +24,8 @@ const (
 
 type ID int64
 
+const InvalidID = ID(0)
+
 func (id ID) String() string {
 	return strconv.FormatInt(int64(id), 10)
 }

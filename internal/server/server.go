@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -75,13 +74,37 @@ func NewServer(ctx context.Context, port uint16) server {
 	}
 }
 
-func (s *server) AddSession(session *session.Session) {
+func (s *server) AddSession(session *session.Session, userId snowflake.ID, pubKey ed25519.PublicKey) {
 	s.sessMu.Lock()
 	defer s.sessMu.Unlock()
+
+	session.Promote(userId, pubKey)
+
 	if sess, ok := s.sessions[session.ID()]; ok {
-		sess.Close()
+		EvictSession(sess) // last connection wins
+		slog.Info("closed due to new connection from another location",
+			ctxkeys.IpAddr, sess.Addr(), ctxkeys.UserID, sess.ID(),
+			ctxkeys.EvictedBy, session.Addr())
+		slog.Info("this session evicted another session",
+			ctxkeys.IpAddr, session.Addr(), ctxkeys.UserID, session.ID(),
+			ctxkeys.Evicted, sess.Addr())
 	}
+
 	s.sessions[session.ID()] = session
+}
+
+func EvictSession(sess *session.Session) {
+	timeout := 10 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	payload := &packet.Error{
+		Error:   "new connection from another location, closing this one",
+		PktType: packet.PacketError,
+	}
+	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
+	sess.Write(ctx, pkt)
+
+	sess.Close()
 }
 
 func (s *server) RemoveSession(id snowflake.ID) {
@@ -109,7 +132,7 @@ func (s *server) Node() *snowflake.Node {
 
 // Run starts listening and accepting clients,
 // blocking until it gets terminated by cancelling the context.
-func (s *server) Run() error {
+func (s *server) Run() {
 	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), tlsConfig)
 	if err != nil {
 		log.Fatalf("error starting server: %s", err)
@@ -132,7 +155,7 @@ func (s *server) Run() error {
 			}
 
 			if s.ctx.Err() != nil {
-				slog.Info("server context expired", "error", s.ctx.Err())
+				slog.Info("server context done", "error", s.ctx.Err())
 				break
 			}
 			continue // Ignore and skip (don't connect)
@@ -148,7 +171,6 @@ func (s *server) Run() error {
 	slog.Info("waiting for all active connections to close...")
 	wg.Wait()
 	slog.Info("completed server shutdown")
-	return nil
 }
 
 func (server *server) handleConnection(conn net.Conn) {
@@ -162,126 +184,95 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	slog.InfoContext(ctx, "connection accepted")
 	defer slog.InfoContext(ctx, "connection closed")
+	defer conn.Close()
 
-	// Set deadline before auth
-	deadline := time.Now().Add(5 * time.Second)
-	err := conn.SetDeadline(deadline)
-	assert.NoError(err, "setting deadline should not error")
-
-	pubKey, err := handleAuth(conn)
-	if err != nil {
-		slog.Info("user authentication failed", "error", err)
-		_ = conn.Close()
-		return
-	}
-
-	// Reset deadline after auth
-	err = conn.SetDeadline(time.Time{})
-	assert.NoError(err, "unsetting deadline should not error")
-
-	user, err := api.CreateOrGetUser(ctx, server.Node(), pubKey)
-	if err != nil {
-		log.Println(addr, "user creation/fetching error:", err)
-		_ = conn.Close()
-		return
-	}
-
-	ctx = context.WithValue(ctx, ctxkeys.UserID, user.ID)
-	sess := session.NewSession(server, addr, cancel, user.ID, pubKey)
-	server.AddSession(sess)
+	var writerWg *sync.WaitGroup
+	done := make(chan struct{})
 	framer := packet.NewFramer()
 
-	// Write ID back, it's useful for the client to know, and signals successful authentication
-	var id [8]byte
-	binary.BigEndian.PutUint64(id[:], uint64(user.ID)) // #nosec G115 -- sign bit is always 0 in snowflake IDs
-	_, err = conn.Write(id[:])
-	if err != nil {
-		log.Println(addr, "failed to write user id")
-		_ = conn.Close()
-		log.Println(addr, "disconnected")
-		return
-	}
-
+	sess := session.NewSession(server, addr, cancel, writerWg)
 	go func() {
 		<-ctx.Done()
-		_ = conn.Close()
-	}()
-	defer func() {
-		_ = conn.Close()
-		sameAddress := addr.String() == server.Session(sess.ID()).Addr().String()
-		if sameAddress {
-			server.RemoveSession(sess.ID())
+		// Remove session after cancellation
+		if sess.IsAuthenticated() {
+			sameAddress := addr.String() == server.Session(sess.ID()).Addr().String()
+			// false if the user signed in from a different connection
+			if sameAddress {
+				server.RemoveSession(sess.ID())
+			}
 		}
-		log.Println(addr, "disconnected gracefully")
 	}()
 
+	// Writer
 	go func() {
-		for {
-			packet, ok := sess.Read(ctx)
-			if !ok {
-				return
-			}
-			log.Println(addr, "sending packet:", packet)
+		defer close(done)
+		writeQueue := sess.Read()
+
+		for packet := range writeQueue {
 			if _, err := packet.Into(conn); err != nil {
 				// TODO: probably should add this to prevent the
 				// "use of closed connection" error, as it's intended to happen
+				// and once it happens we can just return
 				// if !errors.Is(err, net.ErrClosed) {
 				// 	log.Println(addr, err)
 				// }
-				log.Println(addr, err)
+				slog.ErrorContext(ctx, "error sending packet", "error", err, "packet", packet)
 				return
 			}
+			slog.InfoContext(ctx, "packet sent", "packet", packet)
 		}
 	}()
 
+	// Writer closer
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case request, ok := <-framer.Out:
-				if !ok {
-					return
-				}
+		writerWg.Wait()
+		sess.CloseWriteQueue() // causes writer to return
+	}()
 
-				response := processPacket(ctx, sess, request)
-				if ok := sess.Write(ctx, response); !ok {
-					return
-				}
-			}
+	// Processor
+	writerWg.Add(1)
+	go func() {
+		defer writerWg.Done()
+		localCtx := context.WithoutCancel(ctx)
+
+		for request := range framer.Out {
+			response := processPacket(localCtx, sess, request)
+			ok = sess.Write(localCtx, response)
+			assert.Assert(ok, "context is never done and write will panic")
 		}
 	}()
 
-	if ok := server.sendInitialPackets(ctx, sess); !ok {
-		return // closes the connection
-	}
-
-	// Infinite read loop
+	// Reader
 	buffer := make([]byte, 512)
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				log.Println(addr, err)
+			if errors.Is(err, io.EOF) {
+				slog.InfoContext(ctx, "closed gracefully")
 			} else {
-				log.Println(addr, "disconnecting gracefully...")
+				slog.ErrorContext(ctx, "failed reading from buffer", "error", err)
 			}
 			break
 		}
 
 		err = framer.Push(ctx, buffer[:n])
 		if ctx.Err() != nil {
-			log.Println(addr, ctx.Err())
+			slog.InfoContext(ctx, "reader context done", "error", ctx.Err())
 			break
 		}
 		if err != nil {
 			payload := packet.Error{Error: err.Error()}
 			pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
+			writerWg.Add(1)
 			sess.Write(ctx, pkt)
-			log.Println(addr, "received malformed packet:", err)
+			writerWg.Done()
+			slog.WarnContext(ctx, "received malformed packet", "error", err)
 			break
 		}
 	}
+	close(framer.Out) // stop processing
+
+	<-done
 }
 
 func handleAuth(conn net.Conn) (ed25519.PublicKey, error) {

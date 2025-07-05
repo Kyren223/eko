@@ -169,7 +169,7 @@ func (e PacketType) String() string {
 }
 
 const (
-	VERSION          = byte(1)
+	VERSION          = byte(2)
 	PACKET_MAX_SIZE  = math.MaxUint16
 	PAYLOAD_MAX_SIZE = PACKET_MAX_SIZE - HEADER_SIZE
 	HEADER_SIZE      = 4
@@ -355,9 +355,11 @@ type PacketFramer struct {
 	buffer []byte
 }
 
+const ReadQueueSize = 10
+
 func NewFramer() PacketFramer {
 	return PacketFramer{
-		Out: make(chan Packet, 10),
+		Out: make(chan Packet, ReadQueueSize),
 	}
 }
 

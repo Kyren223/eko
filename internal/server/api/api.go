@@ -167,7 +167,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 				log.Println("api.go:167 database error:", err)
 				return &ErrInternalError
 			}
-			if !bytes.Equal(sess.PubKey, pubKey) {
+			if !bytes.Equal(sess.PubKey(), pubKey) {
 				return &ErrPermissionDenied
 			}
 		}

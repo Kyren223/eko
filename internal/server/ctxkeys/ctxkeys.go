@@ -13,11 +13,15 @@ const (
 	UserID key = iota
 	IpAddr
 	KeyMax
+	Evicted
+	EvictedBy
 )
 
 var keyNames = map[key]string{
-	UserID: "user_id",
-	IpAddr: "ip_addr",
+	UserID:    "user_id",
+	IpAddr:    "ip_addr",
+	Evicted:   "evicted",
+	EvictedBy: "evicted_by",
 }
 
 func Init() {
