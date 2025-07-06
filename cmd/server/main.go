@@ -86,7 +86,12 @@ func setupLogging() {
 			next := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
 			time.Sleep(time.Until(next)) // sleep until next midnight
 
-			rotator.Rotate()
+			err := rotator.Rotate()
+			if err != nil {
+				slog.Error("log file rotation failed", "error", err)
+			} else {
+				slog.Info("log file rotated")
+			}
 		}
 	}()
 }
