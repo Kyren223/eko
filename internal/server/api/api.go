@@ -14,6 +14,7 @@ import (
 
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -393,12 +394,13 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 	}
 }
 
-func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload, error) {
+func GetNetworksInfo(ctx context.Context, sess *session.Session) packet.Payload {
 	var fullNetworks []packet.FullNetwork
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "database error", "error", err)
+		return &ErrInternalError
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -407,18 +409,21 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 
 	networks, err := qtx.GetUserNetworks(ctx, sess.ID())
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "database error", "error", err)
+		return &ErrInternalError
 	}
 
 	for _, network := range networks {
 		frequencies, err := qtx.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
-			return nil, err
+			slog.ErrorContext(ctx, "database error", "error", err)
+			return &ErrInternalError
 		}
 
 		membersAndUsers, err := qtx.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
-			return nil, err
+			slog.ErrorContext(ctx, "database error", "error", err)
+			return &ErrInternalError
 		}
 		members, users := SplitMembersAndUsers(membersAndUsers)
 
@@ -432,14 +437,15 @@ func GetNetworksInfo(ctx context.Context, sess *session.Session) (packet.Payload
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "database error", "error", err)
+		return &ErrInternalError
 	}
 
 	return &packet.NetworksInfo{
 		Networks:        fullNetworks,
 		RemovedNetworks: nil,
 		Partial:         false,
-	}, nil
+	}
 }
 
 func CreateFrequency(ctx context.Context, sess *session.Session, request *packet.CreateFrequency) packet.Payload {
@@ -1564,4 +1570,100 @@ func GetUsers(ctx context.Context, sess *session.Session, request *packet.GetUse
 	return &packet.UsersInfo{
 		Users: users,
 	}
+}
+
+func GetNonce(ctx context.Context, sess *session.Session, request *packet.GetNonce) packet.Payload {
+	return &packet.NonceInfo{
+		Nonce: sess.Challenge(),
+	}
+}
+
+func Authenticate(ctx context.Context, sess *session.Session, request *packet.Authenticate) packet.Payload {
+	if sess.IsAuthenticated() {
+		return &packet.Error{Error: "already authenticated"}
+	}
+
+	if len(request.PubKey) != ed25519.PublicKeySize {
+		return &packet.Error{Error: fmt.Sprintf(
+			"public key must be exactly %v bytes", ed25519.PublicKeySize,
+		)}
+	}
+
+	if len(request.Signature) != ed25519.SignatureSize {
+		return &packet.Error{Error: fmt.Sprintf(
+			"signature must be exactly %v bytes", ed25519.SignatureSize,
+		)}
+	}
+
+	// IMPORTANT
+	if ok := ed25519.Verify(request.PubKey, sess.Challenge(), request.Signature); !ok {
+		return &packet.Error{Error: "signature verification failed"}
+	}
+
+	// Authenticated from here on out
+
+	queries := data.New(db)
+
+	user, err := queries.GetUserByPublicKey(ctx, request.PubKey)
+	if err == sql.ErrNoRows {
+		id := sess.Manager().Node().Generate()
+		user, err = queries.CreateUser(ctx, data.CreateUserParams{
+			ID:        id,
+			Name:      "User" + strconv.FormatInt(id.Time()%1000, 10),
+			PublicKey: request.PubKey,
+		})
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err)
+		return &ErrInternalError
+	}
+
+	if user.IsDeleted {
+		return &packet.Error{Error: "public key is already taken by a deleted user"}
+	}
+
+	sess.Manager().AddSession(sess, user.ID, request.PubKey)
+
+	// NOTE: as per the protocol, this must be the first message after auth
+	payload := &packet.UsersInfo{Users: []data.User{user}}
+	ok := sess.Write(ctx, WrapPayload(payload))
+	if !ok {
+		// Timeout, send at least this payload, client can request the rest
+		return payload
+	}
+
+	ok = sendInitialAuthPackets(ctx, sess) // Send rest of packets
+	if !ok {
+		// Timeout, notify the client at least
+		return &packet.Error{Error: "timeout: not all initial auth packets were sent"}
+	}
+
+	return nil // manually writing requests to control order
+}
+
+func sendInitialAuthPackets(ctx context.Context, sess *session.Session) bool {
+	payloads := []packet.Payload{}
+
+	payloads = append(payloads, GetUserData(ctx, sess, &packet.GetUserData{}))
+	payloads = append(payloads, GetTrustedUsers(ctx, sess))
+	payloads = append(payloads, GetBlockedUsers(ctx, sess))
+	payloads = append(payloads, GetBlockedUsers(ctx, sess))
+	payloads = append(payloads, GetNetworksInfo(ctx, sess))
+	payloads = append(payloads, GetNotifications(ctx, sess))
+
+	success := true
+	for _, payload := range payloads {
+		if payload == &ErrInternalError {
+			success = false
+			continue
+		}
+		slog.InfoContext(ctx, "sending initial auth payload", ctxkeys.Payload.String(), payload, ctxkeys.PayloadType.String(), payload.Type())
+		ok := sess.Write(ctx, WrapPayload(payload))
+		if !ok {
+			success = false
+			continue
+		}
+	}
+
+	return success
 }

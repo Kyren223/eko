@@ -14,8 +14,8 @@ const (
 	IpAddr
 	Evicted
 	EvictedBy
-	Request
-	RequestType
+	Payload
+	PayloadType
 
 	KeyMax
 )
@@ -25,8 +25,8 @@ var keyNames = map[key]string{
 	IpAddr:      "ip_addr",
 	Evicted:     "evicted",
 	EvictedBy:   "evicted_by",
-	Request:     "request",
-	RequestType: "request_type",
+	Payload:     "payload",
+	PayloadType: "payload_type",
 }
 
 func (k key) String() string {

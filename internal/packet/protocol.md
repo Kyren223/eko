@@ -51,7 +51,7 @@ The server must then respond in one of the following ways:
 
 - With an Error (Type 0) with any message, indicating failed authentication
 - With a UsersInfo (Type 6) indicating success
-  - Must include exactly one UserID (corresponding to the authenticated user)
+  - Must include exactly one User (corresponding to the authenticated user)
 
 Note: if the client takes too long between the nonce request, the nonce may have been rotated
 and the client will need to redo these steps.

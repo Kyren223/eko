@@ -3,10 +3,8 @@ package server
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -104,8 +102,7 @@ func EvictSession(sess *session.Session) {
 	payload := &packet.Error{
 		Error: "new connection from another location, closing this one",
 	}
-	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
+	sess.Write(ctx, api.WrapPayload(payload))
 
 	sess.Close()
 }
@@ -240,9 +237,7 @@ func (server *server) handleConnection(conn net.Conn) {
 		localCtx := context.WithoutCancel(ctx)
 
 		for request := range framer.Out {
-			response := processPacket(localCtx, sess, request)
-			ok = sess.Write(localCtx, response)
-			assert.Assert(ok, "context is never done and write will panic")
+			processPacket(localCtx, sess, request)
 		}
 	}()
 
@@ -269,10 +264,8 @@ func (server *server) handleConnection(conn net.Conn) {
 			break
 		}
 		if err != nil {
-			payload := packet.Error{Error: err.Error()}
-			pkt := packet.NewPacket(packet.NewMsgPackEncoder(&payload))
 			writerWg.Add(1)
-			sess.Write(ctx, pkt)
+			sess.Write(ctx, api.WrapPayload(&packet.Error{Error: err.Error()}))
 			writerWg.Done()
 			slog.WarnContext(ctx, "received malformed packet", "error", err)
 			break
@@ -283,45 +276,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	<-done
 }
 
-func handleAuth(conn net.Conn) (ed25519.PublicKey, error) {
-	nonce := [32]byte{}
-	_, err := rand.Read(nonce[:])
-	assert.NoError(err, "random should always produce a value")
-
-	challengePacket := make([]byte, len(nonce)+1)
-	challengePacket[0] = packet.VERSION
-	copy(challengePacket[1:], nonce[:])
-
-	_, err = conn.Write(challengePacket)
-	if err != nil {
-		return nil, fmt.Errorf("error writing challenge: %w", err)
-	}
-
-	challengeResponsePacket := make([]byte, ed25519.PublicKeySize+ed25519.SignatureSize+1)
-	bytesRead := 0
-	for bytesRead < len(challengeResponsePacket) {
-		n, err := conn.Read(challengeResponsePacket[bytesRead:])
-		if err != nil {
-			return nil, fmt.Errorf("error reading challenge response: %w", err)
-		}
-		bytesRead += n
-	}
-
-	if challengeResponsePacket[0] != packet.VERSION {
-		return nil, fmt.Errorf("incompatible version: %v", challengeResponsePacket[0])
-	}
-
-	pubKey := ed25519.PublicKey(challengeResponsePacket[1 : 1+ed25519.PublicKeySize])
-	signature := ed25519.PrivateKey(challengeResponsePacket[1+ed25519.PublicKeySize:])
-
-	if ok := ed25519.Verify(pubKey, nonce[:], signature); !ok {
-		return nil, errors.New("signature verification failed")
-	}
-
-	return pubKey, nil
-}
-
-func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) packet.Packet {
+func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) {
 	var response packet.Payload
 
 	request, err := pkt.DecodedPayload()
@@ -331,8 +286,11 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 		response = processRequest(ctx, sess, request)
 	}
 
-	assert.NotNil(response, "response must always be assigned to")
-	return packet.NewPacket(packet.NewMsgPackEncoder(response))
+	// Nil is ok if responses were handled manually using sess.Write()
+	if response != nil {
+		ok := sess.Write(ctx, api.WrapPayload(response))
+		assert.Assert(ok, "context is never done and write will panic if queue is closed")
+	}
 }
 
 func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
@@ -371,16 +329,14 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 	}
 
 	switch request := request.(type) {
-	// TODO:
-	// case *packet.GetNonce:
-	// response = timeout(5*time.Millisecond, api.SetUserData, ctx, sess, request)
 
-	// TODO:
-	// case *packet.Authenticate:
-	// response = timeout(5*time.Millisecond, api.SetUserData, ctx, sess, request)
+	case *packet.GetNonce:
+		response = timeout(5*time.Millisecond, api.GetNonce, ctx, sess, request)
+
+	case *packet.Authenticate:
+		response = timeout(5*time.Millisecond, api.Authenticate, ctx, sess, request)
 
 	default:
-		_ = request // FIXME: remove
 		response = &packet.Error{Error: "use of disallowed packet type for request"}
 	}
 
@@ -485,50 +441,5 @@ func sendTosInfo(ctx context.Context, sess *session.Session) bool {
 		PrivacyPolicy: privacy,
 		Date:          date,
 	}
-	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	return sess.Write(ctx, pkt)
-}
-
-func (server *server) sendInitialAuthPackets(ctx context.Context, sess *session.Session) bool {
-	payload := api.GetUserData(ctx, sess, &packet.GetUserData{})
-	if payload == &api.ErrInternalError {
-		return false
-	}
-	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
-	pkt := packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
-
-	payload = api.GetTrustedUsers(ctx, sess)
-	if payload == &api.ErrInternalError {
-		return false
-	}
-	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
-	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
-
-	payload = api.GetBlockedUsers(ctx, sess)
-	if payload == &api.ErrInternalError {
-		return false
-	}
-	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
-	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
-
-	payload, err := api.GetNetworksInfo(ctx, sess)
-	if err != nil {
-		return false
-	}
-	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
-	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
-
-	payload = api.GetNotifications(ctx, sess)
-	if payload == &api.ErrInternalError {
-		return false
-	}
-	log.Println(sess.Addr(), "sending", payload.Type(), "payload:", payload)
-	pkt = packet.NewPacket(packet.NewMsgPackEncoder(payload))
-	sess.Write(ctx, pkt)
-
-	return true
+	return sess.Write(ctx, api.WrapPayload(payload))
 }

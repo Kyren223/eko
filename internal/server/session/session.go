@@ -13,7 +13,10 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-const WriteQueueSize = 10
+const (
+	WriteQueueSize = 10
+	NonceSize      = 32
+)
 
 type SessionManager interface {
 	AddSession(session *Session, userId snowflake.ID, pubKey ed25519.PublicKey)
@@ -58,7 +61,7 @@ func NewSession(
 		writerWg:      writerWg,
 		writeMu:       sync.RWMutex{},
 		issuedTime:    time.Time{},
-		challenge:     make([]byte, 32),
+		challenge:     make([]byte, NonceSize),
 		pubKey:        ed25519.PublicKey{},
 		id:            snowflake.InvalidID,
 		mu:            sync.Mutex{},
