@@ -79,7 +79,7 @@ func NetworkPropagateWithFilter(
 		context, cancel := context.WithTimeout(context.Background(), timeout)
 		go func() {
 			defer cancel()
-			if ok := session.Write(context, WrapPayload(payload)); !ok {
+			if ok := session.Write(context, payload); !ok {
 				log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
 			}
 		}()
@@ -121,7 +121,7 @@ func UserPropagate(
 	context, cancel := context.WithTimeout(context.Background(), timeout)
 	go func() {
 		defer cancel()
-		if ok := session.Write(context, WrapPayload(payload)); !ok {
+		if ok := session.Write(context, payload); !ok {
 			log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
 		}
 	}()
@@ -188,8 +188,4 @@ func getNotifications(ctx context.Context, userId snowflake.ID) (packet.Notifica
 		return packet.NotificationsInfo{}, err
 	}
 	return items, nil
-}
-
-func WrapPayload(payload packet.Payload) packet.Packet {
-	return packet.NewPacket(packet.NewMsgPackEncoder(payload))
 }

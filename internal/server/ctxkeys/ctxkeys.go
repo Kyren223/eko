@@ -12,21 +12,13 @@ type key int
 const (
 	UserID key = iota
 	IpAddr
-	Evicted
-	EvictedBy
-	Payload
-	PayloadType
 
 	KeyMax
 )
 
 var keyNames = map[key]string{
-	UserID:      "user_id",
-	IpAddr:      "ip_addr",
-	Evicted:     "evicted",
-	EvictedBy:   "evicted_by",
-	Payload:     "payload",
-	PayloadType: "payload_type",
+	UserID: "user_id",
+	IpAddr: "ip_addr",
 }
 
 func (k key) String() string {

@@ -14,7 +14,6 @@ import (
 
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
-	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -1626,7 +1625,7 @@ func Authenticate(ctx context.Context, sess *session.Session, request *packet.Au
 
 	// NOTE: as per the protocol, this must be the first message after auth
 	payload := &packet.UsersInfo{Users: []data.User{user}}
-	ok := sess.Write(ctx, WrapPayload(payload))
+	ok := sess.Write(ctx, payload)
 	if !ok {
 		// Timeout, send at least this payload, client can request the rest
 		return payload
@@ -1657,8 +1656,8 @@ func sendInitialAuthPackets(ctx context.Context, sess *session.Session) bool {
 			success = false
 			continue
 		}
-		slog.InfoContext(ctx, "sending initial auth payload", ctxkeys.Payload.String(), payload, ctxkeys.PayloadType.String(), payload.Type())
-		ok := sess.Write(ctx, WrapPayload(payload))
+		slog.InfoContext(ctx, "sending initial auth payload", "payload", payload, "payload_type", payload.Type())
+		ok := sess.Write(ctx, payload)
 		if !ok {
 			success = false
 			continue

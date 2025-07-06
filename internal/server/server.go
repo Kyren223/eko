@@ -83,12 +83,12 @@ func (s *server) AddSession(session *session.Session, userId snowflake.ID, pubKe
 		slog.Info("closed due to new connection from another location",
 			ctxkeys.IpAddr.String(), sess.Addr(),
 			ctxkeys.UserID.String(), sess.ID(),
-			ctxkeys.EvictedBy.String(), session.Addr(),
+			"evicted_by", session.Addr(),
 		)
 		slog.Info("this session evicted another session",
 			ctxkeys.IpAddr.String(), session.Addr(),
 			ctxkeys.UserID.String(), session.ID(),
-			ctxkeys.Evicted.String(), sess.Addr(),
+			"evicted", sess.Addr(),
 		)
 	}
 
@@ -102,7 +102,7 @@ func EvictSession(sess *session.Session) {
 	payload := &packet.Error{
 		Error: "new connection from another location, closing this one",
 	}
-	sess.Write(ctx, api.WrapPayload(payload))
+	sess.Write(ctx, payload)
 
 	sess.Close()
 }
@@ -209,7 +209,8 @@ func (server *server) handleConnection(conn net.Conn) {
 		defer conn.Close() // To unblock reader
 		writeQueue := sess.Read()
 
-		for packet := range writeQueue {
+		for payload := range writeQueue {
+			packet := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 			if _, err := packet.Into(conn); err != nil {
 				// TODO: probably should add this to prevent the
 				// "use of closed connection" error, as it's intended to happen
@@ -217,10 +218,10 @@ func (server *server) handleConnection(conn net.Conn) {
 				// if !errors.Is(err, net.ErrClosed) {
 				// 	log.Println(addr, err)
 				// }
-				slog.ErrorContext(ctx, "error sending packet", "error", err, "packet", packet)
+				slog.ErrorContext(ctx, "error sending packet", "error", err, "packet", packet.LogValue(), "payload", payload)
 				return
 			}
-			slog.InfoContext(ctx, "packet sent", "packet", packet)
+			slog.InfoContext(ctx, "packet sent", "packet", packet.LogValue(), "payload", payload)
 		}
 	}()
 
@@ -253,7 +254,7 @@ func (server *server) handleConnection(conn net.Conn) {
 		n, err := conn.Read(buffer)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				slog.InfoContext(ctx, "closed gracefully")
+				slog.InfoContext(ctx, "closing gracefully")
 			} else {
 				slog.ErrorContext(ctx, "failed reading from buffer", "error", err)
 			}
@@ -267,7 +268,7 @@ func (server *server) handleConnection(conn net.Conn) {
 		}
 		if err != nil {
 			writerWg.Add(1)
-			sess.Write(ctx, api.WrapPayload(&packet.Error{Error: err.Error()}))
+			sess.Write(ctx, &packet.Error{Error: err.Error()})
 			writerWg.Done()
 			slog.WarnContext(ctx, "received malformed packet", "error", err)
 			break
@@ -290,15 +291,14 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 
 	// Nil is ok if responses were handled manually using sess.Write()
 	if response != nil {
-		ok := sess.Write(ctx, api.WrapPayload(response))
+		ok := sess.Write(ctx, response)
 		assert.Assert(ok, "context is never done and write will panic if queue is closed")
 	}
 }
 
 func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
 	slog.InfoContext(ctx, "processing request",
-		ctxkeys.PayloadType.String(),
-		request.Type(), ctxkeys.Payload.String(), request,
+		"request", request, "request_type", request.Type(),
 	)
 
 	if !sess.IsTosAccepted() {
@@ -429,8 +429,7 @@ func timeout[T packet.Payload](
 		return response
 	case <-ctx.Done():
 		slog.WarnContext(ctx, "request timeout",
-			ctxkeys.Payload.String(), request,
-			ctxkeys.PayloadType.String(), request.Type(),
+			"request", request, "request_type", request.Type(),
 		)
 		return &packet.Error{Error: "request timeout"}
 	}
@@ -448,5 +447,5 @@ func sendTosInfo(ctx context.Context, sess *session.Session) bool {
 		PrivacyPolicy: privacy,
 		Date:          date,
 	}
-	return sess.Write(ctx, api.WrapPayload(payload))
+	return sess.Write(ctx, payload)
 }

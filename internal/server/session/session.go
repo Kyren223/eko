@@ -32,7 +32,7 @@ type Session struct {
 	addr    *net.TCPAddr
 	cancel  context.CancelFunc
 
-	writeQueue chan packet.Packet
+	writeQueue chan packet.Payload
 	writerWg   *sync.WaitGroup
 	writeMu    sync.RWMutex
 
@@ -57,7 +57,7 @@ func NewSession(
 		manager:       manager,
 		addr:          addr,
 		cancel:        cancel,
-		writeQueue:    make(chan packet.Packet, WriteQueueSize),
+		writeQueue:    make(chan packet.Payload, WriteQueueSize),
 		writerWg:      writerWg,
 		writeMu:       sync.RWMutex{},
 		issuedTime:    time.Time{},
@@ -117,7 +117,7 @@ func (s *Session) Challenge() []byte {
 	return s.challenge
 }
 
-func (s *Session) Write(ctx context.Context, pkt packet.Packet) bool {
+func (s *Session) Write(ctx context.Context, payload packet.Payload) bool {
 	s.writerWg.Add(1)
 	defer s.writerWg.Done()
 
@@ -125,14 +125,14 @@ func (s *Session) Write(ctx context.Context, pkt packet.Packet) bool {
 	defer s.writeMu.RUnlock()
 
 	select {
-	case s.writeQueue <- pkt:
+	case s.writeQueue <- payload:
 		return true
 	case <-ctx.Done():
 		return false
 	}
 }
 
-func (s *Session) Read() <-chan packet.Packet {
+func (s *Session) Read() <-chan packet.Payload {
 	s.writeMu.RLock()
 	defer s.writeMu.RUnlock()
 	return s.writeQueue

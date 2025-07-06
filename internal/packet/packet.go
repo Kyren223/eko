@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -237,7 +238,18 @@ func (p Packet) Payload() []byte {
 }
 
 func (p Packet) String() string {
+	assert.Never("oops, found someone who uses packet.String(), improve this")
 	return fmt.Sprintf("Packet(v%v t%v %v [%v bytes...])", p.Version(), p.Encoding().String(), p.Type(), p.PayloadLength())
+}
+
+func (p Packet) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("version", int(p.Version())),
+		slog.String("encoding", p.Encoding().String()),
+		slog.String("type", p.Type().String()),
+		slog.Int("payload_length", int(p.PayloadLength())),
+		slog.Int("total_bytes", len(p.data)),
+	)
 }
 
 func (p Packet) Into(writer io.Writer) (int, error) {
