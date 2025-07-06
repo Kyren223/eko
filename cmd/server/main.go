@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/kyren223/eko/internal/server"
 	"github.com/kyren223/eko/internal/server/api"
@@ -61,8 +62,8 @@ func setupLogging() {
 
 	rotator := &lumberjack.Logger{
 		Filename: filepath.Join(logDir, "server.log"),
-		MaxSize:  1,  // megabytes TODO: switch this to a more reasonable size (100?)
-		MaxAge:   28, // days
+		MaxSize:  100, // megabytes
+		MaxAge:   28,  // days
 	}
 
 	level := slog.LevelDebug
@@ -78,4 +79,14 @@ func setupLogging() {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	slog.SetLogLoggerLevel(level) // TODO: remove me after fully migrating to slog
+
+	go func() {
+		for {
+			now := time.Now()
+			next := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
+			time.Sleep(time.Until(next)) // sleep until next midnight
+
+			rotator.Rotate()
+		}
+	}()
 }

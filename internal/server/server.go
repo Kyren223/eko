@@ -235,6 +235,8 @@ func (server *server) handleConnection(conn net.Conn) {
 	go func() {
 		defer writerWg.Done()
 		localCtx := context.WithoutCancel(ctx)
+		// Local context to not be effected by parent cancellation
+		// will still have a time limit upper bound, from timeout()
 
 		for request := range framer.Out {
 			processPacket(localCtx, sess, request)
@@ -295,8 +297,8 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 
 func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
 	slog.InfoContext(ctx, "processing request",
-		ctxkeys.RequestType.String(),
-		request.Type(), ctxkeys.Request.String(), request,
+		ctxkeys.PayloadType.String(),
+		request.Type(), ctxkeys.Payload.String(), request,
 	)
 
 	if !sess.IsTosAccepted() {
@@ -408,12 +410,14 @@ func timeout[T packet.Payload](
 	ctx context.Context, sess *session.Session, request T,
 ) packet.Payload {
 	// TODO: Remove the channel and just wait directly?
+	// No - We need to use a channel so timeout works properly
 	responseChan := make(chan packet.Payload)
 
-	// FIXME: currently just ignoring the given context
+	// TODO: Check if this is now fixed after the rewrite:
+	// currently just ignoring the given context
 	// this fixes the issue where the client disconnects so the server
 	// doesn't bother and cancels the request
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, timeoutDuration) // no longer ignoring
 	defer cancel()
 
 	go func() {
@@ -424,7 +428,10 @@ func timeout[T packet.Payload](
 	case response := <-responseChan:
 		return response
 	case <-ctx.Done():
-		log.Println(sess.Addr(), "timeout of", request.Type(), "request")
+		slog.WarnContext(ctx, "request timeout",
+			ctxkeys.Payload.String(), request,
+			ctxkeys.PayloadType.String(), request.Type(),
+		)
 		return &packet.Error{Error: "request timeout"}
 	}
 }
