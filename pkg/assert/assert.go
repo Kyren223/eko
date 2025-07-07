@@ -87,6 +87,10 @@ func Never(message string, args ...any) {
 	runAssert(message, args...)
 }
 
+func Abort(message string, args ...any) {
+	runAssert(message, args...)
+}
+
 func NotNil(value any, message string, args ...any) {
 	if value == nil || reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil() {
 		runAssert(message, args...)

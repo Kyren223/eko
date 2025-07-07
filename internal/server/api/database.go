@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	"embed"
-	"log"
+	"log/slog"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
@@ -20,10 +20,11 @@ func ConnectToDatabase() {
 	var err error
 	db, err = sql.Open("sqlite3", "file:server.db?cache=shared")
 	if err != nil {
-		log.Fatalln("unable to open db:", err)
+		slog.Error("unable to open database", "error", err)
+		assert.Abort("see logs")
 	}
 	assert.AddFlush(db)
-	log.Println("established connection with the database")
+	slog.Info("established connection with the database")
 
 	pragmas := []string{
 		"PRAGMA journal_mode = WAL;",
@@ -36,7 +37,7 @@ func ConnectToDatabase() {
 		assert.NoError(err, "DB pragmas should always execute with no errors")
 	}
 
-	log.Println("opened database, running up migrations...")
+	slog.Info("opened database, running migrations...")
 
 	goose.SetBaseFS(embedMigrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
@@ -44,10 +45,11 @@ func ConnectToDatabase() {
 	}
 	if err := goose.Up(db, "migrations"); err != nil {
 		_ = db.Close()
-		log.Fatalln("error running up migrations:", err)
+		slog.Error("error running migrations", "error", err)
+		assert.Abort("see logs")
 	}
 
-	log.Println("database connection ready to be used")
+	slog.Info("database connection ready to be used")
 }
 
 func DB() *sql.DB {

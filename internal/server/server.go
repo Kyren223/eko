@@ -3,18 +3,23 @@ package server
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"io"
-	"log"
 	"log/slog"
+	"math/big"
 	"net"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/kyren223/eko/certs"
+	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/api"
 	"github.com/kyren223/eko/internal/server/ctxkeys"
@@ -23,30 +28,69 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-var (
-	nodeId    int64 = 0
-	tlsConfig *tls.Config
-)
+var nodeId int64 = 0
 
-func init() {
-	path, ok := os.LookupEnv("EKO_SERVER_CERT_FILE")
+const CertFile = "EKO_SERVER_CERT_FILE"
+
+func getTlsConfig() *tls.Config {
+	path, ok := os.LookupEnv(CertFile)
 	if !ok {
-		path = "certs/server.key"
+		// DEV MODE ONLY, DUMMY CERT
+		cert, err := generateDummyCert()
+		if err != nil {
+			slog.Error("failed to generate dummy cert", "error", err)
+			assert.Abort("see logs")
+		}
+
+		return &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
 	}
 	keyPEM, err := os.ReadFile(path) // #nosec 304
 	if err != nil {
-		log.Fatalln("failed to read certificate key from", path)
+		slog.Error("failed to read certificate key", "path", path)
+		assert.Abort("see logs")
 	}
 
-	cert, err := tls.X509KeyPair(certs.CertPEM, keyPEM)
+	cert, err := tls.X509KeyPair(embeds.ServerCertificate, keyPEM)
 	if err != nil {
-		log.Fatalln("error loading certificate:", err)
+		slog.Error("error loading certificate", "error", err)
+		assert.Abort("see logs")
 	}
 
-	tlsConfig = &tls.Config{
+	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}
+}
+
+func generateDummyCert() (tls.Certificate, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
+
+	template := x509.Certificate{
+		SerialNumber: serial,
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		Subject:      pkix.Name{CommonName: "localhost"},
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return tls.X509KeyPair(certPEM, keyPEM)
 }
 
 type server struct {
@@ -133,9 +177,13 @@ func (s *server) Node() *snowflake.Node {
 // Run starts listening and accepting clients,
 // blocking until it gets terminated by cancelling the context.
 func (s *server) Run() {
-	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), tlsConfig)
+	slog.Info("starting eko-server...")
+
+	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), getTlsConfig())
 	if err != nil {
-		log.Fatalf("error starting server: %s", err)
+		// TODO: we need certs even for dev
+		slog.Error("error starting server", "error", err)
+		os.Exit(1)
 	}
 
 	assert.AddFlush(listener)
@@ -436,11 +484,9 @@ func timeout[T packet.Payload](
 }
 
 func sendTosInfo(ctx context.Context, sess *session.Session) bool {
-	// FIXME: ===== REPLACE WITH ACTUAL TOS =====
-	// TODO: Get TOS and privacy policy
-	tos := "WIP Terms of Service"
-	privacy := "WIP Privacy Policy"
-	date := "2025-07-03"
+	tos := embeds.TermsOfService.Load().(string)
+	privacy := embeds.PrivacyPolicy.Load().(string)
+	date := embeds.TosPrivacyHash.Load().(string)
 
 	payload := &packet.TosInfo{
 		Tos:           tos,
