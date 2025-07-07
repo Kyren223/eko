@@ -292,7 +292,7 @@ func (m *UsersInfo) Type() PacketType {
 type TosInfo struct {
 	Tos           string
 	PrivacyPolicy string
-	Date          string // 2025-07-05
+	Hash          string
 }
 
 func (m *TosInfo) Type() PacketType {

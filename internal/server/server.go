@@ -486,12 +486,12 @@ func timeout[T packet.Payload](
 func sendTosInfo(ctx context.Context, sess *session.Session) bool {
 	tos := embeds.TermsOfService.Load().(string)
 	privacy := embeds.PrivacyPolicy.Load().(string)
-	date := embeds.TosPrivacyHash.Load().(string)
+	hash := embeds.TosPrivacyHash.Load().(string)
 
 	payload := &packet.TosInfo{
 		Tos:           tos,
 		PrivacyPolicy: privacy,
-		Date:          date,
+		Hash:          hash,
 	}
 	return sess.Write(ctx, payload)
 }

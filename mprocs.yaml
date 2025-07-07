@@ -1,6 +1,6 @@
 procs:
   server:
-    shell: "exec go run ./cmd/server -- -prod=false"
+    shell: "go build -o ./eko-server ./cmd/server && exec ./eko-server -- -prod=false"
   client-main:
     shell: "go run ./cmd/client"
   client-secondary:
