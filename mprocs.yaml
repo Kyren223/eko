@@ -1,0 +1,13 @@
+procs:
+  server:
+    shell: "exec go run ./cmd/server -- -prod=false"
+  client-main:
+    shell: "go run ./cmd/client"
+  client-secondary:
+    shell: "go run ./cmd/client"
+  client-log:
+    shell: "tail -f client.log"
+  messages-log:
+    shell: "tail -f messages.log"
+  check-ci:
+    shell: "./check-ci.sh"
