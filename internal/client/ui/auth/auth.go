@@ -142,6 +142,9 @@ func New() Model {
 	}
 
 	m.SetSignup(false)
+
+	m.Update(nil) // HACK: force an update
+
 	return m
 }
 

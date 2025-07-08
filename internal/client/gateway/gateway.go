@@ -2,10 +2,8 @@ package gateway
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/binary"
 	"errors"
 	"log"
 	"net"
@@ -101,56 +99,6 @@ func connect(ctx context.Context) error {
 	go handlePacketStream()
 
 	return nil
-}
-
-func handleAuth(ctx context.Context, conn net.Conn, privKey ed25519.PrivateKey) (snowflake.ID, error) {
-	const nonceSize = 32
-	const packetSize = 1 + nonceSize // For version byte
-	challengeRequest := make([]byte, packetSize)
-
-	deadline, _ := ctx.Deadline()
-	err := conn.SetDeadline(deadline)
-	assert.NoError(err, "setting deadline should not error")
-	defer func() {
-		err := conn.SetDeadline(time.Time{})
-		assert.NoError(err, "unsetting deadline should not error")
-	}()
-
-	bytesRead := 0
-	for bytesRead < packetSize {
-		n, err := conn.Read(challengeRequest[bytesRead:])
-		if err != nil {
-			return 0, err
-		}
-		bytesRead += n
-	}
-
-	assert.Assert(challengeRequest[0] == packet.VERSION, "client should always have the same version as the server")
-
-	challengeResponse := make([]byte, 1+ed25519.PublicKeySize+ed25519.SignatureSize)
-	challengeResponse[0] = packet.VERSION
-	copy(challengeResponse[1:1+ed25519.PublicKeySize], privKey.Public().(ed25519.PublicKey))
-	signedNonce := ed25519.Sign(privKey, challengeRequest[1:])
-	n := copy(challengeResponse[1+ed25519.PublicKeySize:], signedNonce)
-	assert.Assert(n == ed25519.SignatureSize, "copy should've copied the entire signature exactly")
-
-	_, err = conn.Write(challengeResponse)
-	if err != nil {
-		return 0, err
-	}
-
-	var idBytes [8]byte
-	bytesRead = 0
-	for bytesRead < 8 {
-		n, err := conn.Read(idBytes[:])
-		if err != nil {
-			return 0, err
-		}
-		bytesRead += n
-	}
-	id := snowflake.ID(binary.BigEndian.Uint64(idBytes[:])) // #nosec G115
-
-	return id, nil
 }
 
 func readForever(conn net.Conn) {

@@ -247,23 +247,6 @@ func (m *Model) updateDisconnected(msg tea.Msg) tea.Cmd {
 	case gateway.ConnectionEstablished:
 		m.state = Connected
 		m.timeout = InitialTimeout
-
-		// TODO:
-		// // state.UserID = (*snowflake.ID)(&msg)
-		// var setName tea.Cmd
-		// if m.name != "" {
-		// 	setName = gateway.Send(&packet.SetUserData{
-		// 		Data: nil,
-		// 		User: &data.User{
-		// 			Name:        m.name,
-		// 			Description: "",
-		// 			IsPublicDM:  true,
-		// 		},
-		// 	})
-		// 	m.name = ""
-		// }
-		//
-		// return tea.Batch(m.timer.Stop(), setName)
 		return m.timer.Stop()
 
 	case gateway.ConnectionFailed:
@@ -326,12 +309,61 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		//
 		// return tea.Batch(m.timer.Stop(), setName)
 
+	case *packet.Error:
+		if m.state == ConnectedAcceptedTos {
+			if msg.Error == "success" {
+				return gateway.Send(&packet.GetNonce{})
+			} else {
+				log.Println("received error:", msg.Error)
+				gateway.Disconnect()
+				return ui.Transition(ui.NewAuth())
+			}
+		}
+
+	case *packet.NonceInfo:
+		if m.state == ConnectedAcceptedTos {
+			pubKey := ed25519.PublicKey(make([]byte, ed25519.PublicKeySize))
+			copy(pubKey, m.privKey[32:])
+
+			signature := ed25519.Sign(m.privKey, msg.Nonce)
+
+			return gateway.Send(&packet.Authenticate{
+				PubKey:    pubKey,
+				Signature: signature,
+			})
+		}
+
+	case *packet.UsersInfo:
+		if m.state == ConnectedAcceptedTos {
+			assert.Assert(len(msg.Users) == 1, "as per the spec, server must send a UsersInfo with exactly a single user", "users", msg.Users)
+
+			m.state = Authenticated
+			state.UserID = &msg.Users[0].ID
+
+			var setName tea.Cmd
+			if m.name != "" {
+				setName = gateway.Send(&packet.SetUserData{
+					Data: nil,
+					User: &data.User{
+						Name:        m.name,
+						Description: "",
+						IsPublicDM:  true,
+					},
+				})
+				m.name = ""
+			}
+
+			return setName
+		}
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
 			if m.state == ConnectedReceivedTos {
-				// TODO:
 				m.state = ConnectedAcceptedTos
+				return gateway.Send(&packet.AcceptTos{
+					IAgreeToTheTermsOfServiceAndPrivacyPolicy: true,
+				})
 			}
 		}
 
