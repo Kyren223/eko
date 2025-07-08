@@ -34,7 +34,7 @@ var prod = true
 func main() {
 	prodFlag := flag.Bool("prod", true, "true for production mode, false for dev mode")
 	flag.Parse()
-	prod = !(*prodFlag)
+	prod = *prodFlag
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
