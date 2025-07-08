@@ -33,6 +33,7 @@ import (
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/core/usersettings"
 	"github.com/kyren223/eko/internal/client/ui/loadscreen"
+	"github.com/kyren223/eko/internal/client/ui/tosscreen"
 	"github.com/kyren223/eko/internal/client/ui/viminput"
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
@@ -40,12 +41,12 @@ import (
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
-var (
-	connectingToServer = "Connecting to server.."
-	connectionFailed   = "Connection failed - retrying in %d sec..."
-	connectionTimeout  = 5 * time.Second
-	initialTimeout     = 3750 * time.Millisecond
-	timerInterval      = 50 * time.Millisecond
+const (
+	ConnectingToServer = "Connecting to server.."
+	ConnectionFailed   = "Connection failed - retrying in %d sec..."
+	ConnectionTimeout  = 5 * time.Second
+	InitialTimeout     = 3750 * time.Millisecond
+	TimerInterval      = 50 * time.Millisecond
 )
 
 const (
@@ -62,14 +63,25 @@ const (
 	FocusMax
 )
 
+type State int
+
+const (
+	Disconnected State = iota
+	Connected
+	ConnectedReceivedTos
+	ConnectedAcceptedTos
+	Authenticated
+)
+
 type Model struct {
 	name    string
 	privKey ed25519.PrivateKey
 
-	loading   loadscreen.Model
-	timer     timer.Model
-	timeout   time.Duration
-	connected bool
+	loading loadscreen.Model
+	tos     *tosscreen.Model
+	timer   timer.Model
+	timeout time.Duration
+	state   State
 
 	helpPopup              *HelpPopup
 	userSettingsPopup      *usersettings.Model
@@ -94,10 +106,11 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 	m := Model{
 		name:                   name,
 		privKey:                privKey,
-		loading:                loadscreen.New(connectingToServer),
-		timer:                  newTimer(initialTimeout),
-		timeout:                initialTimeout,
-		connected:              false,
+		loading:                loadscreen.New(ConnectingToServer),
+		tos:                    nil,
+		timer:                  newTimer(InitialTimeout),
+		timeout:                InitialTimeout,
+		state:                  Disconnected,
 		helpPopup:              nil,
 		userSettingsPopup:      nil,
 		networkCreationPopup:   nil,
@@ -108,6 +121,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		banReasonPopup:         nil,
 		banViewPopup:           nil,
 		signalAddPopup:         nil,
+		profilePopup:           nil,
 		networkList:            networklist.New(),
 		signalList:             signallist.New(),
 		frequencyList:          frequencylist.New(),
@@ -121,12 +135,29 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
+	return tea.Batch(gateway.Connect(ConnectionTimeout), m.loading.Init())
 }
 
 func (m Model) View() string {
-	if !m.connected {
+	switch m.state {
+	case Disconnected:
 		return m.loading.View()
+
+	case Connected:
+		return m.loading.View()
+	case ConnectedReceivedTos:
+		assert.NotNil(m.tos, "TOS is expected to not be nil if received TOS already")
+		return m.tos.View()
+
+	case ConnectedAcceptedTos:
+		// TODO: auth
+		return m.loading.View()
+
+	case Authenticated:
+		// Continue
+
+	default:
+		panic(fmt.Sprintf("unexpected core.State: %#v", m.state))
 	}
 
 	if m.HasPopup() {
@@ -188,36 +219,52 @@ func (m Model) View() string {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.connected {
+	switch m.state {
+
+	case Disconnected:
+		cmd := m.updateDisconnected(msg)
+		return m, cmd
+
+	case Connected:
+		fallthrough
+	case ConnectedReceivedTos:
+		fallthrough
+	case ConnectedAcceptedTos:
 		cmd := m.updateConnected(msg)
 		return m, cmd
-	} else {
-		cmd := m.updateNotConnected(msg)
+
+	case Authenticated:
+		cmd := m.updateAuthenticated(msg)
 		return m, cmd
+
+	default:
+		panic(fmt.Sprintf("unexpected core.State: %#v", m.state))
 	}
 }
 
-func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
+func (m *Model) updateDisconnected(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case gateway.ConnectionEstablished:
-		state.UserID = (*snowflake.ID)(&msg)
-		m.connected = true
-		m.timeout = initialTimeout
+		m.state = Connected
+		m.timeout = InitialTimeout
 
-		var setName tea.Cmd
-		if m.name != "" {
-			setName = gateway.Send(&packet.SetUserData{
-				Data: nil,
-				User: &data.User{
-					Name:        m.name,
-					Description: "",
-					IsPublicDM:  true,
-				},
-			})
-			m.name = ""
-		}
-
-		return tea.Batch(m.timer.Stop(), setName)
+		// TODO:
+		// // state.UserID = (*snowflake.ID)(&msg)
+		// var setName tea.Cmd
+		// if m.name != "" {
+		// 	setName = gateway.Send(&packet.SetUserData{
+		// 		Data: nil,
+		// 		User: &data.User{
+		// 			Name:        m.name,
+		// 			Description: "",
+		// 			IsPublicDM:  true,
+		// 		},
+		// 	})
+		// 	m.name = ""
+		// }
+		//
+		// return tea.Batch(m.timer.Stop(), setName)
+		return m.timer.Stop()
 
 	case gateway.ConnectionFailed:
 		log.Println("failed to connect:", msg)
@@ -227,8 +274,8 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 
 	case timer.TimeoutMsg:
 		m.timeout = min(m.timeout*2, time.Minute)
-		m.loading.SetContent(connectingToServer)
-		return gateway.Connect(m.privKey, connectionTimeout)
+		m.loading.SetContent(ConnectingToServer)
+		return gateway.Connect(ConnectionTimeout)
 
 	case timer.StartStopMsg:
 		var cmd tea.Cmd
@@ -252,6 +299,54 @@ func (m *Model) updateNotConnected(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
+	switch msg := message.(type) {
+
+	case gateway.ConnectionLost:
+		m.state = Disconnected
+		m.timeout = InitialTimeout
+		return tea.Batch(gateway.Connect(ConnectionTimeout), m.loading.Init())
+
+	case *packet.TosInfo:
+		m.state = ConnectedReceivedTos
+		combined := msg.Tos + "\n" + msg.PrivacyPolicy
+		tos := tosscreen.New(combined)
+		m.tos = &tos
+		// var setName tea.Cmd
+		// if m.name != "" {
+		// 	setName = gateway.Send(&packet.SetUserData{
+		// 		Data: nil,
+		// 		User: &data.User{
+		// 			Name:        m.name,
+		// 			Description: "",
+		// 			IsPublicDM:  true,
+		// 		},
+		// 	})
+		// 	m.name = ""
+		// }
+		//
+		// return tea.Batch(m.timer.Stop(), setName)
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			if m.state == ConnectedReceivedTos {
+				// TODO:
+				m.state = ConnectedAcceptedTos
+			}
+		}
+
+	}
+
+	if m.state == ConnectedReceivedTos {
+		tos, cmd := m.tos.Update(message)
+		m.tos = &tos
+		return cmd
+	}
+
+	return nil
+}
+
+func (m *Model) updateAuthenticated(message tea.Msg) tea.Cmd {
 	totalWidth := max(ui.Width, ui.MinWidth)
 	totalWidth -= NetworkWidth
 	sidebarWidth := int(math.Round(float64(totalWidth) * SidebarPercentage))
@@ -274,9 +369,9 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 
 	case gateway.ConnectionLost:
 		state.UserID = nil
-		m.connected = false
-		m.timeout = initialTimeout
-		return tea.Batch(gateway.Connect(m.privKey, connectionTimeout), m.loading.Init())
+		m.state = Disconnected
+		m.timeout = InitialTimeout
+		return tea.Batch(gateway.Connect(ConnectionTimeout), m.loading.Init())
 
 	case *packet.Error:
 		err := "new connection from another location, closing this one"
@@ -619,11 +714,11 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 
 func (m *Model) updateLoadScreenContent() {
 	seconds := m.timer.Timeout.Round(time.Second) / time.Second
-	m.loading.SetContent(fmt.Sprintf(connectionFailed, seconds))
+	m.loading.SetContent(fmt.Sprintf(ConnectionFailed, seconds))
 }
 
 func newTimer(timeout time.Duration) timer.Model {
-	return timer.NewWithInterval(timeout.Truncate(time.Second)+(time.Second/2), timerInterval)
+	return timer.NewWithInterval(timeout.Truncate(time.Second)+(time.Second/2), TimerInterval)
 }
 
 func (m *Model) move(direction int) {
@@ -813,4 +908,8 @@ func getSignalNotification(signal snowflake.ID) int {
 	})
 
 	return pings
+}
+
+func (m Model) ViewTos() string {
+	return "TODO TOS"
 }

@@ -14,7 +14,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/kyren223/eko/certs"
+	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/packet"
@@ -30,36 +30,36 @@ var (
 )
 
 type (
-	ConnectionEstablished snowflake.ID
-	ConnectionFailed      error
-	ConnectionLost        error
-	ConnectionClosed      struct{}
+	AuthenticationEstablished snowflake.ID
+	ConnectionEstablished     struct{}
+	ConnectionFailed          error
+	ConnectionLost            error
+	ConnectionClosed          struct{}
 )
 
-func Connect(privKey ed25519.PrivateKey, timeout time.Duration) tea.Cmd {
+func Connect(timeout time.Duration) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		id, err := connect(ctx, privKey)
+		err := connect(ctx)
 		if err != nil {
 			return ConnectionFailed(err)
 		}
-		return ConnectionEstablished(id)
+		return ConnectionEstablished{}
 	}
 }
 
-func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, error) {
+func connect(ctx context.Context) error {
 	assert.Assert(conn == nil, "cannot connect, connection is active")
 	closed = false
 
-	var id snowflake.ID
 	connChan := make(chan net.Conn, 1)
 	errChan := make(chan error, 1)
 	go func() {
 		framer = packet.NewFramer()
 
 		certPool := x509.NewCertPool()
-		if !certPool.AppendCertsFromPEM(certs.CertPEM) {
+		if !certPool.AppendCertsFromPEM(embeds.ServerCertificate) {
 			log.Fatalln("failed to append server certificate")
 		}
 
@@ -85,11 +85,6 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, err
 		}
 		log.Println("established connection with the server")
 
-		if id, err = handleAuth(ctx, connection, privKey); err != nil {
-			errChan <- err
-			return
-		}
-		log.Println("successfully authenticated with the server")
 		connChan <- connection
 	}()
 
@@ -97,15 +92,15 @@ func connect(ctx context.Context, privKey ed25519.PrivateKey) (snowflake.ID, err
 	case connection := <-connChan:
 		conn = connection
 	case err := <-errChan:
-		return 0, err
+		return err
 	case <-ctx.Done():
-		return 0, ctx.Err()
+		return ctx.Err()
 	}
 
 	go readForever(conn)
 	go handlePacketStream()
 
-	return id, nil
+	return nil
 }
 
 func handleAuth(ctx context.Context, conn net.Conn, privKey ed25519.PrivateKey) (snowflake.ID, error) {
