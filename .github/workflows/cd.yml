@@ -42,7 +42,7 @@ jobs:
       - name: Install goose
         run: go install github.com/pressly/goose/v3/cmd/goose@latest
 
-      - name: Convert migrations from timestmaps to indices
+      - name: Convert migrations from timestamps to indices
         run: goose fix -dir internal/server/api/migrations
 
       - name: Build executable
