@@ -144,23 +144,19 @@ func (m Model) View() string {
 
 	configFile := "Config File: " + highlightedStyle().Render(config.ConfigFile)
 	configFile = lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White).
 		Width(m.nameWidth).
 		Render(configFile)
 
 	option := highlightedStyle().Render("\"anonymous_device_analytics\": false")
-	analyticsOptOut := "Anonymous device analytics can be disabled by setting " + option + " in your config file"
+	analyticsOptOut := "Anonymous device analytics can be disabled in your config file by setting: " + option
 	analyticsOptOut = lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White).
 		Width(m.nameWidth).
 		Render(analyticsOptOut)
 
-	legalNote := "Official instance Terms of Service & Privacy Policy: " + highlightedStyle().Render("https://kyren.codes/eko/legal")
-	legalNote = lipgloss.NewStyle().
-		Width(m.nameWidth).
-		Render(legalNote)
-
 	content := flex.NewVertical(
-		legalNote, analyticsOptOut,
-		configFile, name, description, private, update,
+		analyticsOptOut, configFile, name, description, private, update,
 	).WithGap(1).View()
 
 	return lipgloss.NewStyle().
