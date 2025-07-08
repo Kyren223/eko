@@ -2,6 +2,11 @@
 
 **Last Updated:** July 7, 2025
 
+**⚠️ Stub Copy for Development Only!  
+This is not the official privacy policy. It is included for local testing and layout purposes only.  
+Do not use this version in production. The official public instance of Eko, hosted at eko.kyren.codes, has its own up-to-date privacy policy.  
+This stub may be based on a prior version, but may differ from the official policy in wording or scope.**
+
 This Privacy Policy explains how we handle data when you use our anonymous communication platform. The service operates without requiring user‑submitted personal identifiers such as names or email addresses. However, we do process certain technical data (e.g. IP addresses) which may be considered personal data under some laws.
 
 ## 1. What We Collect

@@ -1,6 +1,13 @@
-# Terms of Service
+# Stub Terms of Service
 
 **Last Updated:** July 7, 2025
+
+## ⚠️ Stub Copy for Development Only!
+
+**This is not the official Terms of Service. It is included for development and testing purposes only (e.g., when running a local instance of the server).
+Do not use this version in production.
+The official public instance of Eko, hosted at eko.kyren.codes, provides its own active and up-to-date Terms of Service.
+This stub may be based on an earlier version but is not guaranteed to reflect the current official terms.**
 
 ## 1. Acceptance of Terms
 
