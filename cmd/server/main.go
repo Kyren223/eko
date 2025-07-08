@@ -183,8 +183,8 @@ func reloadTosAndPrivacy() bool {
 		return true
 	}
 
-	embeds.TermsOfService.Store(tos)
-	embeds.PrivacyPolicy.Store(privacy)
+	embeds.TermsOfService.Store(string(tos))
+	embeds.PrivacyPolicy.Store(string(privacy))
 	embeds.TosPrivacyHash.Store(hash)
 
 	if oldHash == "" {
