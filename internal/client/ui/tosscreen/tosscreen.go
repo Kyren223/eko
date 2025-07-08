@@ -47,7 +47,26 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
-	footer := "-- 󰳝 Accept  |  ^C Decline  |  ↑↓ or J/K Scroll  |  ^D/^U PgDn/PgUp --"
+	sepStyle := lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(colors.Purple)
+
+	var b strings.Builder
+
+	accept := lipgloss.NewStyle().
+		Background(colors.BackgroundDimmer).
+		Foreground(colors.Green).
+		Render("󰳝 Accept")
+	decline := lipgloss.NewStyle().
+		Background(colors.BackgroundDimmer).
+		Foreground(colors.Red).
+		Render("^C Decline")
+
+	b.WriteString(sepStyle.Render("-- "))
+	b.WriteString(accept)
+	b.WriteString(sepStyle.Render("  |  "))
+	b.WriteString(decline)
+	b.WriteString(sepStyle.Render("  |  ↑↓ or J/K Scroll  |  ^D/^U PgDn/PgUp --"))
+
+	footer := b.String()
 
 	fWidth := lipgloss.Width(footer)
 	paddingLeft := (ui.Width - fWidth) / 2
@@ -191,10 +210,7 @@ func MdStyle() ansi.StyleConfig {
 			Ticked:         "[✓] ",
 			Unticked:       "[ ] ",
 		},
-		Link: ansi.StylePrimitive{
-
-			// Format: "Bozo",
-		},
+		Link: ansi.StylePrimitive{},
 		LinkText: ansi.StylePrimitive{
 			Color:   stringPtr(colors.Gold),
 			Bold:    boolPtr(true),
