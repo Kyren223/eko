@@ -15,7 +15,7 @@ var (
 	DefaultLightGray          = lipgloss.Color("#939AA3")
 	DefaultGray               = lipgloss.Color("#585858")
 	DefaultDarkGray           = lipgloss.Color("#313244")
-	DefaultLightBlue          = lipgloss.Color("#5874FF")
+	DefaultLightBlue          = lipgloss.Color("#00afff ")
 	DefaultBlue               = lipgloss.Color("#0029f5")
 	DefaultDarkCyan           = lipgloss.Color("#007E8A")
 	DefaultDarkerCyan         = lipgloss.Color("#005d66")

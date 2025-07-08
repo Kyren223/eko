@@ -20,8 +20,9 @@ import (
 const (
 	DEBUG = true
 
-	MinWidth                   = 85
-	Center   lipgloss.Position = 0.499
+	MinWidth                    = 85
+	MinHeight                   = 10
+	Center    lipgloss.Position = 0.499
 )
 
 var (
