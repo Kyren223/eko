@@ -161,12 +161,12 @@ func reloadTosAndPrivacy() bool {
 			return false
 		}
 	}
-	tos, err := os.ReadFile(tosFile)
+	tos, err := os.ReadFile(tosFile) // #nosec G304
 	if err != nil {
 		slog.Error("error reading TOS file", "error", err)
 		return false
 	}
-	privacy, err := os.ReadFile(privacyFile)
+	privacy, err := os.ReadFile(privacyFile) // #nosec G304
 	if err != nil {
 		slog.Error("error reading Privacy file", "error", err)
 		return false

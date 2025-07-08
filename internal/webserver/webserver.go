@@ -6,12 +6,14 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 
 	"github.com/kyren223/eko/embeds"
+	"github.com/kyren223/eko/pkg/assert"
 )
 
 func ServeEkoWebsite() {
@@ -19,7 +21,8 @@ func ServeEkoWebsite() {
 
 	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
-		w.Write([]byte(css))
+		_, err := w.Write([]byte(css))
+		assert.NoError(err, "css *should* be valid")
 	})
 
 	http.HandleFunc("/terms-of-service", func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +41,15 @@ func ServeEkoWebsite() {
 		writeLegalLayoutHtml(w, html)
 	})
 
-	slog.Error("webserver error", "error", http.ListenAndServe(":7443", nil))
+	srv := &http.Server{
+		Addr:         ":7443",
+		Handler:      http.DefaultServeMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	slog.Error("webserver error", "error", srv.ListenAndServe())
 }
 
 func writeLegalLayoutHtml(w io.Writer, html string) {
