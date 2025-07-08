@@ -41,6 +41,8 @@ func main() {
 
 	setupLogging()
 
+	slog.Info("mode", "prod", prod)
+
 	handleReload()
 	handleShutdown(cancel)
 
