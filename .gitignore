@@ -4,3 +4,5 @@
 *.db-shm
 *.db-wal
 eko-server
+eko-client
+eko
