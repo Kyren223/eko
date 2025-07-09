@@ -2,7 +2,7 @@
 
 **Last Updated:** July 7, 2025
 
-## ⚠️ Stub Copy for Development Only!
+## Stub Copy for Development Only!
 
 **This is not the official Terms of Service. It is included for development and testing purposes only (e.g., when running a local instance of the server).
 Do not use this version in production.

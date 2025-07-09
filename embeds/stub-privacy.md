@@ -2,8 +2,9 @@
 
 **Last Updated:** July 7, 2025
 
-**⚠️ Stub Copy for Development Only!  
-This is not the official privacy policy. It is included for local testing and layout purposes only.  
+## Stub Copy for Development Only!
+
+**This is not the official privacy policy. It is included for local testing and layout purposes only.  
 Do not use this version in production. The official public instance of Eko, hosted at eko.kyren.codes, has its own up-to-date privacy policy.  
 This stub may be based on a prior version, but may differ from the official policy in wording or scope.**
 
