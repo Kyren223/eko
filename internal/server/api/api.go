@@ -5,9 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
-	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -53,7 +51,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &packet.Error{Error: "frequency doesn't exist"}
 		}
 		if err != nil {
-			log.Println("api.go:54 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -65,7 +63,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &ErrPermissionDenied // Not a member
 		}
 		if err != nil {
-			log.Println("api.go:66 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		if !member.IsMember {
@@ -87,7 +85,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 					return &packet.Error{Error: "pinged user doesn't exist"}
 				}
 				if err != nil {
-					log.Println("api.go:88 database error:", err)
+					slog.ErrorContext(ctx, "database error", "error", err)
 					return &ErrInternalError
 				}
 			}
@@ -102,7 +100,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			Ping:        request.Ping,
 		})
 		if err != nil {
-			log.Println("api.go:103 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -124,7 +122,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			return &packet.Error{Error: "user doesn't exist"}
 		}
 		if err != nil {
-			log.Println("api.go:125 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -134,7 +132,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			BlockedUserID:  user.ID,
 		})
 		if err != nil && err != sql.ErrNoRows {
-			log.Println("api.go:136 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		if err != sql.ErrNoRows {
@@ -148,7 +146,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			BlockedUserID:  sess.ID(),
 		})
 		if err != nil && err != sql.ErrNoRows {
-			log.Println("api.go:150 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		if err != sql.ErrNoRows {
@@ -165,7 +163,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 				return &ErrPermissionDenied
 			}
 			if err != nil {
-				log.Println("api.go:167 database error:", err)
+				slog.ErrorContext(ctx, "database error", "error", err)
 				return &ErrInternalError
 			}
 			if !bytes.Equal(sess.PubKey(), pubKey) {
@@ -182,7 +180,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			Ping:        nil,
 		})
 		if err != nil {
-			log.Println("api.go:184 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -192,7 +190,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 			LastRead: 0,
 		})
 		if err != nil {
-			log.Println("api.go:194 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -215,7 +213,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			return &packet.Error{Error: "frequency doesn't exist"}
 		}
 		if err != nil {
-			log.Println("api.go:217 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -227,7 +225,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			return &ErrPermissionDenied // Not a member
 		}
 		if err != nil {
-			log.Println("api.go:229 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		if !member.IsMember {
@@ -240,7 +238,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 
 		messages, err := queries.GetFrequencyMessages(ctx, request.FrequencyID)
 		if err != nil {
-			log.Println("api.go:242 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -256,7 +254,7 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 			User2: request.ReceiverID,
 		})
 		if err != nil {
-			log.Println("api.go:258 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -267,26 +265,6 @@ func RequestMessages(ctx context.Context, sess *session.Session, request *packet
 	}
 
 	return &packet.Error{Error: "either receiver id or frequency id must be specified"}
-}
-
-func CreateOrGetUser(ctx context.Context, node *snowflake.Node, pubKey ed25519.PublicKey) (data.User, error) {
-	queries := data.New(db)
-
-	user, err := queries.GetUserByPublicKey(ctx, pubKey)
-	if err == sql.ErrNoRows {
-		id := node.Generate()
-		user, err = queries.CreateUser(ctx, data.CreateUserParams{
-			ID:        id,
-			Name:      "User" + strconv.FormatInt(id.Time()%1000, 10),
-			PublicKey: pubKey,
-		})
-	}
-
-	if user.IsDeleted {
-		err = errors.New("public key is already taken by a deleted user")
-	}
-
-	return user, err
 }
 
 func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.CreateNetwork) packet.Payload {
@@ -320,7 +298,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		log.Println("database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	defer func() { _ = tx.Rollback() }()
@@ -338,7 +316,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		FgHexColor: request.FgHexColor,
 	})
 	if err != nil {
-		log.Println("api.go:338 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -350,7 +328,7 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		Perms:     packet.PermReadWrite,
 	})
 	if err != nil {
-		log.Println("api.go:355 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -364,19 +342,19 @@ func CreateNetwork(ctx context.Context, sess *session.Session, request *packet.C
 		BanReason: nil,
 	})
 	if err != nil {
-		log.Println("api.go:365 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
 	user, err := qtx.GetUserById(ctx, network.OwnerID)
 	if err != nil {
-		log.Println("api.go:371 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Println("api.go:377 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -455,7 +433,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: "either user or network don't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:451 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	if !isAdmin {
@@ -487,7 +465,7 @@ func CreateFrequency(ctx context.Context, sess *session.Session, request *packet
 		Perms:     int64(request.Perms),
 	})
 	if err != nil {
-		log.Println("api.go:483 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -506,7 +484,7 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: "either user or network don't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:502 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	if !isAdmin {
@@ -519,7 +497,7 @@ func SwapFrequencies(ctx context.Context, sess *session.Session, request *packet
 		NetworkID: request.Network,
 	})
 	if err != nil {
-		log.Println("api.go:515 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -539,7 +517,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: "frequency doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:535 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -549,7 +527,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &ErrPermissionDenied // User not in network
 	}
 	if err != nil {
-		log.Println("api.go:545 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	if !isAdmin {
@@ -559,7 +537,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 	// At least one frequency exists
 	frequencies, err := queries.GetNetworkFrequencies(ctx, frequency.NetworkID)
 	if err != nil {
-		log.Println("api.go:555 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	if len(frequencies) == 1 {
@@ -568,7 +546,7 @@ func DeleteFrequency(ctx context.Context, sess *session.Session, request *packet
 
 	err = queries.DeleteFrequency(ctx, frequency.ID)
 	if err != nil {
-		log.Println("api.go:564 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -587,7 +565,7 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 		return &packet.Error{Error: "network doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:583 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -598,7 +576,7 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 
 	err = queries.DeleteNetwork(ctx, request.Network)
 	if err != nil {
-		log.Println("api.go:594 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -620,7 +598,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 	network, err := queries.GetNetworkById(ctx, request.Network)
 	if err != nil {
-		log.Println("api.go:616 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -641,13 +619,13 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 			BanReason: nil,
 		})
 		if err != nil {
-			log.Println("api.go:637 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
 		user, err := queries.GetUserById(ctx, newMember.UserID)
 		if err != nil {
-			log.Println("api.go:643 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -660,13 +638,13 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 		frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
-			log.Println("api.go:656 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
 		membersAndUsers, err := queries.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
-			log.Println("api.go:662 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		members, users := SplitMembersAndUsers(membersAndUsers)
@@ -684,14 +662,14 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	}
 
 	if err != nil {
-		log.Println("api.go:680 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
 	isSessOwner := sess.ID() == network.OwnerID
 	isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), request.Network)
 	if err != nil {
-		log.Println("api.go:687 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -748,7 +726,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		BanReason: banReason,
 	})
 	if err != nil {
-		log.Println("api.go:744 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -778,7 +756,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 
 	user, err := queries.GetUserById(ctx, newMember.UserID)
 	if err != nil {
-		log.Println("api.go:774 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -793,13 +771,13 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 	if !member.IsMember && newMember.IsMember {
 		frequencies, err := queries.GetNetworkFrequencies(ctx, network.ID)
 		if err != nil {
-			log.Println("database error 10:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
 		membersAndUsers, err := queries.GetNetworkMembers(ctx, network.ID)
 		if err != nil {
-			log.Println("database error 11:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 		members, users := SplitMembersAndUsers(membersAndUsers)
@@ -836,7 +814,7 @@ func SetUserData(ctx context.Context, sess *session.Session, request *packet.Set
 			Data:   *request.Data,
 		})
 		if err != nil {
-			log.Println("api.go:832 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 	}
@@ -867,7 +845,7 @@ func SetUserData(ctx context.Context, sess *session.Session, request *packet.Set
 			ID:          sess.ID(),
 		})
 		if err != nil {
-			log.Println("api.go:863 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -885,7 +863,7 @@ func GetUserData(ctx context.Context, sess *session.Session, request *packet.Get
 
 	user, err := queries.GetUserById(ctx, sess.ID())
 	if err != nil {
-		log.Println("api.go:881 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -898,7 +876,7 @@ func GetUserData(ctx context.Context, sess *session.Session, request *packet.Get
 		}
 	}
 	if err != nil {
-		log.Println("api.go:894 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -916,7 +894,7 @@ func UpdateNetwork(ctx context.Context, sess *session.Session, request *packet.U
 		return &packet.Error{Error: "network doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:912 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -956,7 +934,7 @@ func UpdateNetwork(ctx context.Context, sess *session.Session, request *packet.U
 		ID:         network.ID,
 	})
 	if err != nil {
-		log.Println("api.go:952 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -980,7 +958,7 @@ func UpdateFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: "frequency doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:976 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -989,7 +967,7 @@ func UpdateFrequency(ctx context.Context, sess *session.Session, request *packet
 		return &packet.Error{Error: "either network doesn't exist or user is not apart of this network"}
 	}
 	if err != nil {
-		log.Println("api.go:988 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	if !isAdmin {
@@ -1020,7 +998,7 @@ func UpdateFrequency(ctx context.Context, sess *session.Session, request *packet
 		ID:       frequency.ID,
 	})
 	if err != nil {
-		log.Println("api.go:1019 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1039,26 +1017,26 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 		return &packet.Error{Error: "message doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:1038 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
 	if message.FrequencyID != nil {
 		frequency, err := queries.GetFrequencyById(ctx, *message.FrequencyID)
 		if err != nil {
-			log.Println("api.go:1045 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
 		network, err := queries.GetNetworkById(ctx, frequency.NetworkID)
 		if err != nil {
-			log.Println("api.go:1051 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
 		isSessAdmin, err := IsNetworkAdmin(ctx, queries, sess.ID(), frequency.NetworkID)
 		if err != nil {
-			log.Println("api.go:1057 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1071,7 +1049,7 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 
 		err = queries.DeleteMessage(ctx, message.ID)
 		if err != nil {
-			log.Println("api.go:1070 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1094,7 +1072,7 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 
 		err = queries.DeleteMessage(ctx, message.ID)
 		if err != nil {
-			log.Println("api.go:1093 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1128,7 +1106,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 		return &packet.Error{Error: "message doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:1127 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1143,7 +1121,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 	if message.FrequencyID != nil {
 		frequency, err := queries.GetFrequencyById(ctx, *message.FrequencyID)
 		if err != nil {
-			log.Println("api.go:1142 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1152,7 +1130,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 			ID:      message.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1151 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1174,7 +1152,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 			ID:      message.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1173 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1200,7 +1178,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 		return &packet.Error{Error: "requested user doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:1199 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1217,7 +1195,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			}
 		}
 		if err != sql.ErrNoRows {
-			log.Println("api.go:1213 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1229,7 +1207,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			return &packet.Error{Error: "cannot trust blocked user, unblock them first"}
 		}
 		if err != sql.ErrNoRows {
-			log.Println("api.go:1225 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1239,7 +1217,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			TrustedPublicKey: user.PublicKey,
 		})
 		if err != nil {
-			log.Println("api.go:1235 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1254,7 +1232,7 @@ func TrustUser(ctx context.Context, sess *session.Session, request *packet.Trust
 			TrustedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1250 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1271,7 +1249,7 @@ func GetTrustedUsers(ctx context.Context, sess *session.Session) packet.Payload 
 
 	trustedRows, err := queries.GetTrustedUsers(ctx, sess.ID())
 	if err != nil && err != sql.ErrNoRows {
-		log.Println("api.go:1267 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1301,7 +1279,7 @@ func GetBannedMembers(ctx context.Context, sess *session.Session, request *packe
 		return &packet.Error{Error: "network doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:1297 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1311,7 +1289,7 @@ func GetBannedMembers(ctx context.Context, sess *session.Session, request *packe
 
 	bannedMembersRow, err := queries.GetBannedMembers(ctx, request.Network)
 	if err != nil {
-		log.Println("api.go:1307 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 	members := make([]data.Member, 0, len(bannedMembersRow))
@@ -1332,7 +1310,7 @@ func GetBannedMembers(ctx context.Context, sess *session.Session, request *packe
 func GetNotifications(ctx context.Context, sess *session.Session) packet.Payload {
 	info, err := getNotifications(ctx, sess.ID())
 	if err != nil {
-		log.Println("database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1433,7 +1411,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 		return &packet.Error{Error: "requested user doesn't exist"}
 	}
 	if err != nil {
-		log.Println("api.go:1426 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1451,7 +1429,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			}
 		}
 		if err != sql.ErrNoRows {
-			log.Println("api.go:1444 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1460,7 +1438,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			TrustedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1453 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1469,7 +1447,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			BlockedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1462 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1500,7 +1478,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			}
 		}
 		if err != nil {
-			log.Println("api.go:1493 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1509,7 +1487,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			BlockedUserID:  user.ID,
 		})
 		if err != nil {
-			log.Println("api.go:1502 database error:", err)
+			slog.ErrorContext(ctx, "database error", "error", err)
 			return &ErrInternalError
 		}
 
@@ -1534,13 +1512,13 @@ func GetBlockedUsers(ctx context.Context, sess *session.Session) packet.Payload 
 
 	blockedUsers, err := queries.GetBlockedUsers(ctx, sess.ID())
 	if err != nil && err != sql.ErrNoRows {
-		log.Println("api.go:1527 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
 	blockingUsers, err := queries.GetBlockingUsers(ctx, sess.ID())
 	if err != nil && err != sql.ErrNoRows {
-		log.Println("api.go:1533 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1562,7 +1540,7 @@ func GetUsers(ctx context.Context, sess *session.Session, request *packet.GetUse
 	queries := data.New(db)
 	users, err := queries.GetUsersByIds(ctx, request.Users)
 	if err != nil {
-		log.Println("api.go:1555 database error:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -1618,6 +1596,7 @@ func Authenticate(ctx context.Context, sess *session.Session, request *packet.Au
 	}
 
 	if user.IsDeleted {
+		slog.WarnContext(ctx, "login with deleted user public key", "deleted_user", user.PublicKey)
 		return &packet.Error{Error: "public key is already taken by a deleted user"}
 	}
 

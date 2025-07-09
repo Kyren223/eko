@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
@@ -66,7 +67,7 @@ func NetworkPropagateWithFilter(
 		Users:     sessions,
 	})
 	if err != nil {
-		log.Println("database error in propagate:", err)
+		slog.ErrorContext(ctx, "database error", "error", err)
 		return &ErrInternalError
 	}
 
@@ -80,7 +81,7 @@ func NetworkPropagateWithFilter(
 		go func() {
 			defer cancel()
 			if ok := session.Write(context, payload); !ok {
-				log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
+				slog.ErrorContext(ctx, "propagation failed", "session", session.LogValue(), "reason", "write failed")
 			}
 		}()
 	}
@@ -110,11 +111,11 @@ func SplitMembersAndUsers(membersAndUsers []data.GetNetworkMembersRow) ([]data.M
 
 func UserPropagate(
 	ctx context.Context, sess *session.Session,
-	user snowflake.ID, payload packet.Payload,
+	userId snowflake.ID, payload packet.Payload,
 ) packet.Payload {
-	session := sess.Manager().Session(user)
+	session := sess.Manager().Session(userId)
 	if session == nil {
-		log.Println(sess.Addr(), "propagation to user", user, "failed due to session being nil")
+		slog.ErrorContext(ctx, "propagation failed", ctxkeys.UserID.String(), userId, "reason", "session is nil")
 		return payload
 	}
 	timeout := 1 * time.Second
@@ -122,7 +123,7 @@ func UserPropagate(
 	go func() {
 		defer cancel()
 		if ok := session.Write(context, payload); !ok {
-			log.Println(sess.Addr(), "propagation to", session.Addr(), "failed")
+			slog.ErrorContext(ctx, "propagation failed", "session", session.LogValue(), "reason", "write failed")
 		}
 	}()
 

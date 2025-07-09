@@ -1150,6 +1150,7 @@ func (m *Model) renderMessages(screenHeight int) string {
 			// which is the desired value
 			return result[baseIndex+1 : upToIndex+1]
 		}
+		// FIXME: was reached
 		assert.Never("unreachable",
 			"base", m.base,
 			"index", m.index,

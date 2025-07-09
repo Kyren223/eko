@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/kyren223/eko/internal/packet"
+	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
@@ -148,4 +150,18 @@ func (s *Session) CloseWriteQueue() {
 
 func (s *Session) Close() {
 	s.cancel()
+}
+
+func (s *Session) LogValue() slog.Value {
+	if s.IsAuthenticated() {
+		return slog.GroupValue(
+			slog.Any(ctxkeys.IpAddr.String(), s.Addr()),
+			slog.Any(ctxkeys.UserID.String(), s.ID()),
+			slog.Any("public_key", s.PubKey()),
+		)
+	} else {
+		return slog.GroupValue(
+			slog.Any(ctxkeys.IpAddr.String(), s.Addr()),
+		)
+	}
 }
