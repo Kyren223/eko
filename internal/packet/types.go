@@ -329,3 +329,15 @@ type Authenticate struct {
 func (m *Authenticate) Type() PacketType {
 	return PacketAuthenticate
 }
+
+type DeviceAnalytics struct {
+	DeviceID  string
+	OS        string
+	Arch      string
+	Term      string
+	Colorterm string
+}
+
+func (m *DeviceAnalytics) Type() PacketType {
+	return PacketDeviceAnalytics
+}

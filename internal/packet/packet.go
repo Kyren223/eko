@@ -98,6 +98,8 @@ const (
 	PacketBlockUser
 	PacketBlockInfo
 
+	PacketDeviceAnalytics
+
 	PacketMax
 )
 
@@ -148,6 +150,8 @@ var packetNames = map[PacketType]string{
 
 	PacketGetUsers:  "PacketGetUsers",
 	PacketUsersInfo: "PacketUsersInfo",
+
+	PacketDeviceAnalytics: "PacketDeviceAnalytics",
 }
 
 func init() {
@@ -358,6 +362,9 @@ func (p Packet) DecodedPayload() (Payload, error) {
 		payload = &GetUsers{}
 	case PacketUsersInfo:
 		payload = &UsersInfo{}
+
+	case PacketDeviceAnalytics:
+		payload = &DeviceAnalytics{}
 
 	default:
 		assert.Assert(!p.Type().IsSupported(), "supported PackeType wasn't handled", "type", p.Type())
