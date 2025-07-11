@@ -37,9 +37,14 @@ func Run() {
 
 	log.Println("client started")
 
-	err := config.Load()
+	err := config.LoadConfig()
 	if err != nil {
 		fmt.Printf("Config file at '%v' was unable to load successfully\n%v\n", config.ConfigFile, err)
+		os.Exit(1)
+	}
+	err = config.LoadCache()
+	if err != nil {
+		fmt.Printf("Cache file at '%v' was unable to load successfully\n%v\n", config.CacheFile, err)
 		os.Exit(1)
 	}
 

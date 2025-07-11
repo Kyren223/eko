@@ -649,7 +649,7 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 	}
 
 	if key.Type == tea.KeyTab || key.Type == tea.KeyShiftTab {
-		conf := config.Read()
+		conf := config.ReadConfig()
 		var runes []rune
 		if conf.InsertModeTabToSpace {
 			runes = []rune(strings.Repeat(" ", int(conf.InsertModeSpacesPerTab)))

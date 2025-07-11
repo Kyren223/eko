@@ -63,16 +63,16 @@ func connect(ctx context.Context) error {
 
 		tlsConfig := &tls.Config{
 			RootCAs:    certPool,
-			ServerName: config.Read().ServerName,
+			ServerName: config.ReadConfig().ServerName,
 			MinVersion: tls.VersionTLS12,
 			// This is fine, it's always false by default
 			// The user may change the config, the name should be clear enough
 			// that this is insecure (valid use cases are for testing purposes)
-			InsecureSkipVerify: config.Read().InsecureDebugMode, // #nosec 402
+			InsecureSkipVerify: config.ReadConfig().InsecureDebugMode, // #nosec 402
 		}
 
-		address := config.Read().ServerName
-		if config.Read().InsecureDebugMode {
+		address := config.ReadConfig().ServerName
+		if config.ReadConfig().InsecureDebugMode {
 			address = "localhost"
 		}
 

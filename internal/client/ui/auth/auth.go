@@ -378,7 +378,7 @@ func (m *Model) SetSignup(signup bool) tea.Cmd {
 	m.focusIndex = -1
 	m.CycleForward()
 
-	privateKey := config.Read().PrivateKeyPath
+	privateKey := config.ReadConfig().PrivateKeyPath
 	if !m.signup && privateKey != "" {
 		m.fields[privateKeyField].Input.SetValue(privateKey)
 	}
@@ -544,7 +544,7 @@ func (m *Model) signin() tea.Cmd {
 	}
 
 	if m.remember {
-		_ = config.Use(func(config *config.Config) {
+		_ = config.UseConfig(func(config *config.Config) {
 			config.PrivateKeyPath = privateKeyFilepath
 		})
 	}

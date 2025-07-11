@@ -12,28 +12,30 @@ import (
 )
 
 type Config struct {
-	ServerName             string   `json:"server_name"`
-	PrivateKeyPath         string   `json:"private_key_path"`
-	InsertModeTabToSpace   bool     `json:"insert_mode_tab_to_space"`
-	InsertModeSpacesPerTab uint8    `json:"insert_mode_spaces_per_tab"`
-	InsecureDebugMode      bool     `json:"insecure_debug_mode"`
-	Colors                 []string `json:"colors"`
+	ServerName               string   `json:"server_name"`
+	PrivateKeyPath           string   `json:"private_key_path"`
+	InsertModeTabToSpace     bool     `json:"insert_mode_tab_to_space"`
+	InsertModeSpacesPerTab   uint8    `json:"insert_mode_spaces_per_tab"`
+	InsecureDebugMode        bool     `json:"insecure_debug_mode"`
+	Colors                   []string `json:"colors"`
+	AnonymousDeviceAnalytics bool     `json:"anonymous_device_analytics"`
 }
 
-func Default() Config {
+func DefaultConfig() Config {
 	return Config{
-		ServerName:             "eko.kyren.codes",
-		PrivateKeyPath:         "",
-		InsertModeTabToSpace:   true,
-		InsertModeSpacesPerTab: 4,
-		InsecureDebugMode:      false,
-		Colors:                 nil,
+		ServerName:               "eko.kyren.codes",
+		PrivateKeyPath:           "",
+		InsertModeTabToSpace:     true,
+		InsertModeSpacesPerTab:   4,
+		InsecureDebugMode:        false,
+		Colors:                   nil,
+		AnonymousDeviceAnalytics: true,
 	}
 }
 
-func VerifyAndFix(config *Config) error {
+func VerifyAndFixConfig(config *Config) error {
 	if config.ServerName == "" {
-		config.ServerName = Default().ServerName
+		config.ServerName = DefaultConfig().ServerName
 	}
 
 	if config.Colors != nil {
@@ -58,27 +60,27 @@ func VerifyAndFix(config *Config) error {
 
 var (
 	config     = Config{}
-	Dir        string
+	ConfigDir        string
 	ConfigFile string
 )
 
-func Load() error {
+func LoadConfig() error {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		return err
 	}
 
-	Dir = filepath.Join(userConfigDir, "eko")
-	err = os.MkdirAll(Dir, 0o750)
+	ConfigDir = filepath.Join(userConfigDir, "eko")
+	err = os.MkdirAll(ConfigDir, 0o750)
 	if err != nil {
 		return err
 	}
 
-	ConfigFile = filepath.Join(Dir, "config.json")
+	ConfigFile = filepath.Join(ConfigDir, "config.json")
 	contents, err := os.ReadFile(ConfigFile) // #nosec 304
 	if errors.Is(err, os.ErrNotExist) {
-		config = Default()
-		return write()
+		config = DefaultConfig()
+		return writeConfig()
 	}
 	if err != nil {
 		return err
@@ -89,7 +91,7 @@ func Load() error {
 		return err
 	}
 
-	defaultVal := reflect.ValueOf(Default())
+	defaultVal := reflect.ValueOf(DefaultConfig())
 	finalConfig := reflect.New(defaultVal.Type()).Elem()
 	finalConfig.Set(defaultVal)
 
@@ -114,15 +116,15 @@ func Load() error {
 
 	config = finalConfig.Interface().(Config)
 
-	err = VerifyAndFix(&config)
+	err = VerifyAndFixConfig(&config)
 	if err != nil {
 		return err
 	}
 
-	return write()
+	return writeConfig()
 }
 
-func write() error {
+func writeConfig() error {
 	b, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		return err
@@ -130,11 +132,11 @@ func write() error {
 	return os.WriteFile(ConfigFile, b, 0o600)
 }
 
-func Read() Config {
+func ReadConfig() Config {
 	return config
 }
 
-func Use(f func(config *Config)) error {
+func UseConfig(f func(config *Config)) error {
 	f(&config)
-	return write()
+	return writeConfig()
 }

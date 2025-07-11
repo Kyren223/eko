@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"runtime"
 	"slices"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -294,25 +297,11 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		combined := msg.Tos + "\n" + msg.PrivacyPolicy
 		tos := tosscreen.New(combined)
 		m.tos = &tos
-		// var setName tea.Cmd
-		// if m.name != "" {
-		// 	setName = gateway.Send(&packet.SetUserData{
-		// 		Data: nil,
-		// 		User: &data.User{
-		// 			Name:        m.name,
-		// 			Description: "",
-		// 			IsPublicDM:  true,
-		// 		},
-		// 	})
-		// 	m.name = ""
-		// }
-		//
-		// return tea.Batch(m.timer.Stop(), setName)
 
 	case *packet.Error:
 		if m.state == ConnectedAcceptedTos {
 			if msg.Error == "success" {
-				return gateway.Send(&packet.GetNonce{})
+				return tea.Batch(gateway.Send(&packet.GetNonce{}), SendAnalytics())
 			} else {
 				log.Println("received error:", msg.Error)
 				gateway.Disconnect()
@@ -408,6 +397,7 @@ func (m *Model) updateAuthenticated(message tea.Msg) tea.Cmd {
 	case *packet.Error:
 		err := "new connection from another location, closing this one"
 		if err == msg.Error {
+			gateway.Disconnect()
 			return ui.Transition(ui.NewAuth())
 		}
 
@@ -944,4 +934,24 @@ func getSignalNotification(signal snowflake.ID) int {
 
 func (m Model) ViewTos() string {
 	return "TODO TOS"
+}
+
+func SendAnalytics() tea.Cmd {
+	if !config.ReadConfig().AnonymousDeviceAnalytics {
+		return nil // User disabled analytics
+	}
+	assert.Assert(config.ReadConfig().AnonymousDeviceAnalytics, "who is paranoid")
+
+	osName := runtime.GOOS
+	arch := runtime.GOARCH
+	term := os.Getenv("TERM")
+	colorterm := os.Getenv("COLORTERM")
+
+	return gateway.Send(&packet.DeviceAnalytics{
+		DeviceID:  config.ReadCache().DeviceID,
+		OS:        osName,
+		Arch:      arch,
+		Term:      term,
+		Colorterm: colorterm,
+	})
 }
