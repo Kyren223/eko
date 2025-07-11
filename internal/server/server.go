@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/kyren223/eko/embeds"
@@ -261,7 +263,11 @@ func (server *server) handleConnection(conn net.Conn) {
 		for payload := range writeQueue {
 			packet := packet.NewPacket(packet.NewMsgPackEncoder(payload))
 			if _, err := packet.Into(conn); err != nil {
-				slog.ErrorContext(ctx, "error sending packet", "error", err, "packet", packet.LogValue(), "payload", payload)
+				if errors.Is(err, syscall.EPIPE) {
+					slog.InfoContext(ctx, "client disconnected while sending packet", "error", err, "packet", packet.LogValue(), "payload", payload)
+				} else {
+					slog.ErrorContext(ctx, "error sending packet", "error", err, "packet", packet.LogValue(), "payload", payload)
+				}
 				return
 			}
 			slog.InfoContext(ctx, "packet sent", "packet", packet.LogValue(), "payload", payload)
@@ -351,7 +357,7 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 
 func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
 	slog.InfoContext(ctx, "processing request",
-		"request", request, "request_type", request.Type(),
+		"request", request, "request_type", request.Type().String(),
 	)
 
 	if !sess.IsTosAccepted() {
@@ -392,7 +398,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 		response = timeout(5*time.Millisecond, api.Authenticate, ctx, sess, request)
 
 	default:
-		response = &packet.Error{Error: "use of disallowed packet type for request"}
+		response = &packet.Error{Error: fmt.Sprintf(
+			"use of disallowed packet type %v", request.Type().String(),
+		)}
 	}
 
 	return response
@@ -482,7 +490,7 @@ func timeout[T packet.Payload](
 		return response
 	case <-ctx.Done():
 		slog.WarnContext(ctx, "request timeout",
-			"request", request, "request_type", request.Type(),
+			"request", request, "request_type", request.Type().String(),
 		)
 		return &packet.Error{Error: "request timeout"}
 	}
