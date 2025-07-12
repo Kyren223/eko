@@ -305,7 +305,12 @@ func (server *server) handleConnection(conn net.Conn) {
 	// Reader
 	buffer := make([]byte, 512)
 	for {
-		conn.SetReadDeadline(time.Now().Add(ReadCheckCancelledInterval))
+		err := conn.SetReadDeadline(time.Now().Add(ReadCheckCancelledInterval))
+		if err != nil {
+			slog.ErrorContext(ctx, "failed setting read deadline", "error", err)
+			break
+		}
+
 		n, err := conn.Read(buffer)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -398,6 +403,9 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	case *packet.Authenticate:
 		response = timeout(5*time.Millisecond, api.Authenticate, ctx, sess, request)
+
+	case *packet.DeviceAnalytics:
+		response = timeout(5*time.Millisecond, api.DeviceAnalytics, ctx, sess, request)
 
 	default:
 		response = &packet.Error{Error: fmt.Sprintf(

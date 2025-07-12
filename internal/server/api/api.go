@@ -1645,3 +1645,8 @@ func sendInitialAuthPackets(ctx context.Context, sess *session.Session) bool {
 
 	return success
 }
+
+func DeviceAnalytics(ctx context.Context, sess *session.Session, request *packet.DeviceAnalytics) packet.Payload {
+	// TODO: implement this
+	return &ErrNotImplemented
+}
