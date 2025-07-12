@@ -11,21 +11,46 @@ import (
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
-func ServeEkoWebsite() {
-	slog.Info("starting web-server...")
+func ServePrometheusMetrics() {
+	slog.Info("starting metrics webserver...")
 
-	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	srv := &http.Server{
+		Addr:         ":2112",
+		Handler:      metricsMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	err := srv.ListenAndServe()
+	if err != nil {
+		slog.Error("metrics webserver error", "error", err)
+	} else {
+		slog.Info("metrics webserver terminated")
+	}
+}
+
+func ServeEkoWebsite() {
+	slog.Info("starting public webserver...")
+
+	publicMux := http.NewServeMux()
+
+	publicMux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		_, err := w.Write([]byte(css))
 		assert.NoError(err, "css *should* be valid")
 	})
 
-	http.HandleFunc("/terms-of-service", func(w http.ResponseWriter, r *http.Request) {
+	publicMux.HandleFunc("/terms-of-service", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		tos := embeds.TermsOfService.Load().(string)
 		tos = strings.ReplaceAll(tos, "Privacy Policy", "[Privacy Policy](../privacy-policy)")
@@ -33,7 +58,7 @@ func ServeEkoWebsite() {
 		writeLegalLayoutHtml(w, html)
 	})
 
-	http.HandleFunc("/privacy-policy", func(w http.ResponseWriter, r *http.Request) {
+	publicMux.HandleFunc("/privacy-policy", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		privacy := embeds.PrivacyPolicy.Load().(string)
 		privacy = strings.ReplaceAll(privacy, "Terms of Service", "[Terms of Service](../terms-of-service)")
@@ -43,13 +68,18 @@ func ServeEkoWebsite() {
 
 	srv := &http.Server{
 		Addr:         ":7443",
-		Handler:      http.DefaultServeMux,
+		Handler:      publicMux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
-	slog.Error("webserver error", "error", srv.ListenAndServe())
+	err := srv.ListenAndServe()
+	if err != nil {
+		slog.Error("public webserver error", "error", err)
+	} else {
+		slog.Info("public webserver terminated")
+	}
 }
 
 func writeLegalLayoutHtml(w io.Writer, html string) {

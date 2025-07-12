@@ -25,6 +25,7 @@ import (
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/api"
 	"github.com/kyren223/eko/internal/server/ctxkeys"
+	"github.com/kyren223/eko/internal/server/metrics"
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
@@ -292,6 +293,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 		for request := range framer.Out {
 			processPacket(localCtx, sess, request)
+			metrics.RequestsProcessed.Inc()
 		}
 		slog.InfoContext(ctx, "processor done")
 	}()

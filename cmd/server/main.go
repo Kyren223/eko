@@ -54,6 +54,7 @@ func main() {
 	assert.AddFlush(api.DB())
 	defer api.DB().Close()
 
+	go webserver.ServePrometheusMetrics()
 	go webserver.ServeEkoWebsite()
 
 	server := server.NewServer(ctx, port)

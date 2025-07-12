@@ -60,7 +60,7 @@ func VerifyAndFixConfig(config *Config) error {
 
 var (
 	config     = Config{}
-	ConfigDir        string
+	ConfigDir  string
 	ConfigFile string
 )
 
