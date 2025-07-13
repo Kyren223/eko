@@ -29,6 +29,7 @@ import (
 	"github.com/kyren223/eko/internal/server/session"
 	"github.com/kyren223/eko/pkg/assert"
 	"github.com/kyren223/eko/pkg/snowflake"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var nodeId int64 = 0
@@ -129,6 +130,7 @@ func (s *server) AddSession(session *session.Session, userId snowflake.ID, pubKe
 
 	if sess, ok := s.sessions[session.ID()]; ok {
 		EvictSession(sess) // last connection wins
+		metrics.UsersActive.Dec()
 		slog.Info("closed due to new connection from another location",
 			ctxkeys.IpAddr.String(), sess.Addr(),
 			ctxkeys.UserID.String(), sess.ID(),
@@ -142,6 +144,7 @@ func (s *server) AddSession(session *session.Session, userId snowflake.ID, pubKe
 	}
 
 	s.sessions[session.ID()] = session
+	metrics.UsersActive.Inc()
 }
 
 func EvictSession(sess *session.Session) {
@@ -160,6 +163,7 @@ func (s *server) RemoveSession(id snowflake.ID) {
 	s.sessMu.Lock()
 	defer s.sessMu.Unlock()
 	delete(s.sessions, id)
+	metrics.UsersActive.Dec()
 }
 
 func (s *server) Session(id snowflake.ID) *session.Session {
@@ -214,7 +218,11 @@ func (s *server) Run() {
 		}
 		wg.Add(1)
 		go func() {
+			metrics.ConnectionsEstablished.Inc()
+			metrics.ConnectionsActive.Inc()
 			s.handleConnection(conn)
+			metrics.ConnectionsActive.Dec()
+			metrics.ConnectionsClosed.Inc()
 			wg.Done()
 		}()
 	}
@@ -292,8 +300,14 @@ func (server *server) handleConnection(conn net.Conn) {
 		// will still have a time limit upper bound, from timeout()
 
 		for request := range framer.Out {
+			start := time.Now().UTC()
 			processPacket(localCtx, sess, request)
-			metrics.RequestsProcessed.Inc()
+			duration := time.Since(start)
+
+			labels := prometheus.Labels{"request_type": request.Type().String()}
+			metrics.RequestsProcessed.With(labels).Inc()
+			metrics.RequestProcessingDuration.With(labels).Observe(float64(duration.Seconds()))
+			slog.InfoContext(ctx, "processed request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
 		}
 		slog.InfoContext(ctx, "processor done")
 	}()
