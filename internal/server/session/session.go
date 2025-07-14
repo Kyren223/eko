@@ -38,14 +38,14 @@ type Session struct {
 	writerWg   *sync.WaitGroup
 	writeMu    sync.RWMutex
 
-	issuedTime time.Time
-	challenge  []byte
+	issuedTime  time.Time
+	challenge   []byte
+	challengeMu sync.Mutex
 
 	isTosAccepted bool
 	pubKey        ed25519.PublicKey
 	id            snowflake.ID
-
-	mu sync.Mutex
+	mu            sync.RWMutex
 }
 
 func NewSession(
@@ -66,8 +66,9 @@ func NewSession(
 		challenge:     make([]byte, NonceSize),
 		pubKey:        ed25519.PublicKey{},
 		id:            snowflake.InvalidID,
-		mu:            sync.Mutex{},
+		challengeMu:   sync.Mutex{},
 		isTosAccepted: false,
+		mu:            sync.RWMutex{},
 	}
 	return session
 }
@@ -78,28 +79,40 @@ func (s *Session) Addr() *net.TCPAddr {
 }
 
 func (s *Session) IsTosAccepted() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.isTosAccepted
 }
 
 func (s *Session) ReceivedTosAcceptance() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.isTosAccepted = true
 }
 
 func (s *Session) IsAuthenticated() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.id != snowflake.InvalidID
 }
 
 func (s *Session) ID() snowflake.ID {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	assert.Assert(s.IsAuthenticated(), "use of ID in an unauthenticated session", "addr", s.addr)
 	return s.id
 }
 
 func (s *Session) PubKey() ed25519.PublicKey {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	assert.Assert(s.IsAuthenticated(), "use of PubKey in an unauthenticated session", "addr", s.addr)
 	return s.pubKey
 }
 
 func (s *Session) Promote(userId snowflake.ID, pubKey ed25519.PublicKey) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.id = userId
 	s.pubKey = pubKey
 }
@@ -109,8 +122,8 @@ func (s *Session) Manager() SessionManager {
 }
 
 func (s *Session) Challenge() []byte {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.challengeMu.Lock()
+	defer s.challengeMu.Unlock()
 	if time.Since(s.issuedTime) > time.Minute {
 		s.issuedTime = time.Now()
 		_, err := rand.Read(s.challenge)
