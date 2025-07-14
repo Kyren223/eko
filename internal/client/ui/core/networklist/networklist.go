@@ -127,8 +127,7 @@ func (m Model) View() string {
 	}
 
 	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
-
-	return lipgloss.NewStyle().Background(colors.BackgroundDimmer).Render(result)
+	return lipgloss.NewStyle().Background(colors.BackgroundDimmer).MaxHeight(ui.Height).Render(result)
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
