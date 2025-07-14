@@ -11,7 +11,7 @@ var RequestsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 	Namespace: namespace,
 	Name:      "requests_processed_total",
 	Help:      "The total number of processed requests",
-}, []string{"request_type"})
+}, []string{"request_type", "dropped"})
 
 // var RequestsInProgress = promauto.NewCounterVec(prometheus.CounterOpts{
 // 	Namespace: namespace,
@@ -24,7 +24,7 @@ var RequestProcessingDuration = promauto.NewHistogramVec(prometheus.HistogramOpt
 	Name:                        "request_processing_duration_seconds",
 	Help:                        "The duration in seconds it took to process a request",
 	NativeHistogramBucketFactor: 1.00271,
-}, []string{"request_type"})
+}, []string{"request_type", "dropped"})
 
 // var RequestProcessingDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
 // 	Namespace: namespace,

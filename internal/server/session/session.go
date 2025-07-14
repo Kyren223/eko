@@ -12,12 +12,18 @@ import (
 	"github.com/kyren223/eko/internal/packet"
 	"github.com/kyren223/eko/internal/server/ctxkeys"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/kyren223/eko/pkg/rate"
 	"github.com/kyren223/eko/pkg/snowflake"
 )
 
 const (
 	WriteQueueSize = 10
 	NonceSize      = 32
+
+	DefaultRate        = 0.1 // ms per second
+	DefaultLimit       = 3   // ms burst
+	AuthenticatedRate  = 1   // ms per second
+	AuthenticatedLimit = 20  // ms burst
 )
 
 type SessionManager interface {
@@ -45,7 +51,9 @@ type Session struct {
 	isTosAccepted bool
 	pubKey        ed25519.PublicKey
 	id            snowflake.ID
-	mu            sync.RWMutex
+	rl            rate.Limiter
+
+	mu sync.RWMutex
 }
 
 func NewSession(
@@ -68,6 +76,7 @@ func NewSession(
 		id:            snowflake.InvalidID,
 		challengeMu:   sync.Mutex{},
 		isTosAccepted: false,
+		rl:            rate.NewLimiter(DefaultRate, DefaultLimit),
 		mu:            sync.RWMutex{},
 	}
 	return session
@@ -76,6 +85,10 @@ func NewSession(
 func (s *Session) Addr() *net.TCPAddr {
 	assert.NotNil(s.addr, "tcp address should be valid")
 	return s.addr
+}
+
+func (s *Session) RateLimiter() *rate.Limiter {
+	return &s.rl
 }
 
 func (s *Session) IsTosAccepted() bool {
@@ -115,6 +128,8 @@ func (s *Session) Promote(userId snowflake.ID, pubKey ed25519.PublicKey) {
 	defer s.mu.Unlock()
 	s.id = userId
 	s.pubKey = pubKey
+	s.rl.SetLimit(AuthenticatedLimit)
+	s.rl.SetRate(AuthenticatedRate)
 }
 
 func (s *Session) Manager() SessionManager {

@@ -301,13 +301,21 @@ func (server *server) handleConnection(conn net.Conn) {
 
 		for request := range framer.Out {
 			start := time.Now().UTC()
-			processPacket(localCtx, sess, request)
+			dropped := processPacket(localCtx, sess, request)
 			duration := time.Since(start)
 
-			labels := prometheus.Labels{"request_type": request.Type().String()}
+			labels := prometheus.Labels{
+				"request_type": request.Type().String(),
+				"dropped":      strconv.FormatBool(dropped),
+			}
 			metrics.RequestsProcessed.With(labels).Inc()
 			metrics.RequestProcessingDuration.With(labels).Observe(float64(duration.Seconds()))
-			slog.InfoContext(ctx, "processed request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
+			if dropped {
+				slog.InfoContext(ctx, "dropped request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
+			} else {
+				slog.InfoContext(ctx, "processed request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
+			}
+
 		}
 		slog.InfoContext(ctx, "processor done")
 	}()
@@ -359,7 +367,12 @@ func (server *server) handleConnection(conn net.Conn) {
 	<-done
 }
 
-func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) {
+func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) bool {
+	tokens := TokensPerRequest(pkt.Type())
+	if !sess.RateLimiter().Take(tokens) {
+		return false // Rate limit was hit
+	}
+
 	var response packet.Payload
 
 	request, err := pkt.DecodedPayload()
@@ -374,6 +387,8 @@ func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet
 		ok := sess.Write(ctx, response)
 		assert.Assert(ok, "context is never done and write will panic if queue is closed")
 	}
+
+	return true
 }
 
 func processRequest(ctx context.Context, sess *session.Session, request packet.Payload) packet.Payload {
@@ -531,4 +546,47 @@ func sendTosInfo(ctx context.Context, sess *session.Session) bool {
 		Hash:          hash,
 	}
 	return sess.Write(ctx, payload)
+}
+
+func TokensPerRequest(requestType packet.PacketType) float64 {
+	// 1 token means 1 token per second, which is equivalent  to 1ms
+	// The idea is that for 1000 users, each user has 1ms of server time
+	// This is the baseline but requests may take less/more
+
+	switch requestType {
+
+	case packet.PacketAcceptTos:
+		return 0.15
+	case packet.PacketGetNonce:
+		return 0.1
+	case packet.PacketAuthenticate:
+		return 1.5
+	case packet.PacketDeviceAnalytics:
+		return 0.2 // arbitrary
+
+	// TODO: once I get more data for these, add them
+	case packet.PacketBlockUser:
+	case packet.PacketCreateFrequency:
+	case packet.PacketCreateNetwork:
+	case packet.PacketDeleteFrequency:
+	case packet.PacketDeleteMessage:
+	case packet.PacketDeleteNetwork:
+	case packet.PacketEditMessage:
+	case packet.PacketGetBannedMembers:
+	case packet.PacketGetUserData:
+	case packet.PacketGetUsers:
+	case packet.PacketRequestMessages:
+	case packet.PacketSendMessage:
+	case packet.PacketSetLastReadMessages:
+	case packet.PacketSetMember:
+	case packet.PacketSetUserData:
+	case packet.PacketSwapFrequencies:
+	case packet.PacketTransferNetwork:
+	case packet.PacketTrustUser:
+	case packet.PacketUpdateFrequency:
+	case packet.PacketUpdateNetwork:
+
+	}
+
+	return 1
 }
