@@ -186,7 +186,31 @@ func (m Model) View() string {
 		leftSidebar = m.frequencyList.View()
 	}
 	chat := m.chat.View()
-	rightSidebar := m.memberList.View()
+	var rightSidebar string
+	if m.networkList.Index() == networklist.SignalsIndex {
+		// TODO: decide what to put here
+		width := lipgloss.Width(leftSidebar)
+		height := ui.Height
+		if config.ReadConfig().ScreenBorders {
+			height -= 2 // To account for borders
+		}
+
+		focusColor := colors.White
+		if m.focus == FocusRightSidebar {
+			focusColor = colors.Focus
+		}
+
+		rightSidebar = lipgloss.NewStyle().
+			Width(width).Height(height).
+			Border(lipgloss.ThickBorder(), config.ReadConfig().ScreenBorders, false).
+			BorderBackground(colors.BackgroundDim).BorderForeground(focusColor).
+			Background(colors.BackgroundDim).Foreground(colors.White).
+			Align(lipgloss.Center, lipgloss.Center).
+			Render("what should we put here?")
+
+	} else {
+		rightSidebar = m.memberList.View()
+	}
 
 	leftBorder := ""
 	rightBorder := ""
