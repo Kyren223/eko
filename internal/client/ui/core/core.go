@@ -82,6 +82,7 @@ type Model struct {
 
 	loading loadscreen.Model
 	tos     *tosscreen.Model
+	tosHash string
 	timer   timer.Model
 	timeout time.Duration
 	state   State
@@ -111,6 +112,7 @@ func New(privKey ed25519.PrivateKey, name string) Model {
 		privKey:                privKey,
 		loading:                loadscreen.New(ConnectingToServer),
 		tos:                    nil,
+		tosHash:                "",
 		timer:                  newTimer(InitialTimeout),
 		timeout:                InitialTimeout,
 		state:                  Disconnected,
@@ -294,9 +296,22 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 
 	case *packet.TosInfo:
 		m.state = ConnectedReceivedTos
-		combined := msg.Tos + "\n" + msg.PrivacyPolicy
-		tos := tosscreen.New(combined)
-		m.tos = &tos
+
+		server := config.ReadConfig().ServerName
+		hash, ok := config.ReadCache().TosHashes[server]
+		if ok && hash == msg.Hash {
+			// AUTO ACCEPT IF IN CACHE
+			m.state = ConnectedAcceptedTos
+			return gateway.Send(&packet.AcceptTos{
+				IAgreeToTheTermsOfServiceAndPrivacyPolicy: true,
+			})
+		} else {
+			m.tosHash = msg.Hash
+
+			combined := msg.Tos + "\n" + msg.PrivacyPolicy
+			tos := tosscreen.New(combined)
+			m.tos = &tos
+		}
 
 	case *packet.Error:
 		if m.state == ConnectedAcceptedTos {
@@ -350,6 +365,11 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 		case "enter":
 			if m.state == ConnectedReceivedTos {
 				m.state = ConnectedAcceptedTos
+				assert.Assert(m.tosHash != "", "hash must have been set by the TosInfo")
+				config.UseCache(func(cache *config.Cache) {
+					server := config.ReadConfig().ServerName
+					cache.TosHashes[server] = m.tosHash
+				})
 				return gateway.Send(&packet.AcceptTos{
 					IAgreeToTheTermsOfServiceAndPrivacyPolicy: true,
 				})
