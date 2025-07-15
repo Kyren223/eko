@@ -418,10 +418,11 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 			if m.state == ConnectedReceivedTos {
 				m.state = ConnectedAcceptedTos
 				assert.Assert(m.tosHash != "", "hash must have been set by the TosInfo")
-				config.UseCache(func(cache *config.Cache) {
+				err := config.UseCache(func(cache *config.Cache) {
 					server := config.ReadConfig().ServerName
 					cache.TosHashes[server] = m.tosHash
 				})
+				log.Println("unable to cache TOS acceptance: ", err)
 				return gateway.Send(&packet.AcceptTos{
 					IAgreeToTheTermsOfServiceAndPrivacyPolicy: true,
 				})
