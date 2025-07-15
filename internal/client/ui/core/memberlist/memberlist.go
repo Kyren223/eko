@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -24,7 +25,9 @@ var (
 	symbolWidth        = 2
 	widthWithoutMember = ((margin + padding) * 2) + symbolWidth
 
-	ellipsis = "…"
+	ellipsis      = "…"
+	HorizontalSep = "━"
+	VerticalSep   = "┃"
 )
 
 type Model struct {
@@ -135,16 +138,28 @@ func (m Model) View() string {
 		builder.WriteString("\n")
 	}
 
-	sidebar := backgroundStyle.Height(ui.Height).Render(builder.String())
-
-	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
-		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
-		Border(lipgloss.ThickBorder(), false, true, false, false)
+	focusStyle := lipgloss.NewStyle().Background(colors.BackgroundDim).Foreground(colors.White)
 	if m.focus {
-		sep = sep.BorderForeground(colors.Focus)
+		focusStyle = focusStyle.Foreground(colors.Focus)
 	}
 
-	result := lipgloss.JoinHorizontal(lipgloss.Top, sep.String(), sidebar)
+	if config.ReadConfig().ScreenBorders {
+		builder.WriteString(strings.Repeat("\n", m.height-len(members)+1))
+		builder.WriteString(focusStyle.Render(strings.Repeat(HorizontalSep, m.width)))
+	}
+
+	sidebar := backgroundStyle.Height(ui.Height).Render(builder.String())
+
+	sep := ""
+	if config.ReadConfig().ScreenBorders {
+		sep = HorizontalSep + strings.Repeat("\n"+VerticalSep, ui.Height-2) + "\n" + HorizontalSep
+	} else {
+		sep = strings.Repeat(VerticalSep+"\n", ui.Height)
+		sep = sep[:len(sep)-1]
+	}
+	sep = focusStyle.Render(sep)
+
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sep, sidebar)
 	return result
 }
 
@@ -176,7 +191,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// Calculate height for members
 	m.height = ui.Height
 	m.height -= lipgloss.Height(m.renderHeader())
-	m.height -= 1
+	m.height -= 1 // For bottom margin
+	if config.ReadConfig().ScreenBorders {
+		m.height -= 1 // Only bottom, top is calculated in renderHeader
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -535,7 +553,7 @@ func (m Model) renderHeader() string {
 	headerStyle := lipgloss.NewStyle().Width(m.width).
 		Background(colors.BackgroundDim).
 		Margin(0, 0, 1).Padding(1).Align(lipgloss.Center).
-		Border(lipgloss.ThickBorder(), false, false, true).
+		Border(lipgloss.ThickBorder(), config.ReadConfig().ScreenBorders, false, true).
 		BorderForeground(colors.White).Foreground(colors.White)
 	if m.focus {
 		headerStyle = headerStyle.BorderForeground(colors.Focus)

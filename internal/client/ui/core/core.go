@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -74,6 +75,14 @@ const (
 	ConnectedReceivedTos
 	ConnectedAcceptedTos
 	Authenticated
+)
+
+const (
+	VerticalBorder    = "┃"
+	TopLeftCorner     = "┏"
+	BottomLeftCorner  = "┗"
+	TopRightCorner    = "┓"
+	BottomRightCorner = "┛"
 )
 
 type Model struct {
@@ -178,13 +187,32 @@ func (m Model) View() string {
 	}
 	chat := m.chat.View()
 	rightSidebar := m.memberList.View()
-	result := lipgloss.JoinHorizontal(lipgloss.Top, networkList, leftSidebar, chat, rightSidebar)
 
-	result = lipgloss.Place(
-		ui.Width, ui.Height,
-		lipgloss.Left, lipgloss.Top,
-		result,
-	)
+	leftBorder := ""
+	rightBorder := ""
+	if config.ReadConfig().ScreenBorders {
+		leftBorder = TopLeftCorner + strings.Repeat("\n"+VerticalBorder, ui.Height-2) + "\n" + BottomLeftCorner
+		if m.focus == FocusNetworkList {
+			leftBorder = lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(colors.Focus).Render(leftBorder)
+		} else {
+			leftBorder = lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(colors.White).Render(leftBorder)
+		}
+
+		rightBorder = TopRightCorner + strings.Repeat("\n"+VerticalBorder, ui.Height-2) + "\n" + BottomRightCorner
+		if m.focus == FocusRightSidebar {
+			rightBorder = lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(colors.Focus).Render(rightBorder)
+		} else {
+			rightBorder = lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(colors.White).Render(rightBorder)
+		}
+	}
+
+	result := lipgloss.JoinHorizontal(lipgloss.Top, leftBorder, networkList, leftSidebar, chat, rightSidebar, rightBorder)
+
+	// result = lipgloss.Place(
+	// 	ui.Width, ui.Height,
+	// 	lipgloss.Left, lipgloss.Top,
+	// 	result,
+	// )
 
 	if m.HasPopup() {
 		colors.Restore()
@@ -390,6 +418,9 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 func (m *Model) updateAuthenticated(message tea.Msg) tea.Cmd {
 	totalWidth := max(ui.Width, ui.MinWidth)
 	totalWidth -= NetworkWidth
+	if config.ReadConfig().ScreenBorders {
+		totalWidth -= 2 // Left/right borders
+	}
 	sidebarWidth := int(math.Round(float64(totalWidth) * SidebarPercentage))
 	sidebarWidth = max(sidebarWidth, MinSidebarWidth)
 	chatWidth := totalWidth - (2 * (sidebarWidth + 1))

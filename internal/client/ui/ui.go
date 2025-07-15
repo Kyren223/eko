@@ -21,7 +21,7 @@ const (
 	DEBUG = true
 
 	MinWidth                    = 85
-	MinHeight                   = 10
+	MinHeight                   = 25
 	Center    lipgloss.Position = 0.499
 )
 

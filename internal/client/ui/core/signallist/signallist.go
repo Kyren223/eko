@@ -9,6 +9,7 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -29,6 +30,9 @@ var (
 	notifs     = []string{
 		" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
 	}
+
+	HorizontalSep = "━"
+	VerticalSep   = "┃"
 )
 
 type Model struct {
@@ -44,7 +48,7 @@ func New() Model {
 		base:   0,
 		index:  -1,
 		focus:  false,
-		width:  -1,
+		width:  1,
 		height: 1,
 	}
 }
@@ -143,16 +147,28 @@ func (m Model) View() string {
 		builder.WriteString("\n")
 	}
 
-	sidebar := builder.String()
-
-	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
-		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
-		Border(lipgloss.ThickBorder(), false, true, false, false)
+	focusStyle := lipgloss.NewStyle().Background(colors.BackgroundDim).Foreground(colors.White)
 	if m.focus {
-		sep = sep.BorderForeground(colors.Focus)
+		focusStyle = focusStyle.Foreground(colors.Focus)
 	}
 
-	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
+	if config.ReadConfig().ScreenBorders {
+		builder.WriteString(strings.Repeat("\n", m.height-len(signals)+1))
+		builder.WriteString(focusStyle.Render(strings.Repeat(HorizontalSep, m.width)))
+	}
+
+	sidebar := builder.String()
+
+	sep := ""
+	if config.ReadConfig().ScreenBorders {
+		sep = HorizontalSep + strings.Repeat("\n"+VerticalSep, ui.Height-2) + "\n" + HorizontalSep
+	} else {
+		sep = strings.Repeat(VerticalSep+"\n", ui.Height)
+		sep = sep[:len(sep)-1] // Strip last \n
+	}
+	sep = focusStyle.Render(sep)
+
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep)
 	return backgroundStyle.Render(result)
 }
 
@@ -160,7 +176,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// Calculate height for frequencies
 	m.height = ui.Height
 	m.height -= lipgloss.Height(m.renderHeader())
-	m.height -= 1
+	m.height -= 1 // For bottom margin
+	if config.ReadConfig().ScreenBorders {
+		m.height -= 1 // Only bottom, top is calculated in renderHeader
+	}
 	m.SetIndex(m.index)
 
 	switch msg := msg.(type) {
@@ -297,7 +316,7 @@ func (m *Model) SetIndex(index int) {
 func (m Model) renderHeader() string {
 	nameStyle := lipgloss.NewStyle().Width(m.width).
 		Padding(1).Align(lipgloss.Center).
-		Border(lipgloss.ThickBorder(), false, false, true).
+		Border(lipgloss.ThickBorder(), config.ReadConfig().ScreenBorders, false, true).
 		Background(colors.DarkerCyan).Foreground(colors.Turquoise).
 		BorderForeground(colors.White)
 	if m.focus {

@@ -19,6 +19,7 @@ type Config struct {
 	InsecureDebugMode        bool     `json:"insecure_debug_mode"`
 	Colors                   []string `json:"colors"`
 	AnonymousDeviceAnalytics bool     `json:"anonymous_device_analytics"`
+	ScreenBorders            bool     `json:"screen_borders"`
 }
 
 func DefaultConfig() Config {
@@ -30,6 +31,7 @@ func DefaultConfig() Config {
 		InsecureDebugMode:        false,
 		Colors:                   nil,
 		AnonymousDeviceAnalytics: true,
+		ScreenBorders:            true,
 	}
 }
 

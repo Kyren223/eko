@@ -6,13 +6,17 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/davecgh/go-spew/spew"
 
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/auth"
+	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/pkg/assert"
 )
 
@@ -74,6 +78,10 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) View() string {
+	if IsTooSmall() {
+		return TooSmallView()
+	}
+
 	return m.model.View()
 }
 
@@ -97,12 +105,58 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.model.Init()
 
 	}
-	var cmd tea.Cmd
-	m.model, cmd = m.model.Update(msg)
 
 	if _, ok := msg.(ui.QuitMsg); ok {
+		m.model, _ = m.model.Update(msg)
 		return m, tea.Quit
 	}
 
+	var cmd tea.Cmd
+	if !IsTooSmall() {
+		m.model, cmd = m.model.Update(msg)
+	}
+
 	return m, cmd
+}
+
+func IsTooSmall() bool {
+	return ui.Width < ui.MinWidth || ui.Height < ui.MinHeight
+}
+
+func TooSmallView() string {
+	style := lipgloss.NewStyle().Background(colors.Background).Foreground(colors.White).Bold(true)
+
+	wcolor := colors.Green
+	if ui.Width < ui.MinWidth {
+		wcolor = colors.Red
+	}
+
+	hcolor := colors.Green
+	if ui.Height < ui.MinHeight {
+		hcolor = colors.Red
+	}
+
+	var b strings.Builder
+
+	b.WriteString(style.Render("Terminal size too small:"))
+	b.WriteByte('\n')
+	b.WriteString(style.Render("Width = "))
+	b.WriteString(style.Foreground(wcolor).Render(strconv.FormatInt(int64(ui.Width), 10)))
+	b.WriteString(style.Render(" Height = "))
+	b.WriteString(style.Foreground(hcolor).Render(strconv.FormatInt(int64(ui.Height), 10)))
+
+	b.WriteByte('\n')
+	b.WriteByte('\n')
+
+	b.WriteString(style.Render("Minimum size required:"))
+	b.WriteByte('\n')
+	b.WriteString(style.Render("Width = "))
+	b.WriteString(style.Render(strconv.FormatInt(int64(ui.MinWidth), 10)))
+	b.WriteString(style.Render(" Height = "))
+	b.WriteString(style.Render(strconv.FormatInt(int64(ui.MinHeight), 10)))
+
+	content := b.String()
+
+	// return content
+	return lipgloss.Place(ui.Width, ui.Height, lipgloss.Center, lipgloss.Center, content, lipgloss.WithWhitespaceBackground(colors.Background))
 }

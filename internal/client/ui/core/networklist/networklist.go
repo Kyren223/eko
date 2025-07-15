@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -12,7 +13,11 @@ import (
 	"github.com/kyren223/eko/internal/packet"
 )
 
-const SignalsIndex = -1
+const (
+	SignalsIndex  = -1
+	HorizontalSep = "━"
+	VerticalSep   = "┃"
+)
 
 type Model struct {
 	base   int
@@ -41,6 +46,12 @@ func (m Model) View() string {
 	notification := lipgloss.NewStyle().
 		Foreground(colors.White).Render(" \n◗\n ")
 
+	focusColor := colors.White
+	if m.focus {
+		focusColor = colors.Focus
+	}
+	focusStyle := lipgloss.NewStyle().Background(colors.BackgroundDimmer).Foreground(focusColor)
+
 	var builder strings.Builder
 
 	pings := 0
@@ -55,7 +66,12 @@ func (m Model) View() string {
 		signalsIcon = ui.IconStyleNotif(" ", colors.Turquoise, colors.DarkerCyan, colors.BackgroundDimmer, pings)
 	}
 
-	builder.WriteString("\n")
+	if config.ReadConfig().ScreenBorders {
+		builder.WriteString(focusStyle.Render(strings.Repeat(HorizontalSep, 8)))
+		builder.WriteByte('\n')
+	}
+
+	builder.WriteByte('\n')
 	if m.index == SignalsIndex {
 		signalsButtonSelected := lipgloss.JoinHorizontal(
 			ui.Center,
@@ -68,6 +84,14 @@ func (m Model) View() string {
 		signalsButtonStyle := signalsIcon.
 			Background(colors.BackgroundDimmer).Padding(0, 1, 1).String()
 		builder.WriteString(signalsButtonStyle)
+	}
+
+	builder.WriteByte('\n')
+	builder.WriteString(focusStyle.Render(" ━━━━━━ "))
+	builder.WriteByte('\n')
+
+	if m.base != 0 {
+		builder.WriteString(lipgloss.NewStyle().Foreground(colors.Purple).Render("   󰜷󰜷   "))
 	}
 	builder.WriteString("\n")
 
@@ -103,30 +127,45 @@ func (m Model) View() string {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				selectedIndicator,
-				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
+				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 0, 0).String(),
 			))
 		} else if ok {
 			builder.WriteString(lipgloss.JoinHorizontal(
 				ui.Center,
 				notification,
-				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1, 0).String(),
+				icon.Background(colors.BackgroundDimmer).Padding(0, 1, 0, 0).String(),
 			))
 		} else {
-			builder.WriteString(icon.Background(colors.BackgroundDimmer).Padding(0, 1, 1).String())
+			builder.WriteString(icon.Background(colors.BackgroundDimmer).Padding(0, 1, 0).String())
 		}
+		builder.WriteString("\n")
+
+		if upper != len(state.Data.Networks) && i == upper-1 {
+			builder.WriteString(lipgloss.NewStyle().Foreground(colors.Purple).Render("   󰜮󰜮   "))
+		}
+
 		builder.WriteString("\n")
 	}
 
-	result := builder.String()
-
-	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
-		BorderBackground(colors.BackgroundDimmer).BorderForeground(colors.White).
-		Border(lipgloss.ThickBorder(), false, true, false, false)
-	if m.focus {
-		sep = sep.BorderForeground(colors.Focus)
+	if config.ReadConfig().ScreenBorders {
+		height := lipgloss.Height(builder.String())
+		builder.WriteString(strings.Repeat("\n", ui.Height-height))
+		builder.WriteString(focusStyle.Render(strings.Repeat(HorizontalSep, 8)))
 	}
 
-	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep.String())
+	result := builder.String()
+	result = result[:len(result)-1] // Strip last \n
+
+	sep := ""
+	if config.ReadConfig().ScreenBorders {
+		sep = HorizontalSep + strings.Repeat("\n"+VerticalSep, ui.Height-2) + "\n" + HorizontalSep
+	} else {
+		sep = strings.Repeat(VerticalSep+"\n", ui.Height)
+	}
+	sep = focusStyle.Render(sep)
+
+	result = lipgloss.JoinHorizontal(lipgloss.Top, result, sep)
+
 	return lipgloss.NewStyle().Background(colors.BackgroundDimmer).MaxHeight(ui.Height).Render(result)
 }
 
@@ -136,8 +175,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	m.height = ui.Height
+	if config.ReadConfig().ScreenBorders {
+		m.height -= 2 // Top/bottom Borders
+	}
 	m.height -= 1 // Inital top margin
-	m.height /= 4 // 4 per icon
+	m.height -= 2 // Sep line + margin under it
+	m.height /= 4 // 4 per icon (3 icon + 1 margin)
 	m.height -= 1 // For signals icon
 	m.SetIndex(m.index)
 

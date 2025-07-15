@@ -7,6 +7,7 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -35,6 +36,9 @@ var (
 	notifs      = []string{
 		" 󰲠", " 󰲢", " 󰲤", " 󰲦", " 󰲨", " 󰲪", " 󰲬", " 󰲮", " 󰲰", " 󰲲",
 	}
+
+	HorizontalSep = "━"
+	VerticalSep   = "┃"
 )
 
 type Model struct {
@@ -79,7 +83,7 @@ func (m Model) View() string {
 
 	var builder strings.Builder
 
-	builder.WriteString(m.renderNetworkName())
+	builder.WriteString(m.renderHeader())
 	builder.WriteString("\n")
 
 	frequencies := m.Frequencies()
@@ -146,16 +150,28 @@ func (m Model) View() string {
 		builder.WriteString("\n")
 	}
 
-	sidebar := builder.String()
-
-	sep := lipgloss.NewStyle().Width(0).Height(ui.Height).
-		BorderBackground(colors.BackgroundDim).BorderForeground(colors.White).
-		Border(lipgloss.ThickBorder(), false, true, false, false)
+	focusStyle := lipgloss.NewStyle().Background(colors.BackgroundDim).Foreground(colors.White)
 	if m.focus {
-		sep = sep.BorderForeground(colors.Focus)
+		focusStyle = focusStyle.Foreground(colors.Focus)
 	}
 
-	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep.String())
+	if config.ReadConfig().ScreenBorders {
+		builder.WriteString(strings.Repeat("\n", m.height-len(frequencies)+1))
+		builder.WriteString(focusStyle.Render(strings.Repeat(HorizontalSep, m.width)))
+	}
+
+	sidebar := builder.String()
+
+	sep := ""
+	if config.ReadConfig().ScreenBorders {
+		sep = HorizontalSep + strings.Repeat("\n"+VerticalSep, ui.Height-2) + "\n" + HorizontalSep
+	} else {
+		sep = strings.Repeat(VerticalSep+"\n", ui.Height)
+		sep = sep[:len(sep)-1] // Strip last \n
+	}
+	sep = focusStyle.Render(sep)
+
+	result := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, sep)
 
 	return backgroundStyle.Render(result)
 }
@@ -164,8 +180,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if state.NetworkId(m.networkIndex) != nil {
 		// Calculate height for frequencies
 		m.height = ui.Height
-		m.height -= lipgloss.Height(m.renderNetworkName())
-		m.height -= 1
+		m.height -= lipgloss.Height(m.renderHeader())
+		m.height -= 1 // For bottom margin
+		if config.ReadConfig().ScreenBorders {
+			m.height -= 1 // Only bottom, top is calculated in renderHeader
+		}
 		m.SetIndex(m.index)
 	}
 
@@ -333,7 +352,12 @@ func (m *Model) SetIndex(index int) {
 	}
 }
 
-func (m Model) renderNetworkName() string {
+func (m Model) renderHeader() string {
+	focusColor := colors.White
+	if m.focus {
+		focusColor = colors.Focus
+	}
+
 	bg := lipgloss.Color(m.Network().BgHexColor)
 	fg := lipgloss.Color(m.Network().FgHexColor)
 
@@ -344,22 +368,16 @@ func (m Model) renderNetworkName() string {
 
 	nameStyle := lipgloss.NewStyle().Width(m.width).
 		Padding(1).Align(lipgloss.Center).
-		Border(lipgloss.ThickBorder(), false, false, true).
-		BorderForeground(colors.White).
+		Border(lipgloss.ThickBorder(), config.ReadConfig().ScreenBorders, false, true).
+		BorderForeground(focusColor).
 		Background(bg).Foreground(fg)
-	if m.focus {
-		nameStyle = nameStyle.BorderForeground(colors.Focus)
-	}
 	networkName := nameStyle.Render(m.Network().Name)
 
 	networkIdStyle := lipgloss.NewStyle().Width(m.width).
 		MarginBottom(1).Padding(1, 2).Align(lipgloss.Center).
 		Border(lipgloss.ThickBorder(), false, false, true).
 		Background(colors.BackgroundDim).Foreground(colors.White).
-		BorderForeground(colors.White)
-	if m.focus {
-		networkIdStyle = networkIdStyle.BorderForeground(colors.Focus)
-	}
+		BorderForeground(focusColor)
 	id := "Invite Code\n" + strconv.FormatInt(int64(m.Network().ID), 10)
 	networkId := networkIdStyle.Render(id)
 

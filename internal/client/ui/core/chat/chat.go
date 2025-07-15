@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/btree"
 
+	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
 	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
@@ -95,8 +96,9 @@ var (
 	PingedEveryone  = func() string { return lipgloss.NewStyle().Foreground(colors.Purple).Render("@everyone ") }
 	PingedUserStyle = func() lipgloss.Style { return lipgloss.NewStyle().Foreground(colors.Gold) }
 
-	NewText   = "━━ NEW ━━"
-	NewSymbol = "━"
+	NewText       = "━━ NEW ━━"
+	HorizontalSep = "━"
+	VerticalSep   = "┃"
 )
 
 const (
@@ -177,6 +179,9 @@ func (m *Model) Prerender() {
 	messageBoxHeight := lipgloss.Height(messagebox) - 1
 
 	messagesHeight := ui.Height - messageBoxHeight - frequencyHeight
+	if config.ReadConfig().ScreenBorders {
+		messagesHeight -= 1 // Bottom border, top border is inside freq name
+	}
 
 	// if m.messagesCache == nil || messagesHeight != m.messagesHeight {
 	// 	// Re-render
@@ -186,8 +191,15 @@ func (m *Model) Prerender() {
 	m.messagesCache = &messages
 	m.messagesHeight = messagesHeight
 
+	focusColor := colors.White
+	if m.focus {
+		focusColor = colors.Focus
+	}
+
 	m.prerender = lipgloss.NewStyle().
 		Background(colors.Background).
+		Border(lipgloss.ThickBorder(), false, false, config.ReadConfig().ScreenBorders).
+		BorderBackground(colors.Background).BorderForeground(focusColor).
 		Render(frequencyName + *m.messagesCache + messagebox)
 }
 
@@ -1593,13 +1605,13 @@ func (m *Model) renderFrequencyName() string {
 
 		name = user.Name
 	} else {
-		return ""
+		name = ""
 	}
 
 	nameStyle := lipgloss.NewStyle().Width(m.width).
 		Background(colors.Background).Foreground(color).
 		AlignHorizontal(lipgloss.Center).
-		Border(lipgloss.ThickBorder(), false, false, true).
+		Border(lipgloss.ThickBorder(), config.ReadConfig().ScreenBorders, false, name != "").
 		BorderForeground(colors.White)
 	if m.focus {
 		nameStyle = nameStyle.BorderForeground(colors.Focus)
@@ -1614,7 +1626,7 @@ func (m *Model) Mode() int {
 
 func (m *Model) NewMsgSep(height, remainingHeight int) string {
 	lineWidth := m.width - lipgloss.Width(NewText)
-	line := strings.Repeat(NewSymbol, lineWidth)
+	line := strings.Repeat(HorizontalSep, lineWidth)
 
 	newMsgStyle := lipgloss.NewStyle().Foreground(colors.Red).Width(m.width)
 	if m.index == height-remainingHeight {
