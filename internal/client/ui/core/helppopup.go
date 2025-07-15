@@ -247,16 +247,20 @@ func (m HelpPopup) HelpChat() [][]Keymap {
 		{"i", "Start typing a message"},
 		{"enter", "Snap to bottom and type"},
 		{"ctrl+q", "Exit typing mode"},
-	}, {
+
 		{"x", "Delete selected message"},
 		{"e", "Edit selected message"},
-
+	}, {
 		{"K", "Kick message sender"},
 		{"M", "Mute message sender"},
 		{"U", "Unmute message sender"},
-		{"B", "Ban message sender"}, // TODO: implement
+		{"B", "Ban message sender"},
 		{"P", "Promote sender to admin"},
 		{"D", "Demote sender from admin"},
+		{"b", "Block user"},
+		{"u", "Unblock user"},
+		{"T", "Trust/Untrust user"},
+		{"p", "View user profile"},
 	}}
 }
 
@@ -269,7 +273,7 @@ func (m HelpPopup) HelpMemberList() [][]Keymap {
 		{"g", "Move to the top"},
 		{"G", "Move to the bottom"},
 
-		{"p", "View member profile"}, // TODO: implement
+		{"p", "View member profile"},
 		{"T", "Trust/untrust member"},
 	}, {
 		{"K", "Kick selected member"},
@@ -288,7 +292,7 @@ func (m HelpPopup) HelpVim() [][]Keymap {
 		{"esc", "Go into normal mode from insert mode"},
 		{"q", "Exit typing from normal mode"},
 		{"ctrl+q", "Exit typing from insert mode"},
-		{"Other", "The rest of the vim keys work as usual"},
+		{"other", "The rest of the vim keys work as usual"},
 	}, {}}
 }
 
@@ -301,7 +305,7 @@ func (m HelpPopup) HelpBanList() [][]Keymap {
 		{"g", "Move to the top"},
 		{"G", "Move to the bottom"},
 	}, {
-		{"p", "View user profile"}, // TODO: implement
+		{"p", "View user profile"},
 		{"U", "Unban user"},
 		{"V", "View ban reason"},
 		{"b", "Switch to member list view"},

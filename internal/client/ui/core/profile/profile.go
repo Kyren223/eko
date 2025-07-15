@@ -54,7 +54,6 @@ func (m Model) View() string {
 		Foreground(colors.Gold).
 		Render("")
 	paddingRight := lipgloss.NewStyle().
-		MarginRight(2).
 		Background(colors.Background).
 		Foreground(colors.Gold).
 		Render("")
