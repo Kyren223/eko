@@ -21,6 +21,7 @@ var (
 	ErrInternalError    = packet.Error{Error: "internal server error"}
 	ErrPermissionDenied = packet.Error{Error: "permission denied"}
 	ErrNotImplemented   = packet.Error{Error: "not implemented yet"}
+	ErrRateLimited      = packet.Error{Error: "rate limited"}
 	ErrSuccess          = packet.Error{Error: "success"}
 
 	DefaultBanReason = ""

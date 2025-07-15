@@ -300,22 +300,23 @@ func (server *server) handleConnection(conn net.Conn) {
 		// will still have a time limit upper bound, from timeout()
 
 		for request := range framer.Out {
+			metrics.RequestsInProgress.WithLabelValues(request.Type().String()).Inc()
 			start := time.Now().UTC()
 			success := processPacket(localCtx, sess, request)
 			duration := time.Since(start)
+			metrics.RequestsInProgress.WithLabelValues(request.Type().String()).Dec()
 
 			labels := prometheus.Labels{
 				"request_type": request.Type().String(),
 				"dropped":      strconv.FormatBool(!success),
 			}
-			metrics.RequestsProcessed.With(labels).Inc()
+
 			metrics.RequestProcessingDuration.With(labels).Observe(float64(duration.Seconds()))
 			if success {
 				slog.InfoContext(ctx, "processed request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
 			} else {
 				slog.InfoContext(ctx, "dropped request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
 			}
-
 		}
 		slog.InfoContext(ctx, "processor done")
 	}()
@@ -370,6 +371,7 @@ func (server *server) handleConnection(conn net.Conn) {
 func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) bool {
 	tokens := TokensPerRequest(pkt.Type())
 	if !sess.RateLimiter().Take(tokens) {
+		_ = sess.Write(ctx, &api.ErrRateLimited)
 		return false // Rate limit was hit
 	}
 
