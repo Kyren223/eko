@@ -301,19 +301,19 @@ func (server *server) handleConnection(conn net.Conn) {
 
 		for request := range framer.Out {
 			start := time.Now().UTC()
-			dropped := processPacket(localCtx, sess, request)
+			success := processPacket(localCtx, sess, request)
 			duration := time.Since(start)
 
 			labels := prometheus.Labels{
 				"request_type": request.Type().String(),
-				"dropped":      strconv.FormatBool(dropped),
+				"dropped":      strconv.FormatBool(!success),
 			}
 			metrics.RequestsProcessed.With(labels).Inc()
 			metrics.RequestProcessingDuration.With(labels).Observe(float64(duration.Seconds()))
-			if dropped {
-				slog.InfoContext(ctx, "dropped request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
-			} else {
+			if success {
 				slog.InfoContext(ctx, "processed request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
+			} else {
+				slog.InfoContext(ctx, "dropped request", "request_type", request.Type().String(), "duration", duration.String(), "duration_ns", duration.Nanoseconds())
 			}
 
 		}
