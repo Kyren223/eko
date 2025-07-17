@@ -276,8 +276,10 @@ func (server *server) handleConnection(conn net.Conn) {
 	sess := session.NewSession(server, addr, cancel, &writerWg)
 	go func() {
 		<-ctx.Done()
-		// Remove session after cancellation
 		if sess.IsAuthenticated() {
+			server.handleSessionMetrics(ctx, sess)
+
+			// Remove session after cancellation
 			sameAddress := addr.String() == server.Session(sess.ID()).Addr().String()
 			// false if the user signed in from a different connection
 			if sameAddress {
@@ -679,4 +681,18 @@ func formatIPv4(ip uint32) string {
 	n = append(n, '.')
 	n = strconv.AppendUint(n, uint64(ip&0xFF), 10)
 	return string(n)
+}
+
+func (s *server) handleSessionMetrics(ctx context.Context, sess *session.Session) {
+	duration := sess.Duration()
+	analytics := sess.Analytics()
+	if api.IsValidAnalytics(ctx, analytics) {
+		metrics.SessionDuration.WithLabelValues(
+			analytics.OS, analytics.Arch, analytics.Term, analytics.Colorterm,
+		).Observe(duration.Seconds())
+	} else {
+		metrics.SessionDuration.WithLabelValues(
+			"", "", "", "",
+		).Observe(duration.Seconds())
+	}
 }

@@ -52,6 +52,8 @@ type Session struct {
 	pubKey        ed25519.PublicKey
 	id            snowflake.ID
 	rl            rate.Limiter
+	start         time.Time
+	analytics     *packet.DeviceAnalytics
 
 	mu sync.RWMutex
 }
@@ -77,6 +79,8 @@ func NewSession(
 		challengeMu:   sync.Mutex{},
 		isTosAccepted: false,
 		rl:            rate.NewLimiter(DefaultRate, DefaultLimit),
+		start:         time.Time{},
+		analytics:     nil,
 		mu:            sync.RWMutex{},
 	}
 	return session
@@ -130,6 +134,26 @@ func (s *Session) Promote(userId snowflake.ID, pubKey ed25519.PublicKey) {
 	s.pubKey = pubKey
 	s.rl.SetLimit(AuthenticatedLimit)
 	s.rl.SetRate(AuthenticatedRate)
+	s.start = time.Now().UTC()
+}
+
+func (s *Session) Duration() time.Duration {
+	assert.Assert(s.IsAuthenticated(), "tried accessing session duration in an authenticated session")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return time.Since(s.start)
+}
+
+func (s *Session) Analytics() *packet.DeviceAnalytics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.analytics
+}
+
+func (s *Session) SetAnalytics(analytics *packet.DeviceAnalytics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.analytics = analytics
 }
 
 func (s *Session) Manager() SessionManager {

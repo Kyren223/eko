@@ -55,3 +55,10 @@ var UsersActive = promauto.NewGauge(prometheus.GaugeOpts{
 	Name:      "users_active_total",
 	Help:      "The total number of active users",
 })
+
+var SessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Namespace:                   namespace,
+	Name:                        "session_duration_seconds",
+	Help:                        "The duration in seconds of an authenticated session",
+	NativeHistogramBucketFactor: 1.00271,
+}, []string{"os", "arch", "term", "colorterm"})

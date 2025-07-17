@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
@@ -34,7 +36,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 
 	if len(request.Content) > packet.MaxMessageBytes {
 		return &packet.Error{Error: fmt.Sprintf(
-			"message conent must not exceed %v bytes",
+			"message content must not exceed %v bytes",
 			packet.MaxMessageBytes,
 		)}
 	}
@@ -1647,7 +1649,57 @@ func sendInitialAuthPackets(ctx context.Context, sess *session.Session) bool {
 	return success
 }
 
+var (
+	ipDeviceID map[uint32]string = map[uint32]string{}
+	deviceIdMu sync.Mutex
+)
+
 func DeviceAnalytics(ctx context.Context, sess *session.Session, request *packet.DeviceAnalytics) packet.Payload {
-	// TODO: implement this
-	return &ErrNotImplemented
+	const DeviceIdLength = 64
+
+	if len(request.DeviceID) != DeviceIdLength {
+		return &packet.Error{Error: fmt.Sprintf(
+			"DeviceID must be exactly %v bytes", DeviceIdLength,
+		)}
+	}
+
+	for _, c := range request.DeviceID {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return &packet.Error{
+				Error: "DeviceID must be all lowercase hexadecimal",
+			}
+		}
+	}
+
+	ip := binary.BigEndian.Uint32(sess.Addr().IP.To4())
+	deviceIdMu.Lock()
+	if deviceId, ok := ipDeviceID[ip]; ok {
+		if request.DeviceID != deviceId {
+			slog.WarnContext(ctx, "device ID mismatch", "existing_device_id", deviceId, "request_device_id", request.DeviceID)
+			request.DeviceID = deviceId
+			// Override the request to use the known ID
+			// This avoids abuse
+		}
+	} else {
+		ipDeviceID[ip] = request.DeviceID
+	}
+	deviceIdMu.Unlock()
+
+	if !IsValidAnalytics(ctx, request) {
+		// This is either malicious or we should actually add new variations
+		// In either case the client shouldn't need a response
+		return nil
+	}
+
+	sess.SetAnalytics(request)
+	queries := data.New(db)
+	queries.SetDeviceAnalytics(ctx, data.SetDeviceAnalyticsParams{
+		DeviceID:  request.DeviceID,
+		Os:        &request.OS,
+		Arch:      &request.Arch,
+		Term:      &request.Term,
+		Colorterm: &request.Colorterm,
+	})
+
+	return nil
 }

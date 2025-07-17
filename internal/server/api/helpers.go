@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -189,4 +190,39 @@ func getNotifications(ctx context.Context, userId snowflake.ID) (packet.Notifica
 		return packet.NotificationsInfo{}, err
 	}
 	return items, nil
+}
+
+var (
+	ValidOs        = []string{"linux", "darwin", "windows", "android", ""}
+	ValidArch      = []string{"amd64", "arm64", "386", ""}
+	ValidTerm      = []string{"xterm-256color", "tmux-256color", "xterm-ghostty", "xterm-kitty", "alacritty", "foot", "xterm", ""}
+	ValidColorterm = []string{"truecolor", "24bit", ""}
+)
+
+func IsValidAnalytics(ctx context.Context, analytics *packet.DeviceAnalytics) bool {
+	if analytics == nil {
+		return false
+	}
+
+	if !slices.Contains(ValidOs, analytics.OS) {
+		slog.WarnContext(ctx, "unrecognized analytics value", "os", analytics.OS, "analytics", analytics)
+		return false
+	}
+
+	if !slices.Contains(ValidArch, analytics.Arch) {
+		slog.WarnContext(ctx, "unrecognized analytics value", "arch", analytics.Arch, "analytics", analytics)
+		return false
+	}
+
+	if !slices.Contains(ValidTerm, analytics.Term) {
+		slog.WarnContext(ctx, "unrecognized analytics value", "term", analytics.Term, "analytics", analytics)
+		return false
+	}
+
+	if !slices.Contains(ValidColorterm, analytics.Colorterm) {
+		slog.WarnContext(ctx, "unrecognized analytics value", "colorterm", analytics.Colorterm, "analytics", analytics)
+		return false
+	}
+
+	return true
 }

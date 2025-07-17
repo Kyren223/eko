@@ -9,6 +9,8 @@ sql:
         out: "./internal/data/"
         emit_pointers_for_null_types: true
         overrides:
+          - column: "device_analytics.device_id"
+            go_type: "string"
           - column: "users.public_key"
             go_type: "crypto/ed25519.PublicKey"
           - column: "trusted_users.trusted_public_key"
