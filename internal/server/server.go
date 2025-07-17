@@ -636,6 +636,7 @@ func (s *server) isRateLimited(ip uint32) bool {
 			s.ipConns[ip] = entry
 			return false
 		} else if entry.count < RateLimitCountThresholdMalicious {
+			metrics.ConnectionsRateLimited.WithLabelValues("suspicious").Inc()
 			if entry.count == RateLimitCountThresholdSus {
 				slog.Warn("suspicious connection activity", "ip", ipStr, "count", entry.count)
 				// Only log the first one
@@ -644,6 +645,7 @@ func (s *server) isRateLimited(ip uint32) bool {
 			s.ipConns[ip] = entry
 			return true
 		} else {
+			metrics.ConnectionsRateLimited.WithLabelValues("malicious").Inc()
 			if entry.count == RateLimitCountThresholdMalicious {
 				slog.Warn("potential malicious connection behavior", "ip", ipStr, "count", entry.count)
 				// Only log the first one

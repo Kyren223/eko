@@ -26,6 +26,12 @@ var RequestProcessingDuration = promauto.NewHistogramVec(prometheus.HistogramOpt
 	NativeHistogramBucketFactor: 1.00271,
 }, []string{"request_type", "dropped"})
 
+var ConnectionsRateLimited = promauto.NewCounterVec(prometheus.CounterOpts{
+	Namespace: namespace,
+	Name:      "connections_rate_limited_total",
+	Help:      "The total number of rate limited connections",
+}, []string{"category"})
+
 var ConnectionsEstablished = promauto.NewCounter(prometheus.CounterOpts{
 	Namespace: namespace,
 	Name:      "connections_established_total",
