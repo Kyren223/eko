@@ -44,3 +44,6 @@ WHERE user_id = ?;
 -- name: GetUsersByIds :many
 SELECT * FROM users
 WHERE id IN (sqlc.slice('ids'));
+
+-- name: UpdateUserLastActivity :exec
+UPDATE users SET last_activity = ? WHERE id = ?;

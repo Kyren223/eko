@@ -528,6 +528,9 @@ func processAuthenticatedRequests(ctx context.Context, sess *session.Session, re
 		response = nil
 	}
 
+	// TODO: add a timeout for this (even tho it should be super fast)
+	api.SetLastUserActivity(ctx, sess)
+
 	return response
 }
 
@@ -690,9 +693,11 @@ func (s *server) handleSessionMetrics(ctx context.Context, sess *session.Session
 		metrics.SessionDuration.WithLabelValues(
 			analytics.OS, analytics.Arch, analytics.Term, analytics.Colorterm,
 		).Observe(duration.Seconds())
+		slog.DebugContext(ctx, "observed session duration", "session_duration", duration.Seconds())
 	} else {
 		metrics.SessionDuration.WithLabelValues(
 			"", "", "", "",
 		).Observe(duration.Seconds())
+		slog.DebugContext(ctx, "observed session duration (empty)", "session_duration", duration.Seconds())
 	}
 }

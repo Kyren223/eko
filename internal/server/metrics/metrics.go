@@ -56,9 +56,25 @@ var UsersActive = promauto.NewGauge(prometheus.GaugeOpts{
 	Help:      "The total number of active users",
 })
 
+const (
+	Minute = 60
+	Hour   = 60 * Minute
+	Day    = 24 * Hour
+)
+
 var SessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Namespace:                   namespace,
-	Name:                        "session_duration_seconds",
-	Help:                        "The duration in seconds of an authenticated session",
-	NativeHistogramBucketFactor: 1.00271,
+	Namespace: namespace,
+	Name:      "session_duration_seconds",
+	Help:      "The duration in seconds of an authenticated session",
+	Buckets: []float64{
+		1, 30, 5 * Minute, 10 * Minute, 30 * Minute,
+		Hour, 2 * Hour, 3 * Hour, 4 * Hour,
+		5 * Hour, 6 * Hour, 7 * Hour, 8 * Hour,
+		10 * Hour, 12 * Hour, 14 * Hour, 16 * Hour,
+		18 * Hour, 20 * Hour, 22 * Hour, Day,
+		2 * Day, 7 * Day, 14 * Day, 28 * Day,
+	},
+	// NativeHistogramBucketFactor:     1.00271,
+	// NativeHistogramMaxBucketNumber:  100,
+	// NativeHistogramMinResetDuration: time.Hour,
 }, []string{"os", "arch", "term", "colorterm"})

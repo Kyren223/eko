@@ -58,7 +58,7 @@ func (q *Queries) FilterUsersInNetwork(ctx context.Context, arg FilterUsersInNet
 
 const getBannedMembers = `-- name: GetBannedMembers :many
 SELECT
-  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
+  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted, users.last_activity,
   members.user_id, members.network_id, members.joined_at, members.is_member, members.is_admin, members.is_muted, members.is_banned, members.ban_reason
 FROM members
 JOIN users ON users.id = members.user_id
@@ -86,6 +86,7 @@ func (q *Queries) GetBannedMembers(ctx context.Context, networkID snowflake.ID) 
 			&i.User.Description,
 			&i.User.IsPublicDM,
 			&i.User.IsDeleted,
+			&i.User.LastActivity,
 			&i.Member.UserID,
 			&i.Member.NetworkID,
 			&i.Member.JoinedAt,
@@ -136,7 +137,7 @@ func (q *Queries) GetMemberById(ctx context.Context, arg GetMemberByIdParams) (M
 
 const getNetworkMembers = `-- name: GetNetworkMembers :many
 SELECT
-  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted,
+  users.id, users.name, users.public_key, users.description, users.is_public_dm, users.is_deleted, users.last_activity,
   members.user_id, members.network_id, members.joined_at, members.is_member, members.is_admin, members.is_muted, members.is_banned, members.ban_reason
 FROM members
 JOIN users ON users.id = members.user_id
@@ -164,6 +165,7 @@ func (q *Queries) GetNetworkMembers(ctx context.Context, networkID snowflake.ID)
 			&i.User.Description,
 			&i.User.IsPublicDM,
 			&i.User.IsDeleted,
+			&i.User.LastActivity,
 			&i.Member.UserID,
 			&i.Member.NetworkID,
 			&i.Member.JoinedAt,

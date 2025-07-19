@@ -75,12 +75,13 @@ type TrustedUser struct {
 }
 
 type User struct {
-	ID          snowflake.ID
-	Name        string
-	PublicKey   ed25519.PublicKey
-	Description string
-	IsPublicDM  bool
-	IsDeleted   bool
+	ID           snowflake.ID
+	Name         string
+	PublicKey    ed25519.PublicKey
+	Description  string
+	IsPublicDM   bool
+	IsDeleted    bool
+	LastActivity *int64
 }
 
 type UserData struct {

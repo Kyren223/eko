@@ -19,7 +19,7 @@ INSERT INTO users (
 ) VALUES (
   ?, ?, ?
 )
-RETURNING id, name, public_key, description, is_public_dm, is_deleted
+RETURNING id, name, public_key, description, is_public_dm, is_deleted, last_activity
 `
 
 type CreateUserParams struct {
@@ -38,6 +38,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Description,
 		&i.IsPublicDM,
 		&i.IsDeleted,
+		&i.LastActivity,
 	)
 	return i, err
 }
@@ -54,7 +55,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id snowflake.ID) error {
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+SELECT id, name, public_key, description, is_public_dm, is_deleted, last_activity FROM users
 WHERE id = ? AND is_deleted = false
 `
 
@@ -68,12 +69,13 @@ func (q *Queries) GetUserById(ctx context.Context, id snowflake.ID) (User, error
 		&i.Description,
 		&i.IsPublicDM,
 		&i.IsDeleted,
+		&i.LastActivity,
 	)
 	return i, err
 }
 
 const getUserByPublicKey = `-- name: GetUserByPublicKey :one
-SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+SELECT id, name, public_key, description, is_public_dm, is_deleted, last_activity FROM users
 WHERE public_key = ?
 `
 
@@ -87,6 +89,7 @@ func (q *Queries) GetUserByPublicKey(ctx context.Context, publicKey ed25519.Publ
 		&i.Description,
 		&i.IsPublicDM,
 		&i.IsDeleted,
+		&i.LastActivity,
 	)
 	return i, err
 }
@@ -104,7 +107,7 @@ func (q *Queries) GetUserData(ctx context.Context, userID snowflake.ID) (string,
 }
 
 const getUsersByIds = `-- name: GetUsersByIds :many
-SELECT id, name, public_key, description, is_public_dm, is_deleted FROM users
+SELECT id, name, public_key, description, is_public_dm, is_deleted, last_activity FROM users
 WHERE id IN (/*SLICE:ids*/?)
 `
 
@@ -134,6 +137,7 @@ func (q *Queries) GetUsersByIds(ctx context.Context, ids []snowflake.ID) ([]User
 			&i.Description,
 			&i.IsPublicDM,
 			&i.IsDeleted,
+			&i.LastActivity,
 		); err != nil {
 			return nil, err
 		}
@@ -177,7 +181,7 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE users SET
   name = ?, description = ?, is_public_dm = ?
 WHERE id = ?
-RETURNING id, name, public_key, description, is_public_dm, is_deleted
+RETURNING id, name, public_key, description, is_public_dm, is_deleted, last_activity
 `
 
 type UpdateUserParams struct {
@@ -202,6 +206,21 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Description,
 		&i.IsPublicDM,
 		&i.IsDeleted,
+		&i.LastActivity,
 	)
 	return i, err
+}
+
+const updateUserLastActivity = `-- name: UpdateUserLastActivity :exec
+UPDATE users SET last_activity = ? WHERE id = ?
+`
+
+type UpdateUserLastActivityParams struct {
+	LastActivity *int64
+	ID           snowflake.ID
+}
+
+func (q *Queries) UpdateUserLastActivity(ctx context.Context, arg UpdateUserLastActivityParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserLastActivity, arg.LastActivity, arg.ID)
+	return err
 }

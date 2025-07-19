@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/kyren223/eko/internal/data"
 	"github.com/kyren223/eko/internal/packet"
@@ -1702,4 +1703,18 @@ func DeviceAnalytics(ctx context.Context, sess *session.Session, request *packet
 	})
 
 	return nil
+}
+
+func SetLastUserActivity(ctx context.Context, sess *session.Session) {
+	queries := data.New(db)
+	now := time.Now().UnixMilli()
+	err := queries.UpdateUserLastActivity(ctx, data.UpdateUserLastActivityParams{
+		LastActivity: &now,
+		ID:           sess.ID(),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err)
+	} else {
+		slog.DebugContext(ctx, "set user activity", "now", now)
+	}
 }
