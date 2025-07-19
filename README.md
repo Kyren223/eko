@@ -2,9 +2,84 @@
 
 <p>
     <picture>
-      <img width="768" height="192" alt="eko-banner" src="https://github.com/user-attachments/assets/6126da2a-9b46-41c8-9eac-84319ecddb84" />
+      <img width="768" height="192" alt="Eko Banner" src="./assets/eko-banner.png" />
     </picture>
     <br>
-    <a href="https://github.com/charmbracelet/bubbletea/releases"><img src="https://img.shields.io/github/release/charmbracelet/bubbletea.svg" alt="Latest Release"></a>
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/kyren223/eko?sort=date&style=for-the-badge&labelColor=%23005d66&color=%23F5A670">
+    <img alt="GitHub License" src="https://img.shields.io/github/license/kyren223/eko?style=for-the-badge&labelColor=%23005d66&color=%23FFBF00">
 </p>
 
+The Discord alternative for Terminal nerds.
+
+<p>
+    <img src="./assets/eko-screenshot.png" width="100%" alt="Eko Showcase">
+</p>
+
+## Features
+
+- 🟢 Vim-style navigation and editing
+- 🔑 SSH-like authentication using public key cryptography
+- 🎨 Customizable colors
+- 🖥️ Smooth and responsive TUI experience
+- 📜 Open protocol for building clients and tools
+- 🏠 Self-hostable or use the official instance
+
+---
+
+## Install
+
+### For Nix
+
+### From releases
+
+### From source
+
+## Usage
+
+Once installed, run `eko` in a terminal.
+
+Use `tab` / `shift+tab` to cycle, `ctrl+s` to switch between sign-in and sign-up
+and `enter` to confirm.
+
+Use an existing SSH ed25519 key (e.g `~/.ssh/id_ed25519`) or specify a new
+path to generate one.
+
+By default, you will connect to the official instance.
+For self hosting, see [Self Hosting](#self-hosting).
+
+Press `?` to see available keybindings.
+They are inspired by vim and should feel intuitive.
+
+To ask questions, suggest features, or chat with the community,
+it's recommended to join the official server. To do so press `a` while focused
+on the network list and paste `<invite code>` into it.
+
+And that's it!
+
+For configuration, self hosting and contributing, read below.
+
+## Configuration
+
+### Self-Hosting
+
+## Contributing
+
+See [contributing][contribute].
+
+[contribute]: https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md
+
+## Feedback
+
+I’d love to hear your thoughts on this project.
+Reach me via:
+
+- Eko: `<My ID>` (focus the Signal pane, press `a` and paste)
+- Discord: Kyren223
+
+## Licenses
+
+Copyright (C) 2025 Kyren223
+
+All source code is licensed under [AGPLv3](https://github.com/kyren223/eko/raw/main/LICENSE).
+All content in the `assets` directory is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+Logos and artwork are copyrighted works of Kyren223.
