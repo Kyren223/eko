@@ -39,6 +39,10 @@ us know in your PR, otherwise we will assume it is a WIP.
 Please only mark the pull request as "Ready for Review" when it is in fact
 complete and ready for review.
 
+## Glosarry
+
+Check out the [Glossary](./glossary.md) to see how certain terms are used and what they mean
+
 > When contributing to this project, you must agree that you have authored 100%
 > of the content, (or) that you have the necessary rights to the content and
 > that the content you contribute may be provided under the projects AGPLv3

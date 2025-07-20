@@ -10,4 +10,4 @@ procs:
   messages-log:
     shell: "tail -f messages.log"
   check-ci:
-    shell: "./check-ci.sh"
+    shell: "./tools/check-ci.sh"
