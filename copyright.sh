@@ -18,6 +18,9 @@ HEADER="// Eko: A terminal based social media platform
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>."
 
+# List of paths to exclude (files or directories)
+EXCLUDE_PATHS=("internal/data" "tools/test_rate_limit.go")
+
 # Check if .go files exist recursively
 if ! find . -type f -name "*.go" | grep -q .; then
     echo "No .go files found in the current directory or subdirectories."
@@ -27,8 +30,22 @@ fi
 # Get current year
 CURRENT_YEAR=$(date +%Y)
 
-# Apply header to all .go files recursively
+# Apply header to all .go files recursively, excluding specified paths
 find . -type f -name "*.go" | while IFS= read -r file; do
+    # Check if file or its parent directories are in EXCLUDE_PATHS
+    skip=false
+    for exclude in "${EXCLUDE_PATHS[@]}"; do
+        if [[ "$file" == "./$exclude" || "$file" == ./"$exclude"/* ]]; then
+            skip=true
+            break
+        fi
+    done
+
+    if [ "$skip" = true ]; then
+        echo "Skipped $file (in excluded path)"
+        continue
+    fi
+
     # Skip if file already has Copyright in the first 10 lines
     if ! head -n 10 "$file" | grep -q "Copyright"; then
         # Prepend header with a single newline, preserving original content
