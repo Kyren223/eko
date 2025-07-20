@@ -80,6 +80,6 @@ Reach me via:
 
 Copyright (C) 2025 Kyren223
 
-All source code is licensed under [AGPLv3](https://github.com/kyren223/eko/raw/main/LICENSE).
+All source code is licensed under [AGPLv3](https://github.com/kyren223/eko/raw/main/LICENSE).  
 All content in the `assets` directory is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 Logos and artwork are copyrighted works of Kyren223.
