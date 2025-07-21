@@ -34,6 +34,20 @@ The Discord alternative for Terminal nerds.
 
 ### From source
 
+Clone the repository
+
+```
+git clone https://github.com/kyren223/eko
+```
+
+Build the executable (make sure you have `go` installed)
+
+```
+cd eko && go build -o ./eko ./cmd/client
+```
+
+Move the executable to somewhere in your path so you can access it from anywhere
+
 ## Usage
 
 Once installed, run `eko` in a terminal.
