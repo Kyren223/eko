@@ -84,6 +84,29 @@ var Data UserData = UserData{
 
 var UserID *snowflake.ID = nil
 
+func Reset() {
+	UserID = nil
+	Data = UserData{
+		Networks: []snowflake.ID{},
+		Signals:  []snowflake.ID{},
+	}
+	State = state{
+		ChatState:           map[snowflake.ID]ChatState{},
+		LastFrequency:       map[snowflake.ID]snowflake.ID{},
+		Messages:            map[snowflake.ID]*btree.BTreeG[data.Message]{},
+		Networks:            map[snowflake.ID]data.Network{},
+		Frequencies:         map[snowflake.ID][]data.Frequency{},
+		Members:             map[snowflake.ID]map[snowflake.ID]data.Member{},
+		Users:               map[snowflake.ID]data.User{},
+		TrustedUsers:        map[snowflake.ID]ed25519.PublicKey{},
+		BlockedUsers:        map[snowflake.ID]struct{}{},
+		BlockingUsers:       map[snowflake.ID]struct{}{},
+		LastReadMessages:    map[snowflake.ID]*snowflake.ID{},
+		RemoteNotifications: map[snowflake.ID]int{},
+		LocalNotifications:  map[snowflake.ID]int{},
+	}
+}
+
 func UpdateNetworks(info *packet.NetworksInfo) {
 	networks := State.Networks
 
@@ -382,7 +405,7 @@ func SendFinalData() {
 
 	// HACK: Give a small grace period for the writes to be processed
 	// Tweak this value as needed
-	time.Sleep(20 * time.Millisecond)
+	// time.Sleep(20 * time.Millisecond)
 
 	// TODO:
 	// I think the issue is that it's random which of these 2 requests goes

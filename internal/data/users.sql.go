@@ -45,12 +45,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 
 const deleteUser = `-- name: DeleteUser :exec
 UPDATE users SET
-  is_deleted = true
+  is_deleted = true, public_key = ?, name = "Deleted User"
 WHERE id = ? AND is_deleted = false
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id snowflake.ID) error {
-	_, err := q.db.ExecContext(ctx, deleteUser, id)
+type DeleteUserParams struct {
+	PublicKey ed25519.PublicKey
+	ID        snowflake.ID
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, arg.PublicKey, arg.ID)
 	return err
 }
 

@@ -60,7 +60,7 @@ const (
 	RateLimitCountThresholdMalicious = 10
 )
 
-func getTlsConfig() *tls.Config {
+func getTLSConfig() *tls.Config {
 	path, ok := os.LookupEnv(CertFile)
 	if !ok {
 		// DEV MODE ONLY, DUMMY CERT
@@ -219,7 +219,7 @@ func (s *server) Node() *snowflake.Node {
 func (s *server) Run() {
 	slog.Info("starting eko-server...")
 
-	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), getTlsConfig())
+	listener, err := tls.Listen("tcp4", ":"+strconv.Itoa(int(s.Port)), getTLSConfig())
 	if err != nil {
 		slog.Error("error starting server", "error", err)
 		assert.Abort("see logs")
@@ -286,7 +286,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	var writerWg sync.WaitGroup
-	done := make(chan struct{})
+	writeDone := make(chan struct{})
 	framer := packet.NewFramer()
 
 	sess := session.NewSession(server, addr, cancel, &writerWg)
@@ -306,7 +306,7 @@ func (server *server) handleConnection(conn net.Conn) {
 
 	// Writer
 	go func() {
-		defer close(done)
+		defer close(writeDone)
 		defer conn.Close() // To unblock reader
 		writeQueue := sess.Read()
 
@@ -406,7 +406,7 @@ func (server *server) handleConnection(conn net.Conn) {
 	close(framer.Out) // stop processing
 	slog.InfoContext(ctx, "reader done, closed framer")
 
-	<-done
+	<-writeDone
 }
 
 func processPacket(ctx context.Context, sess *session.Session, pkt packet.Packet) bool {

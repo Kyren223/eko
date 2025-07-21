@@ -842,6 +842,24 @@ func SetUserData(ctx context.Context, sess *session.Session, request *packet.Set
 	var userPtr *data.User = nil
 	if request.User != nil {
 
+		if request.User.IsDeleted {
+			// Delete user
+
+			pubKey, _, err := ed25519.GenerateKey(nil)
+			assert.NoError(err, "random should never fail")
+			err = queries.DeleteUser(ctx, data.DeleteUserParams{
+				PublicKey: pubKey,
+				ID:        sess.ID(),
+			})
+			if err != nil {
+				slog.ErrorContext(ctx, "database error", "error", err)
+				return &ErrInternalError
+			}
+
+			sess.Close() // Close connection and respond with nothing
+			return nil
+		}
+
 		name := request.User.Name
 		if len(name) > packet.MaxUsernameBytes {
 			return &packet.Error{Error: fmt.Sprintf(

@@ -388,6 +388,7 @@ func (m *Model) updateConnected(message tea.Msg) tea.Cmd {
 			} else {
 				log.Println("received error:", msg.Error)
 				gateway.Disconnect()
+				state.Reset()
 				return ui.Transition(ui.NewAuth())
 			}
 		}
@@ -490,6 +491,7 @@ func (m *Model) updateAuthenticated(message tea.Msg) tea.Cmd {
 		err := "new connection from another location, closing this one"
 		if err == msg.Error {
 			gateway.Disconnect()
+			state.Reset()
 			return ui.Transition(ui.NewAuth())
 		}
 

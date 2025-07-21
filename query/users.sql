@@ -16,7 +16,7 @@ RETURNING *;
 
 -- name: DeleteUser :exec
 UPDATE users SET
-  is_deleted = true
+  is_deleted = true, public_key = ?, name = "Deleted User", description = ""
 WHERE id = ? AND is_deleted = false;
 
 -- name: SetUserData :one

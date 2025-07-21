@@ -18,12 +18,14 @@ package usersettings
 
 import (
 	"errors"
+	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kyren223/eko/internal/client/config"
 	"github.com/kyren223/eko/internal/client/gateway"
+	"github.com/kyren223/eko/internal/client/ui"
 	"github.com/kyren223/eko/internal/client/ui/colors"
 	"github.com/kyren223/eko/internal/client/ui/core/state"
 	"github.com/kyren223/eko/internal/client/ui/field"
@@ -46,6 +48,17 @@ var (
 			Render("Update User Settings")
 	}
 
+	blurredDelete = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.DarkGray).Foreground(colors.Red).
+			Render("Delete User Permanently")
+	}
+	focusedDelete = func() string {
+		return lipgloss.NewStyle().Padding(0, 1).
+			Background(colors.Red).Foreground(colors.Black).
+			Render("Delete User Permanently")
+	}
+
 	highlightedStyle = func() lipgloss.Style {
 		return lipgloss.NewStyle().Padding(0, 0).
 			Background(colors.BackgroundHighlight).Foreground(colors.White)
@@ -57,6 +70,7 @@ const (
 	Description
 	PrivateField
 	UpdateField
+	DeleteField
 	FieldCount
 )
 
@@ -65,6 +79,7 @@ type Model struct {
 	description field.Model
 	privateDM   bool
 	update      string
+	delete      string
 
 	selected  int
 	nameWidth int
@@ -126,6 +141,7 @@ func New() Model {
 		description: description,
 		privateDM:   !user.IsPublicDM,
 		update:      blurredUpdate(),
+		delete:      blurredDelete(),
 		selected:    0,
 		nameWidth:   nameWidth,
 	}
@@ -158,6 +174,12 @@ func (m Model) View() string {
 		Align(lipgloss.Center).
 		Render(m.update)
 
+	del := lipgloss.NewStyle().
+		Width(m.nameWidth).
+		Background(colors.Background).
+		Align(lipgloss.Center).
+		Render(m.delete)
+
 	configFile := "Config File: " + highlightedStyle().Render(config.ConfigFile)
 	configFile = lipgloss.NewStyle().
 		Background(colors.Background).Foreground(colors.White).
@@ -172,7 +194,7 @@ func (m Model) View() string {
 		Render(analyticsOptOut)
 
 	content := flex.NewVertical(
-		analyticsOptOut, configFile, name, description, private, update,
+		analyticsOptOut, configFile, name, description, private, update, del,
 	).WithGap(1).View()
 
 	return lipgloss.NewStyle().
@@ -225,6 +247,7 @@ func (m *Model) updateFocus() tea.Cmd {
 	m.name.Blur()
 	m.description.Blur()
 	m.update = blurredUpdate()
+	m.delete = blurredDelete()
 	switch m.selected {
 	case NameField:
 		return m.name.Focus()
@@ -234,6 +257,9 @@ func (m *Model) updateFocus() tea.Cmd {
 		return nil
 	case UpdateField:
 		m.update = focusedUpdate()
+		return nil
+	case DeleteField:
+		m.delete = focusedDelete()
 		return nil
 	default:
 		assert.Never("missing switch statement field in update focus", "selected", m.selected)
@@ -245,6 +271,20 @@ func (m *Model) Select() tea.Cmd {
 	if m.selected == PrivateField {
 		m.privateDM = !m.privateDM
 		return nil
+	}
+
+	if m.selected == DeleteField {
+		log.Println("DELETING CLIENT")
+		// PERMA DELETE USER and return to login screen
+		state.Reset()
+		return tea.Batch(func() tea.Msg {
+			msg := gateway.Send(&packet.SetUserData{
+				Data: nil,
+				User: &data.User{IsDeleted: true},
+			})() // Important, call this function to block
+			gateway.Disconnect()
+			return msg
+		}, ui.Transition(ui.NewAuth()))
 	}
 
 	if m.selected != UpdateField {

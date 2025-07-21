@@ -148,7 +148,7 @@ func handlePacketStream() {
 		payload, err := pkt.DecodedPayload()
 		assert.NoError(err, "server should always provide a decodeable packet")
 
-		log.Printf("received streamed packet %v: %v\n", payload.Type(), payload)
+		// log.Printf("received streamed packet %v: %v\n", payload.Type(), payload)
 		ui.Program.Send(payload)
 	}
 }
@@ -189,7 +189,7 @@ func Send(request packet.Payload) tea.Cmd {
 		if err != nil {
 			log.Println("request send error:", err)
 		} else {
-			log.Println("request sent successfully:", request)
+			// log.Println("request sent successfully:", request)
 		}
 		return RequestSentMsg{
 			request: request,
