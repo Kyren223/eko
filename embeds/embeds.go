@@ -21,6 +21,12 @@ import (
 	"sync/atomic"
 )
 
+var (
+	Version   string = "unknown"
+	Commit    string = "unknown"
+	BuildDate string = "unknown"
+)
+
 //go:embed server.crt
 var ServerCertificate []byte
 

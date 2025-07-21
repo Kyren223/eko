@@ -17,13 +17,22 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
+	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/internal/client"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "-v" {
+		fmt.Println("version:", embeds.Version)
+		fmt.Println("commit:", embeds.Commit)
+		fmt.Println("build date:", embeds.BuildDate)
+		return
+	}
+
 	logFile, err := os.OpenFile("client.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalln(err)

@@ -11,47 +11,66 @@
     nix-filter.url = "github:numtide/nix-filter";
   };
 
-  outputs = { self, ... }@inputs:
-    inputs.flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    { self, ... }@inputs:
+    inputs.flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ ];
         pkgs = import inputs.nixpkgs {
           inherit system overlays;
         };
-        lib = pkgs.lib;
-        version = (builtins.readFile ./VERSION); # TODO: have version?
+        version = (builtins.readFile ./VERSION);
+        buildDate = builtins.readFile (
+          pkgs.runCommand "build-date" { } ''
+            date -u +'%Y-%m-%d' > $out
+          ''
+        );
         commit = if (builtins.hasAttr "rev" self) then (builtins.substring 0 7 self.rev) else "unknown";
+        # vendorHash = pkgs.lib.fakeHash;
+        vendorHash = "sha256-2yCQ40T5N90lKpPOc+i6vz+1mI/p4Ey6PdRCJbGD+TE=";
+        src =
+          let
+            # Set this to `true` in order to show all of the source files
+            # that will be included in the module build.
+            debug-tracing = false;
+            source-files = inputs.nix-filter.lib.filter {
+              root = ./.;
+            };
+          in
+          (if (debug-tracing) then pkgs.lib.sources.trace source-files else source-files);
+        ldflags = [
+          "-X github.com/kyren223/eko/embeds.Version=${version}"
+          "-X github.com/kyren223/eko/embeds.Commit=${commit}"
+          "-X github.com/kyren223/eko/embeds.BuildDate=${buildDate}"
+        ];
       in
       rec {
         packages = rec {
           eko = pkgs.buildGoModule {
             pname = "eko";
             version = version;
-            # vendorHash = pkgs.lib.fakeHash;
-            vendorHash = "sha256-t8Crwi8dPWOTiCbyCfgOCYJboC7pC1G/wyUsFfcVVkQ="; # TODO: change?
-            src =
-              let
-                # Set this to `true` in order to show all of the source files
-                # that will be included in the module build.
-                debug-tracing = false;
-                source-files = inputs.nix-filter.lib.filter {
-                  root = ./.;
-                };
-              in
-              (
-                if (debug-tracing) then
-                  pkgs.lib.sources.trace source-files
-                else
-                  source-files
-              );
-            # Any extra packages required to build the binaries should go here.
+            vendorHash = vendorHash;
+            src = src;
             buildInputs = [ ];
-            ldflags = [
-              "-X github.com/kyren223/eko/cmd/client/shared.Version=${version}" # TODO: change the version thing
-              "-X github.com/kyren223/eko/cmd/client/shared.Commit=${commit}" # TODO: change the commit thing
+            buildFlags = [
+              "-o"
+              "eko"
             ];
+            ldflags = ldflags;
             modRoot = "./.";
             subPackages = [ "cmd/client" ];
+            doCheck = false;
+          };
+          eko-server = pkgs.buildGoModule {
+            pname = "eko-server";
+            version = version;
+            vendorHash = vendorHash;
+            src = src;
+            buildInputs = [ ];
+            ldflags = ldflags;
+            modRoot = "./.";
+            subPackages = [ "cmd/server" ];
             doCheck = false;
           };
           default = eko;
@@ -61,6 +80,11 @@
           eko = {
             type = "app";
             program = "${packages.eko}/bin/eko";
+          };
+          eko-server = {
+            type = "service";
+            program = "${packages.eko}/bin/eko-server";
+            # TODO: add systemd service
           };
           default = eko;
         };
@@ -118,5 +142,6 @@
         #     hardeningDisable = [ "fortify" ];
         #   };
         # };
-      });
+      }
+    );
 }

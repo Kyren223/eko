@@ -48,6 +48,13 @@ const (
 var prod = true
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "-v" {
+		fmt.Println("version:", embeds.Version)
+		fmt.Println("commit:", embeds.Commit)
+		fmt.Println("build date:", embeds.BuildDate)
+		return
+	}
+
 	prodFlag := flag.Bool("prod", true, "true for production mode, false for dev mode")
 	flag.Parse()
 	prod = *prodFlag
