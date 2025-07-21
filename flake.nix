@@ -53,14 +53,13 @@
             vendorHash = vendorHash;
             src = src;
             buildInputs = [ ];
-            buildFlags = [
-              "-o"
-              "eko"
-            ];
             ldflags = ldflags;
             modRoot = "./.";
             subPackages = [ "cmd/client" ];
             doCheck = false;
+            postInstall = ''
+              mv $out/bin/client $out/bin/eko
+            '';
           };
           eko-server = pkgs.buildGoModule {
             pname = "eko-server";
@@ -72,6 +71,9 @@
             modRoot = "./.";
             subPackages = [ "cmd/server" ];
             doCheck = false;
+            postInstall = ''
+              mv $out/bin/server $out/bin/eko-server
+            '';
           };
           default = eko;
         };
