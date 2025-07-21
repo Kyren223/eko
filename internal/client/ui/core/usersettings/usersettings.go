@@ -186,6 +186,12 @@ func (m Model) View() string {
 		Width(m.nameWidth).
 		Render(configFile)
 
+	cacheFile := "Cache File: " + highlightedStyle().Render(config.CacheFile)
+	cacheFile = lipgloss.NewStyle().
+		Background(colors.Background).Foreground(colors.White).
+		Width(m.nameWidth).
+		Render(cacheFile)
+
 	option := highlightedStyle().Render("\"anonymous_device_analytics\": false")
 	analyticsOptOut := "Anonymous device analytics can be disabled in your config file by setting: " + option
 	analyticsOptOut = lipgloss.NewStyle().
@@ -194,7 +200,7 @@ func (m Model) View() string {
 		Render(analyticsOptOut)
 
 	content := flex.NewVertical(
-		analyticsOptOut, configFile, name, description, private, update, del,
+		analyticsOptOut, configFile, cacheFile, name, description, private, update, del,
 	).WithGap(1).View()
 
 	return lipgloss.NewStyle().
