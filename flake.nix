@@ -1,5 +1,6 @@
 {
   description = "Localias is a tool for developers to securely manage local aliases for development servers.";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
 
@@ -23,9 +24,14 @@
         version = (builtins.readFile ./VERSION);
         buildDate = builtins.readFile (
           pkgs.runCommand "build-date" { } ''
-            date -u +'%Y-%m-%d' > $out
+            ${pkgs.coreutils}/bin/date --date=@${toString self.lastModified} +%Y-%m-%d -u > $out
           ''
         );
+        # buildDate = builtins.readFile (
+        #   pkgs.runCommand "build-date" { } ''
+        #     date -u +'%Y-%m-%d' > $out
+        #   ''
+        # );
         commit = if (builtins.hasAttr "rev" self) then (builtins.substring 0 7 self.rev) else "unknown";
         # vendorHash = pkgs.lib.fakeHash;
         vendorHash = "sha256-2yCQ40T5N90lKpPOc+i6vz+1mI/p4Ey6PdRCJbGD+TE=";
@@ -82,13 +88,31 @@
           eko = {
             type = "app";
             program = "${packages.eko}/bin/eko";
+            meta = {
+              description = "A terminal-native social media platform (client)";
+              homepage = "https://github.com/kyren223/eko";
+              license = pkgs.lib.licenses.agpl3Plus;
+              maintainers = with pkgs.lib.maintainers; [ kyren223 ];
+              platforms = pkgs.lib.platforms.all;
+            };
           };
           eko-server = {
             type = "service";
             program = "${packages.eko}/bin/eko-server";
-            # TODO: add systemd service
+            meta = {
+              description = "A terminal-native social media platform (server)";
+              homepage = "https://github.com/kyren223/eko";
+              license = pkgs.lib.licenses.agpl3Plus;
+              maintainers = with pkgs.lib.maintainers; [ kyren223 ];
+              platforms = pkgs.lib.platforms.all;
+            };
           };
           default = eko;
+        };
+
+        nixosModules = rec {
+          default = eko;
+          eko = import ./service.nix inputs;
         };
 
         # TODO: make my own devshell?
