@@ -75,7 +75,7 @@ in
         Restart = "on-failure";
         RestartSec = "10s";
 
-        ExecStart = "${cfg.package}/bin/eko-server";
+        ExecStart = "/bin/sh -c '${cfg.package}/bin/eko-server'";
         ExecReload = "${pkgs.coreutils}/bin/kill -SIGHUP $MAINPID";
 
         ConfigurationDirectory = "eko";
