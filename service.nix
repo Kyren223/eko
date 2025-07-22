@@ -14,7 +14,11 @@ in
   options.services.eko = {
     enable = lib.mkEnableOption "eko service";
 
-    package = lib.mkPackageOption inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.eko-server { };
+    package = lib.mkOption {
+      description = "Eko package to use as the server executable";
+      default = inputs.self.packages.${pkgs.system}.eko-server;
+      type = lib.types.package;
+    };
 
     dataDir = lib.mkOption {
       description = "Eko data directory";

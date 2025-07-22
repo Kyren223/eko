@@ -110,11 +110,6 @@
           default = eko;
         };
 
-        nixosModules = rec {
-          default = eko;
-          eko = import ./service.nix inputs;
-        };
-
         # TODO: make my own devshell?
         # devShells = rec {
         #   default = pkgs.mkShell {
@@ -169,5 +164,11 @@
         #   };
         # };
       }
-    );
+    )
+    // {
+      nixosModules = rec {
+        default = eko;
+        eko = import ./service.nix inputs;
+      };
+    };
 }
