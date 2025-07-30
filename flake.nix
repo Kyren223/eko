@@ -58,11 +58,30 @@
             version = version;
             vendorHash = vendorHash;
             src = src;
-            buildInputs = [ ];
+            buildInputs = [ pkgs.go-tools pkgs.gosec ];
             ldflags = ldflags;
             modRoot = "./.";
             subPackages = [ "cmd/client" ];
             doCheck = false;
+            preBuild = ''
+              export HOME=$(mktemp -d) # For staticheck
+
+              echo "running ci..."
+
+              test -z "$(go fmt ./...)"
+              echo "formatting passed"
+
+              ${pkgs.go-tools}/bin/staticcheck ./...
+              echo "static analysis passed"
+
+              go test --cover ./...
+              echo "tests passed"
+
+              ${pkgs.gosec}/bin/gosec ./...
+              echo "gosec passed"
+
+              echo "done"
+            '';
             postInstall = ''
               mv $out/bin/client $out/bin/eko
             '';
@@ -72,11 +91,34 @@
             version = version;
             vendorHash = vendorHash;
             src = src;
-            buildInputs = [ ];
+            buildInputs = [ pkgs.goose pkgs.go-tools pkgs.gosec ];
             ldflags = ldflags;
             modRoot = "./.";
             subPackages = [ "cmd/server" ];
             doCheck = false;
+            preBuild = ''
+              export HOME=$(mktemp -d) # For staticheck
+
+              echo "running ci..."
+
+              test -z "$(go fmt ./...)"
+              echo "formatting passed"
+
+              ${pkgs.go-tools}/bin/staticcheck ./...
+              echo "static analysis passed"
+
+              go test --cover ./...
+              echo "tests passed"
+
+              ${pkgs.gosec}/bin/gosec ./...
+              echo "gosec passed"
+
+              echo "running migrations..."
+              ${pkgs.goose}/bin/goose fix -dir internal/server/api/migrations
+              echo "migrations passed"
+
+              echo "done"
+            '';
             postInstall = ''
               mv $out/bin/server $out/bin/eko-server
             '';
@@ -110,59 +152,6 @@
           default = eko;
         };
 
-        # TODO: make my own devshell?
-        # devShells = rec {
-        #   default = pkgs.mkShell {
-        #     packages = with pkgs;
-        #       [
-        #         # golang
-        #         go
-        #         delve
-        #         go-outline
-        #         golangci-lint
-        #         gopkgs
-        #         gopls
-        #         gotools
-        #         # nix
-        #         nixpkgs-fmt
-        #         # other tools
-        #         just
-        #         cobra-cli
-        #       ];
-        #
-        #     shellHook = ''
-        #       # The path to this repository
-        #       shell_nix="''${IN_LORRI_SHELL:-$(pwd)/shell.nix}"
-        #       workspace_root=$(dirname "$shell_nix")
-        #       export WORKSPACE_ROOT="$workspace_root"
-        #
-        #       # We put the $GOPATH/$GOCACHE/$GOENV in $TOOLCHAIN_ROOT,
-        #       # and ensure that the GOPATH's bin dir is on our PATH so tools
-        #       # can be installed with `go install`.
-        #       #
-        #       # Any tools installed explicitly with `go install` will take precedence
-        #       # over versions installed by Nix due to the ordering here.
-        #       export TOOLCHAIN_ROOT="$workspace_root/.toolchain"
-        #       export GOROOT=
-        #       export GOCACHE="$TOOLCHAIN_ROOT/go/cache"
-        #       export GOENV="$TOOLCHAIN_ROOT/go/env"
-        #       export GOPATH="$TOOLCHAIN_ROOT/go/path"
-        #       export GOMODCACHE="$GOPATH/pkg/mod"
-        #       export PATH=$(go env GOPATH)/bin:$PATH
-        #       export CGO_ENABLED=1
-        #
-        #       # Make it easy to test while developing; add the golang and nix
-        #       # build outputs to the path.
-        #       export PATH="$workspace_root/bin:$workspace_root/result/bin:$PATH"
-        #     '';
-        #
-        #     # Need to disable fortify hardening because GCC is not built with -oO,
-        #     # which means that if CGO_ENABLED=1 (which it is by default) then the golang
-        #     # debugger fails.
-        #     # see https://github.com/NixOS/nixpkgs/pull/12895/files
-        #     hardeningDisable = [ "fortify" ];
-        #   };
-        # };
       }
     )
     // {
