@@ -29,9 +29,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/grafana/pyroscope-go"
-	_ "github.com/grafana/pyroscope-go/godeltaprof/http/pprof"
-	_ "net/http/pprof"
+	// "github.com/grafana/pyroscope-go"
+	// _ "github.com/grafana/pyroscope-go/godeltaprof/http/pprof"
+	// _ "net/http/pprof"
 
 	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/internal/server"
@@ -73,7 +73,7 @@ func main() {
 	handleReload()
 	handleShutdown(cancel)
 
-	startPyroscopeProfiling()
+	// startPyroscopeProfiling()
 
 	if ok := reloadTosAndPrivacy(); !ok {
 		return
@@ -226,24 +226,24 @@ func reloadTosAndPrivacy() bool {
 	return true
 }
 
-func startPyroscopeProfiling() {
-	pyroscope.Start(pyroscope.Config{
-		ApplicationName: "eko",
-		ServerAddress:   "http://localhost:4040",
-		Logger:          pyroscope.StandardLogger, // nil to disable
-		// by default all profilers are enabled,
-		// but you can select the ones you want to use:
-		ProfileTypes: []pyroscope.ProfileType{
-			pyroscope.ProfileCPU,
-			pyroscope.ProfileAllocObjects,
-			pyroscope.ProfileAllocSpace,
-			pyroscope.ProfileInuseObjects,
-			pyroscope.ProfileInuseSpace,
-			pyroscope.ProfileGoroutines,
-			pyroscope.ProfileMutexCount,
-			pyroscope.ProfileMutexCount,
-			pyroscope.ProfileBlockCount,
-			pyroscope.ProfileBlockDuration,
-		},
-	})
-}
+// func startPyroscopeProfiling() {
+// 	pyroscope.Start(pyroscope.Config{
+// 		ApplicationName: "eko",
+// 		ServerAddress:   "http://localhost:4040",
+// 		Logger:          pyroscope.StandardLogger, // nil to disable
+// 		// by default all profilers are enabled,
+// 		// but you can select the ones you want to use:
+// 		ProfileTypes: []pyroscope.ProfileType{
+// 			pyroscope.ProfileCPU,
+// 			pyroscope.ProfileAllocObjects,
+// 			pyroscope.ProfileAllocSpace,
+// 			pyroscope.ProfileInuseObjects,
+// 			pyroscope.ProfileInuseSpace,
+// 			pyroscope.ProfileGoroutines,
+// 			pyroscope.ProfileMutexCount,
+// 			pyroscope.ProfileMutexCount,
+// 			pyroscope.ProfileBlockCount,
+// 			pyroscope.ProfileBlockDuration,
+// 		},
+// 	})
+// }

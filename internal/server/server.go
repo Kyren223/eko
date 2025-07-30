@@ -133,7 +133,7 @@ type server struct {
 	}
 }
 
-// Creates a new server on the given port.
+// NewServer creates a new server on the given port.
 // Will generate a unique node ID automatically, will crash if there are no available IDs.
 func NewServer(ctx context.Context, port uint16) server {
 	assert.Assert(nodeId <= snowflake.NodeMax, "maximum amount of servers reached")

@@ -11,7 +11,7 @@ import (
 const addr = "localhost:7223"
 
 var tlsConfig = &tls.Config{
-	InsecureSkipVerify: true, // skip cert verification
+	InsecureSkipVerify: true, // #nosec G402 skip cert verification
 }
 
 func connect(n int, label string) {
@@ -27,7 +27,7 @@ func connect(n int, label string) {
 	}
 	time.Sleep(300 * time.Millisecond)
 	for _, c := range conns {
-		c.Close()
+		_ = c.Close()
 	}
 	time.Sleep(200 * time.Millisecond)
 }

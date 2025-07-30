@@ -1728,13 +1728,17 @@ func DeviceAnalytics(ctx context.Context, sess *session.Session, request *packet
 
 	sess.SetAnalytics(request)
 	queries := data.New(db)
-	queries.SetDeviceAnalytics(ctx, data.SetDeviceAnalyticsParams{
+	_, err := queries.SetDeviceAnalytics(ctx, data.SetDeviceAnalyticsParams{
 		DeviceID:  request.DeviceID,
 		Os:        &request.OS,
 		Arch:      &request.Arch,
 		Term:      &request.Term,
 		Colorterm: &request.Colorterm,
 	})
+	if err != nil {
+		slog.ErrorContext(ctx, "database error", "error", err)
+		return &ErrInternalError
+	}
 
 	return nil
 }
