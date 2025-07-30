@@ -21,6 +21,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -46,15 +47,6 @@ func (c BubbleTeaCloser) Close() error {
 }
 
 func Run() {
-	var dump *os.File
-	if ui.DEBUG {
-		var err error
-		dump, err = os.OpenFile("messages.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-		if err != nil {
-			os.Exit(1)
-		}
-	}
-
 	log.Println("client started")
 
 	err := config.LoadConfig()
@@ -65,6 +57,20 @@ func Run() {
 	err = config.LoadCache()
 	if err != nil {
 		fmt.Printf("Cache file at '%v' was unable to load successfully\n%v\n", config.CacheFile, err)
+		os.Exit(1)
+	}
+
+	logPath := path.Join(config.CacheDir, "client.log")
+	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600) // #nosec G304
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
+	dumpPath := path.Join(config.CacheDir, "messages.log")
+	dump, err := os.OpenFile(dumpPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304
+	if err != nil {
 		os.Exit(1)
 	}
 

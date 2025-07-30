@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -41,13 +40,6 @@ func main() {
 		fmt.Println("build date:", buildDate)
 		return
 	}
-
-	logFile, err := os.OpenFile("client.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer logFile.Close()
-	log.SetOutput(logFile)
 
 	client.Run()
 }

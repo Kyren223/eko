@@ -6,8 +6,8 @@ procs:
   client-secondary:
     shell: "go run ./cmd/client"
   client-log:
-    shell: "tail -f client.log"
+    shell: "tail -f $HOME/.cache/eko/client.log"
   messages-log:
-    shell: "tail -f messages.log"
+    shell: "tail -f $HOME/.cache/eko/messages.log"
   check-ci:
     shell: "./tools/check-ci.sh"
