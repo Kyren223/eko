@@ -22,19 +22,10 @@
           inherit system overlays;
         };
         version = (builtins.readFile ./VERSION);
-        buildDate = builtins.readFile (
-          pkgs.runCommand "build-date" { } ''
-            ${pkgs.coreutils}/bin/date --date=@${toString self.lastModified} +%Y-%m-%d -u > $out
-          ''
-        );
-        # buildDate = builtins.readFile (
-        #   pkgs.runCommand "build-date" { } ''
-        #     date -u +'%Y-%m-%d' > $out
-        #   ''
-        # );
+        buildDate = toString self.lastModified;
         commit = if (builtins.hasAttr "rev" self) then (builtins.substring 0 7 self.rev) else "unknown";
         # vendorHash = pkgs.lib.fakeHash;
-        vendorHash = "sha256-2yCQ40T5N90lKpPOc+i6vz+1mI/p4Ey6PdRCJbGD+TE=";
+        vendorHash = "sha256-dLhLFyrufv3dNlAw1QLlf9/LsHMcUaD9F2byKlC+35E=";
         src =
           let
             # Set this to `true` in order to show all of the source files

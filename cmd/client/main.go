@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/kyren223/eko/embeds"
 	"github.com/kyren223/eko/internal/client"
@@ -29,7 +31,14 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "-v" {
 		fmt.Println("version:", embeds.Version)
 		fmt.Println("commit:", embeds.Commit)
-		fmt.Println("build date:", embeds.BuildDate)
+		buildDate := embeds.BuildDate
+		if buildDate != "unknown" {
+			t, err := strconv.ParseInt(buildDate, 10, 64)
+			if err == nil {
+				buildDate = time.Unix(t, 0).Format("2006-01-02")
+			}
+		}
+		fmt.Println("build date:", buildDate)
 		return
 	}
 
