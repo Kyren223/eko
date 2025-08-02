@@ -11,6 +11,8 @@
 
 The Discord alternative for Terminal nerds.
 
+TODO(kyren): replace screenshot with tape (or have both?)
+
 <p>
     <img src="./assets/eko-screenshot.png" width="100%" alt="Eko Showcase">
 </p>
@@ -73,14 +75,24 @@ Press `?` to see available keybindings.
 They are inspired by vim and should feel intuitive.
 
 To ask questions, suggest features, or chat with the community,
-it's recommended to join the official server. To do so press `a` while focused
-on the network list and paste `<invite code>` into it.
+it's recommended to join the official server.  
+To do so press `a` while focused on the network list and paste `<invite code>` into it.
 
 And that's it!
 
 For configuration, self hosting and contributing, read below.
 
 ## Configuration
+
+TODO(kyren): add instructions on configuration
+
+### Self-Hosting
+
+TODO(kyren): add instructions on self-hosting
+
+## Contributing
+
+See [contributing][https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md].
 
 ### Building from source
 
@@ -97,14 +109,6 @@ cd eko && go build -o ./eko ./cmd/client
 ```
 
 Move the executable to somewhere in your path so you can access it from anywhere
-
-### Self-Hosting
-
-## Contributing
-
-See [contributing][contribute].
-
-[contribute]: https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md
 
 ## Feedback
 
