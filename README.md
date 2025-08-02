@@ -5,7 +5,7 @@
       <img width="768" height="192" alt="Eko Banner" src="./assets/eko-banner.png" />
     </picture>
     <br>
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/kyren223/eko?sort=date&style=for-the-badge&labelColor=%23005d66&color=%23F5A670">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/kyren223/eko?include_prereleases&sort=date&display_name=tag&style=for-the-badge&labelColor=%23005d66&color=%23F5A670">
     <img alt="GitHub License" src="https://img.shields.io/github/license/kyren223/eko?style=for-the-badge&labelColor=%23005d66&color=%23FFBF00">
 </p>
 
