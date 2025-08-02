@@ -555,7 +555,7 @@ func timeout[T packet.Payload](
 	apiRequest func(context.Context, *session.Session, T) packet.Payload,
 	ctx context.Context, sess *session.Session, request T,
 ) packet.Payload {
-	// TODO: Remove the channel and just wait directly?
+	// TODO(kyren): Remove the channel and just wait directly?
 	// No - We need to use a channel so timeout works properly
 	responseChan := make(chan packet.Payload)
 

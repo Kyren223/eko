@@ -26,27 +26,35 @@ The Discord alternative for Terminal nerds.
 
 ---
 
-## Install
+## Quick Install
 
-### For Nix
+Make sure to have a [Nerd Font](https://www.nerdfonts.com/) installed and enabled in your terminal.
 
-### From releases
-
-### From source
-
-Clone the repository
+### Install Latest Version
 
 ```
-git clone https://github.com/kyren223/eko
+curl -sS https://eko.kyren.codes/install.sh | sh
 ```
 
-Build the executable (make sure you have `go` installed)
+### Homebrew (MACOS)
+
+TODO(kyren): package for homebrew
 
 ```
-cd eko && go build -o ./eko ./cmd/client
+brew install eko
 ```
 
-Move the executable to somewhere in your path so you can access it from anywhere
+### Winget (Windows)
+
+TODO(kyren): package for winget
+
+```
+winget install eko
+```
+
+### Nix Flake
+
+You know what to do
 
 ## Usage
 
@@ -73,6 +81,22 @@ And that's it!
 For configuration, self hosting and contributing, read below.
 
 ## Configuration
+
+### Building from source
+
+Clone the repository
+
+```
+git clone https://github.com/kyren223/eko
+```
+
+Build the executable (make sure you have `go` installed)
+
+```
+cd eko && go build -o ./eko ./cmd/client
+```
+
+Move the executable to somewhere in your path so you can access it from anywhere
 
 ### Self-Hosting
 
