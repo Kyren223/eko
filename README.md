@@ -34,6 +34,8 @@ Make sure to have a [Nerd Font](https://www.nerdfonts.com/) installed and enable
 
 ### Install Latest Version
 
+TODO(kyren): create the install.sh and then host it through eko
+
 ```
 curl -sS https://eko.kyren.codes/install.sh | sh
 ```
@@ -92,7 +94,7 @@ TODO(kyren): add instructions on self-hosting
 
 ## Contributing
 
-See [contributing][https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md].
+See [contributing](https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md)
 
 ### Building from source
 
