@@ -88,11 +88,6 @@ in
       group = "eko";
     };
 
-    systemd.tmpfiles.rules = [
-      "d '${cfg.dataDir}' ${cfg.permission} ${cfg.user} ${cfg.group} - -"
-      "z '${cfg.dataDir}' ${cfg.permission} ${cfg.user} ${cfg.group} - -"
-    ];
-
     # Systemd service for eko
     systemd.services.eko = {
       description = "Eko - a secure terminal-native social media platform";
@@ -123,10 +118,9 @@ in
 
         ConfigurationDirectory = "eko";
         # StateDirectory = "eko";
-        # StateDirectoryMode = "0700";
-        # Runtime directory and mode
-        RuntimeDirectory = "eko";
-        RuntimeDirectoryMode = cfg.permission;
+        # StateDirectoryMode = cfg.permission;
+        # RuntimeDirectory = "eko";
+        # RuntimeDirectoryMode = cfg.permission;
         LogsDirectory = "eko";
         WorkingDirectory = cfg.dataDir;
         Type = "simple";
