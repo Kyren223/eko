@@ -107,6 +107,14 @@ download() {
 
   error "Command failed (exit code $rc): ${BLUE}${cmd}${NO_COLOR}"
   printf "\n" >&2
+
+  # warn if version doesn't start with 'v'
+  if [ "${VERSION}" != "latest" ] && [ "${VERSION#v}" = "${VERSION}" ]; then
+    info "This is likely due to the version not starting with 'v'."
+    info "Try again with 'v${VERSION}'."
+    return $rc
+  fi
+
   info "This is likely due to Eko not yet supporting your configuration."
   info "If you would like to see a build for your configuration,"
   info "please create an issue requesting a build for ${MAGENTA}${TARGET}${NO_COLOR}:"
@@ -295,6 +303,13 @@ check_bin_dir() {
   fi
 }
 
+check_version() {
+  # warn if version doesn't start with 'v'
+  if [ "${VERSION}" != "latest" ] && [ "${VERSION#v}" = "${VERSION}" ]; then
+    warn "Version '${VERSION}' does not start with 'v'."
+  fi
+}
+
 is_build_available() {
   arch="$1"
   platform="$2"
@@ -452,6 +467,7 @@ fi
 info "Tarball URL: ${UNDERLINE}${BLUE}${URL}${NO_COLOR}"
 confirm "Install Eko ${GREEN}${VERSION}${NO_COLOR} to ${BOLD}${GREEN}${BIN_DIR}${NO_COLOR}?"
 check_bin_dir "${BIN_DIR}"
+check_version
 
 install "${EXT}"
 completed "Eko ${VERSION} installed"
