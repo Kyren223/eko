@@ -57,12 +57,16 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install `zip` on Windows
+      - name: Install zip via Chocolatey (PowerShell)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: pwsh
         run: |
-          choco install zip -y
-          refreshenv  # ensures zip.exe is in PATH for subsequent Bash steps
+          # Install the CLI
+          choco install zip.commandline --no-progress -y
+          # Load the helper module and refresh the environment
+          $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Source)\..\.."
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv  # activates zip in current session
 
       - name: Build binary
         shell: bash
