@@ -55,6 +55,23 @@ in
       type = lib.types.path;
     };
 
+    user = lib.mkOption {
+      description = "Eko user";
+      default = "eko";
+      type = lib.types.str;
+    };
+
+    group = lib.mkOption {
+      description = "Eko group";
+      default = "eko";
+      type = lib.types.str;
+    };
+
+    permission = lib.mkOption {
+      description = "Permission to access dataDir";
+      default = "0750";
+      type = lib.types.str;
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -70,6 +87,10 @@ in
       home = cfg.dataDir;
       group = "eko";
     };
+
+    systemd.tmpfiles.rules = [
+      "d '${cfg.dataDir}' ${cfg.permission} ${cfg.user} ${cfg.group} - -"
+    ];
 
     # Systemd service for eko
     systemd.services.eko = {
@@ -98,14 +119,17 @@ in
         ExecReload = "${pkgs.coreutils}/bin/kill -SIGHUP $MAINPID";
 
         ConfigurationDirectory = "eko";
-        StateDirectory = "eko";
-        StateDirectoryMode = "0700";
+        # StateDirectory = "eko";
+        # StateDirectoryMode = "0700";
+        # Runtime directory and mode
+        RuntimeDirectory = "eko";
+        RuntimeDirectoryMode = cfg.permission;
         LogsDirectory = "eko";
         WorkingDirectory = cfg.dataDir;
         Type = "simple";
 
-        User = "eko";
-        Group = "eko";
+        User = cfg.user;
+        Group = cfg.group;
 
         # Hardening
         ProtectHome = true;
