@@ -114,10 +114,6 @@ in
         HOME = cfg.dataDir;
       };
 
-      preStart = ''
-        systemd-tmpfiles --create
-      '';
-
       serviceConfig = {
         Restart = "on-failure";
         RestartSec = "10s";
