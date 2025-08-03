@@ -57,18 +57,29 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install zip via Chocolatey (PowerShell)
+      - name: Package on Windows (PowerShell)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Install the CLI
-          choco install zip.commandline --no-progress -y
-          # Load the helper module and refresh the environment
-          $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Source)\..\.."
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv  # activates zip in current session
+          $GOARCH = "${{ matrix.target.split('/')[1] }}"
+          $GOOS   = "windows"
+          $BIN    = "eko.exe"
+          $DEST   = "dist/eko-${GOARCH}-$GOOS.zip"
+
+          # Maybe: Compress-Archive -Path $BIN or use Get-ChildItem
+          Compress-Archive -LiteralPath $BIN -DestinationPath $DEST
+
+          # Compute SHA256 checksum – via built-in command or external tool if missing
+          if (Get-Command shasum -ErrorAction SilentlyContinue) {
+            shasum -a 256 $DEST | Out-File "$DEST.sha256" -Encoding ascii
+          } else {
+            # fallback: use PowerShell's Get-FileHash
+            $hash = (Get-FileHash $DEST -Algorithm SHA256).Hash
+            "$hash  $(Split-Path $DEST -Leaf)" | Out-File "$DEST.sha256"
+          }
 
       - name: Build binary
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           TARGET="${{ matrix.target }}"
