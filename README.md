@@ -118,7 +118,7 @@ Build the executable (make sure you have `go` installed)
 cd eko && go build -o ./eko ./cmd/client
 ```
 
-Move the executable to somewhere in your path so you can access it from anywhere
+Optionally move the executable to somewhere in your path so you can access it from anywhere
 
 ## Feedback
 
