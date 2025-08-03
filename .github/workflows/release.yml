@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build release binaries
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux/amd64
+            ext: tar.gz
+          - target: linux/arm64
+            ext: tar.gz
+          - target: linux/386
+            ext: tar.gz
+          - target: linux/arm
+            ext: tar.gz
+          - target: windows/amd64
+            ext: zip
+          - target: windows/386
+            ext: zip
+          - target: windows/arm64
+            ext: zip
+          - target: darwin/amd64
+            ext: tar.gz
+          - target: darwin/arm64
+            ext: tar.gz
+
+    runs-on: ${{ matrix.target == 'darwin/amd64' || matrix.target == 'darwin/arm64' && 'macos-latest' || matrix.target == 'windows/amd64' || matrix.target == 'windows/386' || matrix.target == 'windows/arm64' && 'windows-latest' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build binary
+        run: |
+          GOOS=${{ matrix.target%%/* }}
+          GOARCH=${{ matrix.target##*/ }}
+          BIN=eko
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+
+          mkdir -p dist
+          env GOOS=$GOOS GOARCH=$GOARCH go build -o $BIN$EXT ./cmd/client
+
+          ARCHIVE=dist/${BIN}-${GOARCH}-${GOOS}.${{ matrix.ext }}
+
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            zip -j $ARCHIVE $BIN$EXT
+          else
+            tar -czf $ARCHIVE $BIN$EXT
+          fi
+
+          shasum -a 256 $ARCHIVE > $ARCHIVE.sha256
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -40,14 +40,6 @@ TODO(kyren): create the install.sh and then host it through eko
 curl -sS https://eko.kyren.codes/install.sh | sh
 ```
 
-### Homebrew (MACOS)
-
-TODO(kyren): package for homebrew
-
-```
-brew install eko
-```
-
 ### Winget (Windows)
 
 TODO(kyren): package for winget
