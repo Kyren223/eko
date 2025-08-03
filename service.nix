@@ -90,6 +90,7 @@ in
 
     systemd.tmpfiles.rules = [
       "d '${cfg.dataDir}' ${cfg.permission} ${cfg.user} ${cfg.group} - -"
+      "z '${cfg.dataDir}' ${cfg.permission} ${cfg.user} ${cfg.group} - -"
     ];
 
     # Systemd service for eko
@@ -112,6 +113,10 @@ in
         USER = cfg.user;
         HOME = cfg.dataDir;
       };
+
+      preStart = ''
+        systemd-tmpfiles --create
+      '';
 
       serviceConfig = {
         Restart = "on-failure";
