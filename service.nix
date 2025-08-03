@@ -20,6 +20,12 @@ in
       type = lib.types.package;
     };
 
+    openFirewall = lib.mkOption {
+      description = "Open the ports in the firewall for the server.";
+      default = false;
+      type = lib.types.bool;
+    };
+
     dataDir = lib.mkOption {
       description = "Eko data directory";
       default = "/var/lib/eko";
@@ -52,7 +58,19 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Open port 7223 for eko protocol, 443 for website
+    networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ 7223 443 ];
 
+    # Make sure eko user exists
+    users.groups.eko = { };
+    users.users.eko = {
+      description = "Eko user";
+      createHome = true;
+      home = cfg.dataDir;
+      group = "eko";
+    };
+
+    # Systemd service for eko
     systemd.services.eko = {
       description = "Eko - a secure terminal-native social media platform";
 
@@ -110,12 +128,5 @@ in
       };
     };
 
-    users.groups.eko = { };
-    users.users.eko = {
-      createHome = false;
-      isNormalUser = true;
-      group = "eko";
-    };
   };
-
 }
