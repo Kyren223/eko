@@ -23,6 +23,12 @@ import (
 
 const namespace = "eko"
 
+var BuildInfo = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: namespace,
+	Name:      "build_info",
+	Help:      "Build information of the binary",
+}, []string{"version", "commit", "build_date"})
+
 var RequestsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 	Namespace: namespace,
 	Name:      "requests_processed_total",

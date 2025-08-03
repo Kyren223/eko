@@ -34,8 +34,10 @@ import (
 	"github.com/kyren223/eko/internal/server"
 	"github.com/kyren223/eko/internal/server/api"
 	"github.com/kyren223/eko/internal/server/ctxkeys"
+	"github.com/kyren223/eko/internal/server/metrics"
 	"github.com/kyren223/eko/internal/webserver"
 	"github.com/kyren223/eko/pkg/assert"
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -78,6 +80,12 @@ func main() {
 	handleShutdown(cancel)
 
 	// startPyroscopeProfiling()
+
+	metrics.BuildInfo.With(prometheus.Labels{
+		"version":    embeds.Version,
+		"commit":     embeds.Commit,
+		"build_date": embeds.BuildDate,
+	})
 
 	if ok := reloadTosAndPrivacy(); !ok {
 		return
