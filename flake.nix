@@ -21,7 +21,7 @@
         pkgs = import inputs.nixpkgs {
           inherit system overlays;
         };
-        version = (builtins.readFile ./VERSION);
+        version = (builtins.readFile ./embeds/VERSION);
         buildDate = toString self.lastModified;
         commit = if (builtins.hasAttr "rev" self) then (builtins.substring 0 7 self.rev) else "unknown";
         # vendorHash = pkgs.lib.fakeHash;
@@ -37,7 +37,6 @@
           in
           (if (debug-tracing) then pkgs.lib.sources.trace source-files else source-files);
         ldflags = [
-          "-X github.com/kyren223/eko/embeds.Version=${version}"
           "-X github.com/kyren223/eko/embeds.Commit=${commit}"
           "-X github.com/kyren223/eko/embeds.BuildDate=${buildDate}"
         ];

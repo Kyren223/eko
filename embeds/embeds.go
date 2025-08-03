@@ -21,8 +21,10 @@ import (
 	"sync/atomic"
 )
 
+//go:embed VERSION
+var Version string
+
 var (
-	Version   string = "unknown"
 	Commit    string = "unknown"
 	BuildDate string = "unknown"
 )
