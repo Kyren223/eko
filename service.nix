@@ -82,7 +82,6 @@ in
         StateDirectory = "eko";
         StateDirectoryMode = "0700";
         LogsDirectory = "eko";
-        LogDirectoryMode = "0700";
         WorkingDirectory = cfg.dataDir;
         Type = "simple";
 
