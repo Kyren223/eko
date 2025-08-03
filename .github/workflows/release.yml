@@ -42,8 +42,9 @@ jobs:
 
       - name: Build binary
         run: |
-          GOOS=${{ matrix.target%%/* }}
-          GOARCH=${{ matrix.target##*/ }}
+          TARGET="${{ matrix.target }}"
+          GOOS=$(echo "$TARGET" | cut -d'/' -f1)
+          GOARCH=$(echo "$TARGET" | cut -d'/' -f2)
           BIN=eko
           EXT=""
           if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
