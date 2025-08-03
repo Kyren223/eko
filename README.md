@@ -34,23 +34,17 @@ Make sure to have a [Nerd Font](https://www.nerdfonts.com/) installed and enable
 
 ### Install Latest Version
 
-TODO(kyren): create the install.sh and then host it through eko
-
 ```
 curl -sS https://eko.kyren.codes/install.sh | sh
 ```
 
-### Winget (Windows)
-
-TODO(kyren): package for winget
-
-```
-winget install eko
-```
-
 ### Nix Flake
 
-You know what to do
+There is a flake.nix at the root of this repo, you know what to do.
+
+### Build from source
+
+See [Building from source](#building from source).
 
 ## Usage
 
@@ -78,7 +72,29 @@ For configuration, self hosting and contributing, read below.
 
 ## Configuration
 
-TODO(kyren): add instructions on configuration
+### Server-side Settings
+
+Press `s` to open your user settings, you can change:
+
+- Your username (pseudonym)
+- Your profile description
+- Whether non-trusted users can message you
+
+### Client-side (Local) Settings
+
+The config is stored in a `eko/config.json` in your system config directory.
+This depends on your operating system, press `s` in eko to view the full path.
+
+Local configuration is saved in eko/config.json within your system's config directory.
+This path varies by OS, you can press `s` in eko to see the path.
+
+Configurable options include (but are not limited to):
+
+- Customize colors to create your own theme
+- Enable or disable telemtry
+- Set a default username for login
+- Define the number of spaces per tab
+- Enable or disable screen borders
 
 ### Self-Hosting
 
