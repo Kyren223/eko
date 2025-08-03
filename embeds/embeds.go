@@ -46,3 +46,8 @@ var (
 	PrivacyPolicy  atomic.Value
 	TosPrivacyHash atomic.Value
 )
+
+func init() {
+	// Strip \n from file import
+	Version = Version[:len(Version)-1]
+}

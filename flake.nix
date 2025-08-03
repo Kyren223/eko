@@ -21,7 +21,7 @@
         pkgs = import inputs.nixpkgs {
           inherit system overlays;
         };
-        version = (builtins.readFile ./embeds/VERSION);
+        version = pkgs.lib.strings.removeSuffix "\n" (builtins.readFile ./embeds/VERSION);
         buildDate = toString self.lastModified;
         commit = if (builtins.hasAttr "rev" self) then (builtins.substring 0 7 self.rev) else "unknown";
         # vendorHash = pkgs.lib.fakeHash;
