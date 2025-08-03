@@ -65,6 +65,7 @@ in
     users.groups.eko = { };
     users.users.eko = {
       description = "Eko user";
+      isNormaluser = true;
       createHome = true;
       home = cfg.dataDir;
       group = "eko";
