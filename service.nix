@@ -109,13 +109,15 @@ in
         EKO_SERVER_LOG_DIR = cfg.logDir;
         EKO_SERVER_TOS_FILE = cfg.tosFile;
         EKO_SERVER_PRIVACY_FILE = cfg.privacyFile;
+        USER = cfg.user;
+        HOME = cfg.stateDir;
       };
 
       serviceConfig = {
         Restart = "on-failure";
         RestartSec = "10s";
 
-        ExecStart = "/bin/sh -c '${cfg.package}/bin/eko-server'";
+        ExecStart = "/bin/sh -c 'cd $HOME && ${cfg.package}/bin/eko-server'";
         ExecReload = "${pkgs.coreutils}/bin/kill -SIGHUP $MAINPID";
 
         ConfigurationDirectory = "eko";
