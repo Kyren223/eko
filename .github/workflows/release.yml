@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         goos: [linux, darwin, windows]
-        goarch: [386, amd64, arm64]
+        goarch: ["386", amd64, arm64]
         exclude:
           - goarch: "386"  # darwin/386 not supported
             goos: darwin
@@ -22,14 +22,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set RELEASE_TAG env
+        run: echo RELEASE_TAG=$(echo ${GITHUB_REF}) >> ${GITHUB_ENV}
+
+      - name: Set COMMIT env
+        run: echo COMMIT=$(git rev-parse --short=7 HEAD) >> ${GITHUB_ENV}
+
+      - name: Set BUILD_DATE env
+        run: echo BUILD_DATE=$(date +%s) >> ${GITHUB_ENV}
+
       - uses: wangyoucao577/go-release-action@v1
         with:
-          github_token: ${{ secrets.EKO_RELEASE_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           binary_name: eko
+          ldflags: >
+            -X "github.com/kyren223/eko/embeds.Version=${{ env.RELEASE_TAG }}"
+            -X "github.com/kyren223/eko/embeds.Commit=${{ env.COMMIT }}"
+            -X "github.com/kyren223/eko/embeds.BuildDate=${{ env.BUILD_DATE }}"
           project_path: ./cmd/client
+          asset_name: 'eko-${{ matrix.goos }}-${{ matrix.goarch }}'
+          extra_files: LICENSE README.md
           sha256sum: true
           md5sum: false
           overwrite: true
-          retry: 5
