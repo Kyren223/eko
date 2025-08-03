@@ -44,7 +44,7 @@ There is a flake.nix at the root of this repo, you know what to do.
 
 ### Build from source
 
-See [Building from source](#building from source).
+See [Building from source](#building-from-source).
 
 ## Usage
 
