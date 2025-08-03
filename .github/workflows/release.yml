@@ -57,6 +57,13 @@ jobs:
         with:
           go-version: stable
 
+      - name: Install `zip` on Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          choco install zip -y
+          refreshenv  # ensures zip.exe is in PATH for subsequent Bash steps
+
       - name: Build binary
         shell: bash
         run: |
