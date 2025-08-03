@@ -110,7 +110,7 @@ in
         EKO_SERVER_TOS_FILE = cfg.tosFile;
         EKO_SERVER_PRIVACY_FILE = cfg.privacyFile;
         USER = cfg.user;
-        HOME = cfg.stateDir;
+        HOME = cfg.dataDir;
       };
 
       serviceConfig = {
