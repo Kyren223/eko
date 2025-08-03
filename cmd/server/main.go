@@ -85,7 +85,7 @@ func main() {
 		"version":    embeds.Version,
 		"commit":     embeds.Commit,
 		"build_date": embeds.BuildDate,
-	})
+	}).Set(1)
 
 	if ok := reloadTosAndPrivacy(); !ok {
 		return
