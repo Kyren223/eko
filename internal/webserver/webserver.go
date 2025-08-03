@@ -60,6 +60,16 @@ func ServeEkoWebsite() {
 
 	publicMux := http.NewServeMux()
 
+	publicMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://github.com/kyren223/eko", http.StatusFound)
+	})
+
+	publicMux.HandleFunc("/install.sh", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/x-sh")
+		_, err := io.WriteString(w, embeds.Installer)
+		assert.NoError(err, "installer should be valid")
+	})
+
 	publicMux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		_, err := w.Write([]byte(css))
@@ -99,7 +109,7 @@ func ServeEkoWebsite() {
 }
 
 func writeLegalLayoutHtml(w io.Writer, html string) {
-	fmt.Fprintf(w, `
+	_, err := fmt.Fprintf(w, `
 		<!DOCTYPE html>
 		<html>
 		<head>
@@ -116,6 +126,7 @@ func writeLegalLayoutHtml(w io.Writer, html string) {
 		</body>
 		</html>
 		`, html)
+	assert.NoError(err, "html *should* be valid")
 }
 
 func mdToHTML(md string) string {

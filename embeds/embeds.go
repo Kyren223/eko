@@ -27,6 +27,9 @@ var (
 	BuildDate string = "unknown"
 )
 
+//go:embed install.sh
+var Installer string
+
 //go:embed server.crt
 var ServerCertificate []byte
 
