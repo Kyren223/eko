@@ -37,7 +37,7 @@ type Cache struct {
 func DefaultCache() Cache {
 	return Cache{
 		TosHashes: map[string]string{},
-		DeviceID:  "",
+		DeviceID:  GenerateDeviceID(),
 	}
 }
 
