@@ -51,16 +51,16 @@ const (
 var prod = true
 
 func main() {
+	buildDate := embeds.BuildDate
+	if buildDate != "unknown" {
+		t, err := strconv.ParseInt(buildDate, 10, 64)
+		if err == nil {
+			buildDate = time.Unix(t, 0).Format("2006-01-02")
+		}
+	}
 	if len(os.Args) > 1 && os.Args[1] == "-v" {
 		fmt.Println("version:", embeds.Version)
 		fmt.Println("commit:", embeds.Commit)
-		buildDate := embeds.BuildDate
-		if buildDate != "unknown" {
-			t, err := strconv.ParseInt(buildDate, 10, 64)
-			if err == nil {
-				buildDate = time.Unix(t, 0).Format("2006-01-02")
-			}
-		}
 		fmt.Println("build date:", buildDate)
 		return
 	}
@@ -84,7 +84,7 @@ func main() {
 	metrics.BuildInfo.With(prometheus.Labels{
 		"version":    embeds.Version,
 		"commit":     embeds.Commit,
-		"build_date": embeds.BuildDate,
+		"build_date": buildDate,
 	}).Set(1)
 
 	if ok := reloadTosAndPrivacy(); !ok {
