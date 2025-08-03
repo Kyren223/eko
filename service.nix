@@ -85,6 +85,7 @@ in
       isNormalUser = true;
       createHome = true;
       home = cfg.dataDir;
+      homeMode = cfg.permission;
       group = "eko";
     };
 
@@ -113,14 +114,12 @@ in
         Restart = "on-failure";
         RestartSec = "10s";
 
-        ExecStart = "/bin/sh -c 'ls && cd $HOME && ls && ${cfg.package}/bin/eko-server'";
+        ExecStart = "/bin/sh -c '${cfg.package}/bin/eko-server'";
         ExecReload = "${pkgs.coreutils}/bin/kill -SIGHUP $MAINPID";
 
         ConfigurationDirectory = "eko";
-        # StateDirectory = "eko";
-        # StateDirectoryMode = cfg.permission;
-        # RuntimeDirectory = "eko";
-        # RuntimeDirectoryMode = cfg.permission;
+        StateDirectory = "eko";
+        StateDirectoryMode = cfg.permission;
         LogsDirectory = "eko";
         WorkingDirectory = cfg.dataDir;
         Type = "simple";
