@@ -58,6 +58,9 @@
 
               echo "running ci..."
 
+              bash tools/copyright.sh --check
+              echo "Copyrigh check passed"
+
               test -z "$(go fmt ./...)"
               echo "formatting passed"
 
@@ -81,7 +84,7 @@
             version = version;
             vendorHash = vendorHash;
             src = src;
-            buildInputs = [ pkgs.goose pkgs.go-tools pkgs.gosec ];
+            buildInputs = with pkgs; [ goose go-tools gosec ];
             ldflags = ldflags;
             modRoot = "./.";
             subPackages = [ "cmd/server" ];
@@ -90,6 +93,9 @@
               export HOME=$(mktemp -d) # For staticheck
 
               echo "running ci..."
+
+              bash tools/copyright.sh --check
+              echo "Copyrigh check passed"
 
               test -z "$(go fmt ./...)"
               echo "formatting passed"
