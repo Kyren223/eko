@@ -1,4 +1,4 @@
-// Eko: A terminal based social media platform
+// Eko: A terminal-native social media platform
 // Copyright (C) 2025 Kyren223
 //
 // This program is free software: you can redistribute it and/or modify
