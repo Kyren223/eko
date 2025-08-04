@@ -57,7 +57,7 @@ Use an existing SSH ed25519 key (e.g `~/.ssh/id_ed25519`) or specify a new
 path to generate one.
 
 By default, you will connect to the official instance.
-For self hosting, see [Self Hosting](#self-hosting).
+For self hosting, see [Self Hosting](./SELFHOSTING.md).
 
 Press `?` to see available keybindings.
 They are inspired by vim and should feel intuitive.
@@ -95,10 +95,6 @@ Configurable options include (but are not limited to):
 - Set a default username for login
 - Define the number of spaces per tab
 - Enable or disable screen borders
-
-### Self-Hosting
-
-TODO(kyren): add instructions on self-hosting
 
 ## Contributing
 

@@ -160,7 +160,9 @@ func setupLogging() {
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-	slog.SetLogLoggerLevel(level) // TODO: remove me after fully migrating to slog
+
+	// NOTE(kyren): needed for libraries like goose that use normal log
+	slog.SetLogLoggerLevel(level)
 
 	slog.Info("logging handler ready")
 

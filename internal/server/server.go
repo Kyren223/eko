@@ -453,9 +453,6 @@ func processRequest(ctx context.Context, sess *session.Session, request packet.P
 
 	assert.Assert(sess.IsTosAccepted(), "justified paranoia") // Just in case
 
-	// TODO: add a way to measure the time each request/response took and log it
-	// Potentially even separate time for code vs DB operations
-
 	var response packet.Payload
 
 	if sess.IsAuthenticated() {
