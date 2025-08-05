@@ -11,8 +11,6 @@
 
 The Discord alternative for Terminal nerds.
 
-TODO(kyren): replace screenshot with tape (or have both?)
-
 <p>
     <img src="./assets/eko-screenshot.png" width="100%" alt="Eko Showcase">
 </p>

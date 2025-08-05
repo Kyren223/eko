@@ -27,7 +27,7 @@ import (
 
 const (
 	// Epoch is set to the twitter snowflake epoch of Nov 04 2010 01:42:54 UTC in milliseconds
-	// TODO: change this to eko epoch when eko is production ready
+	// TODO(kyren): change this to eko epoch when eko is production ready
 	Epoch     int64 = 1288834974657
 	nodeBits        = 10
 	stepBits        = 12

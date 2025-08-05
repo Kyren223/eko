@@ -405,7 +405,7 @@ func (m *Model) handleKeys(key tea.KeyMsg) {
 		m.handleNormalModeKeys(key)
 		m.Save()
 	case InsertMode:
-		// Note: we don't want to save on insert mode
+		// NOTE(kyren): we don't want to save on insert mode
 		// That'd mean it'd save on every keystroke which will
 		// be very annoying
 		m.handleInsertModeKeys(key)
@@ -582,7 +582,7 @@ func (m *Model) handleNormalModeKeys(key tea.KeyMsg) {
 				runeLines = append(runeLines, []rune(line))
 			}
 
-			// Note: caps to line length, needed for len=0 col=0
+			// NOTE(kyren): caps to line length, needed for len=0 col=0
 			splittingCol := min(m.cursorColumn+1, len(line))
 			line := m.lines[m.cursorLine]
 			after := line[splittingCol:]
@@ -696,12 +696,12 @@ func (m *Model) handleInsertModeKeys(key tea.KeyMsg) {
 		return
 	}
 
-	// Note: commented out because enter is used to send a message
+	// NOTE(kyren): commented out because enter is used to send a message
 	// even in insert mode, an alternative that discord uses is
 	// to use Shift+Enter for this functionality but unfortunately
 	// this is not supported in bubbletea (probably due to terminal limitations)
-	// If there is a way to add this for Shift+Enter please notify me
-	// at Kyren223@proton.me
+	// If there is a way to add this for Shift+Enter please open an issue
+	// or a pull request and notify me, or email Kyren223@proton.me
 
 	// if key.Type == tea.KeyEnter {
 	// 	line := m.lines[m.cursorLine]
@@ -1946,7 +1946,7 @@ func (m *Model) handleVisualModeKeys(key tea.KeyMsg) {
 		if motion == "p" {
 			m.Yank(copyOfPaste) // Restore
 		}
-		// Note: we don't restore for "P" because we use it like
+		// NOTE(kyren): we don't restore for "P" because we use it like
 		// <leader>p (we paste over and keep what we had)
 		// Shift+P in visual mode is pretty useless/uncommon
 		// So using that instead of adding <leader>p makes more sense
@@ -2066,7 +2066,7 @@ func (m *Model) handleVisualLineModeKeys(key tea.KeyMsg) {
 			if motion == "p" {
 				m.Yank(copyOfPaste) // Restore
 			}
-			// Note: we don't restore for "P" because we use it like
+			// NOTE(kyren): we don't restore for "P" because we use it like
 			// <leader>p (we paste over and keep what we had)
 			// Shift+P in visual mode is pretty useless/uncommon
 			// So using that instead of adding <leader>p makes more sense

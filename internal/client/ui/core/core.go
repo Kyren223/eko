@@ -180,7 +180,6 @@ func (m Model) View() string {
 		return m.tos.View()
 
 	case ConnectedAcceptedTos:
-		// TODO(kyren): auth
 		return m.loading.View()
 
 	case Authenticated:

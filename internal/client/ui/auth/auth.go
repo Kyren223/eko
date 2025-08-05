@@ -98,8 +98,8 @@ ___] | |__] | \|    | | \|`)
 )
 
 func init() {
-	// HACK: to avoid a circular dependency, so core can transition to this
-	// I don't like how go has this issue, I would rather slower compilations
+	// HACK(kyren): to avoid a circular dependency
+	// so core can transition to this model
 	ui.NewAuth = func() tea.Model {
 		return New()
 	}
@@ -159,7 +159,7 @@ func New() Model {
 
 	m.SetSignup(false)
 
-	m.Update(nil) // HACK: force an update
+	m.Update(nil) // HACK(kyren): force an update
 
 	return m
 }

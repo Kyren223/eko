@@ -362,7 +362,7 @@ func (server *server) handleConnection(conn net.Conn) {
 		slog.InfoContext(ctx, "processor done")
 	}()
 
-	// NOTE: IMPROTANT LEGAL STUFF
+	// NOTE(kyren): IMPROTANT LEGAL STUFF
 	// Sending this first thing, before client sends us any data
 	sendTosInfo(ctx, sess)
 
@@ -552,15 +552,10 @@ func timeout[T packet.Payload](
 	apiRequest func(context.Context, *session.Session, T) packet.Payload,
 	ctx context.Context, sess *session.Session, request T,
 ) packet.Payload {
-	// TODO(kyren): Remove the channel and just wait directly?
-	// No - We need to use a channel so timeout works properly
+	// NOTE(kyren): We need to use a channel so timeout works properly
 	responseChan := make(chan packet.Payload)
 
-	// TODO: Check if this is now fixed after the rewrite:
-	// currently just ignoring the given context
-	// this fixes the issue where the client disconnects so the server
-	// doesn't bother and cancels the request
-	ctx, cancel := context.WithTimeout(ctx, timeoutDuration) // no longer ignoring
+	ctx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()
 
 	go func() {
@@ -607,7 +602,7 @@ func TokensPerRequest(requestType packet.PacketType) float64 {
 	case packet.PacketDeviceAnalytics:
 		return 0.2 // arbitrary
 
-	// TODO: once I get more data for these, add them
+	// TODO(kyren): once I get more data for these, add them
 	case packet.PacketBlockUser:
 	case packet.PacketCreateFrequency:
 	case packet.PacketCreateNetwork:

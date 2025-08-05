@@ -212,7 +212,7 @@ func UpdateMessages(info *packet.MessagesInfo) {
 		Users: unknownUsers,
 	})
 
-	// Note: this is a naive approach
+	// NOTE(kyren): this is a naive approach
 	// Ideally we check each message that was added/removed
 	// For the frequency/receiver/sender id and only remove that
 	// But it can be very slow when there are thousands of messages
@@ -340,7 +340,7 @@ func UpdateNotifications(info *packet.NotificationsInfo) []snowflake.ID {
 
 			// When someone messages you, and you don't have a signal with him
 			// already, add a signal with him so you see his messages
-			// PERF: IsFrequency is expensive so contains is checked first
+			// PERF(kyren): IsFrequency is expensive so contains is checked first
 			if !slices.Contains(Data.Signals, source) && !IsFrequency(source) {
 				signals = append(signals, source)
 			}
@@ -402,42 +402,6 @@ func SendFinalData() {
 	case <-done:
 		log.Println("All final writes completed successfully")
 	}
-
-	// HACK: Give a small grace period for the writes to be processed
-	// Tweak this value as needed
-	// time.Sleep(20 * time.Millisecond)
-
-	// TODO:
-	// I think the issue is that it's random which of these 2 requests goes
-	// first (bcz it only does the first request after the client disconnects)
-	// I could fix it server side but eh maybe not
-	// this should instead use a method that blocks until a response was
-	// received, which may need a new gateway method to do that as currently
-	// it just always sends to the prograg
-	// If this is tedious enough it might be worth it to just do it on the
-	// server side
-
-	// Also later on I should probably remove the calculate notifs in core
-	// it can be replaced with just diff-ing incoming notifs
-	// this will most likely work fine although there are some issues with
-	// scopes like becoming an admin/no longer being admin or gaining
-	// or losing access to frequencies and of course msg deletions
-	// But it's probably the right approach (also WAYYYYYY faster)
-
-	// Then there is also the issue of when switching to a frequency
-	// not yet receiving the history so it says "no keep" bcz it's not loaded
-	// but with history it would've said "yes keep" so the solutin would
-	// be to rework it quite a bit to make it stateless or smthing
-	// Then that should be most issues when it comes to notifications
-	// just need to make sure local/remote notifs reset properly when
-	// reaching the bottom
-
-	// log.Println("BLOCKING...")
-	// <-ctx.Done()
-	// log.Println("CTX DANZO")
-
-	// TODO: remove this before release
-	// assert.NoError(ctx.Err(), "context has ran out of time!")
 }
 
 func UpdateBlockedUsers(info *packet.BlockInfo) {

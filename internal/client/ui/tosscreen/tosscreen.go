@@ -128,10 +128,10 @@ func (m *Model) updateContent() {
 		glamour.WithWordWrap(lineWidth),
 	)
 	content := m.content
-	content = strings.ReplaceAll(content, "@", "") // HACK: workaround to remove mailto links
+	content = strings.ReplaceAll(content, "@", "") // HACK(kyren): workaround to remove mailto links
 	content, err := r.Render(content)
 	assert.NoError(err, "this should never error")
-	content = strings.ReplaceAll(content, "", "@") // HACK: workaround to remove mailto links
+	content = strings.ReplaceAll(content, "", "@") // HACK(kyren): workaround to remove mailto links
 	m.vp.SetContent(content)
 }
 

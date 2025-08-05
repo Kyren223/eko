@@ -589,7 +589,7 @@ func DeleteNetwork(ctx context.Context, sess *session.Session, request *packet.D
 		return &ErrInternalError
 	}
 
-	// NOTE: important check, make sure they are the owner (authorized)
+	// NOTE(kyren): important check, make sure they are the owner (authorized)
 	if network.OwnerID != sess.ID() {
 		return &ErrPermissionDenied
 	}
@@ -1148,7 +1148,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 		return &ErrInternalError
 	}
 
-	// Note: it is possible to edit your messages in any context
+	// NOTE(kyren): it is possible to edit your messages in any context
 	// regardless if you are in the network or if you have access to
 	// the frequency (or a user signal), as long as you know the message ID
 	// This should be fine but may be changed later to be more strict
@@ -1640,7 +1640,7 @@ func Authenticate(ctx context.Context, sess *session.Session, request *packet.Au
 
 	sess.Manager().AddSession(sess, user.ID, request.PubKey)
 
-	// NOTE: as per the protocol, this must be the first message after auth
+	// NOTE(kyren): as per the protocol, this must be the first message after auth
 	payload := &packet.UsersInfo{Users: []data.User{user}}
 	ok := sess.Write(ctx, payload)
 	if !ok {
