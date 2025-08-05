@@ -180,11 +180,11 @@ func (m Model) View() string {
 		return m.tos.View()
 
 	case ConnectedAcceptedTos:
-		// TODO: auth
+		// TODO(kyren): auth
 		return m.loading.View()
 
 	case Authenticated:
-		// Continue
+		// NOTE(kyren): Continue
 
 	default:
 		panic(fmt.Sprintf("unexpected core.State: %#v", m.state))
@@ -303,8 +303,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ConnectedReceivedTos:
 		fallthrough
 	case ConnectedAcceptedTos:
+		var lcmd tea.Cmd
+		m.loading, lcmd = m.loading.Update(msg)
 		cmd := m.updateConnected(msg)
-		return m, cmd
+		return m, tea.Batch(cmd, lcmd)
 
 	case Authenticated:
 		cmd := m.updateAuthenticated(msg)
