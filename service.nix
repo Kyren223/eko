@@ -111,7 +111,7 @@ in
       };
 
       serviceConfig = {
-        Restart = "on-failure";
+        Restart = "no";
         RestartSec = "10s";
 
         ExecStart = "/bin/sh -c '${cfg.package}/bin/eko-server'";

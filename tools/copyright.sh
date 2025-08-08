@@ -22,7 +22,7 @@ LICENSE_HEADER_TEMPLATE="// Eko: A terminal-native social media platform
 // along with this program.  If not, see <https://www.gnu.org/licenses/>."
 
 # List of paths to exclude (files or directories)
-EXCLUDE_PATHS=("internal/data" "tools/test_rate_limit.go")
+EXCLUDE_PATHS=("internal/data" "tools/test_rate_limit.go" "vendor")
 
 MODIFIED=false
 CHECK_MODE=false
