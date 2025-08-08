@@ -227,12 +227,12 @@ func MdStyle() ansi.StyleConfig {
 			Unticked:       "[ ] ",
 		},
 		Link: ansi.StylePrimitive{
-			Color:   stringPtr(colors.Purple),
-			Bold:    boolPtr(true),
+			Color: stringPtr(colors.Purple),
+			Bold:  boolPtr(true),
 		},
 		LinkText: ansi.StylePrimitive{
-			Color:   stringPtr(colors.Gold),
-			Bold:    boolPtr(true),
+			Color: stringPtr(colors.Gold),
+			Bold:  boolPtr(true),
 		},
 		Image: ansi.StylePrimitive{
 			Color:     stringPtr(colors.Purple),
