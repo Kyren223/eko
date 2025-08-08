@@ -15,6 +15,8 @@ The Discord alternative for Terminal nerds.
     <img src="./assets/eko-screenshot.png" width="100%" alt="Eko Showcase">
 </p>
 
+Don't forget to ⭐ the repo!
+
 ## Features
 
 - 🟢 Vim-style navigation and editing
@@ -62,7 +64,7 @@ They are inspired by vim and should feel intuitive.
 
 To ask questions, suggest features, or chat with the community,
 it's recommended to join the official server.  
-To do so press `a` while focused on the network list and paste `<invite code>` into it.
+To do so press `a` while focused on the network list and paste `7660950781952` into it.
 
 And that's it!
 
@@ -119,7 +121,7 @@ Optionally move the executable to somewhere in your path so you can access it fr
 I’d love to hear your thoughts on this project.
 Reach me via:
 
-- Eko: `<My ID>` (focus the Signal pane, press `a` and paste)
+- Eko: `2102554263552` (focus the Signal pane, press `a` and paste)
 - Discord: Kyren223
 
 ## Licenses

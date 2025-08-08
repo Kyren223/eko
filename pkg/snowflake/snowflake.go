@@ -75,9 +75,9 @@ func NewNode(node int64) *Node {
 	assert.Assert(nodeBits+stepBits == 22, "node and step bits must add up to 22")
 	assert.Assert(0 <= node && node <= NodeMax, "node must be within 0 and NodeMax", "node", node)
 
-	// Credit to https://github.com/bwmarrin/snowflake
+	// NOTE(kyren): Credit to https://github.com/bwmarrin/snowflake
 	currentTime := time.Now()
-	// add time.Duration to curTime to make sure we use the monotonic clock if available
+	// add time.Duration to currentTime to make sure we use the monotonic clock if available
 	epoch := currentTime.Add(time.Unix(Epoch/1000, (Epoch%1000)*1000000).Sub(currentTime))
 
 	return &Node{
