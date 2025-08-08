@@ -1,6 +1,6 @@
 # Contributing
 
-**First off, thank you for your support! **
+**First off, thank you for your support!**
 
 Here are some best practices to contribute to Eko:
 
