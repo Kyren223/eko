@@ -129,10 +129,15 @@ func SplitMembersAndUsers(membersAndUsers []data.GetNetworkMembersRow) ([]data.M
 func UserPropagate(
 	ctx context.Context, sess *session.Session,
 	userId snowflake.ID, payload packet.Payload,
+	errorOnNil bool,
 ) packet.Payload {
 	session := sess.Manager().Session(userId)
 	if session == nil {
-		slog.ErrorContext(ctx, "propagation failed", ctxkeys.UserID.String(), userId, "reason", "session is nil")
+		if errorOnNil {
+			slog.ErrorContext(ctx, "propagation failed", ctxkeys.UserID.String(), userId, "reason", "session is nil")
+		} else {
+			slog.InfoContext(ctx, "propagation failed", ctxkeys.UserID.String(), userId, "reason", "session is nil")
+		}
 		return payload
 	}
 	timeout := 1 * time.Second

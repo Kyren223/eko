@@ -217,7 +217,7 @@ func SendMessage(ctx context.Context, sess *session.Session, request *packet.Sen
 		return UserPropagate(ctx, sess, user.ID, &packet.MessagesInfo{
 			Messages:        []data.Message{message},
 			RemovedMessages: nil,
-		})
+		}, false)
 	}
 
 	assert.Never("already checked in the first line for the case where both are nil")
@@ -769,7 +769,7 @@ func SetMember(ctx context.Context, sess *session.Session, request *packet.SetMe
 		if newMember.UserID == sess.ID() {
 			return networksInfoPayload
 		} else {
-			UserPropagate(ctx, sess, newMember.UserID, networksInfoPayload)
+			UserPropagate(ctx, sess, newMember.UserID, networksInfoPayload, true)
 			return membersInfoPayload
 		}
 	}
@@ -1117,7 +1117,7 @@ func DeleteMessage(ctx context.Context, sess *session.Session, request *packet.D
 		return UserPropagate(ctx, sess, *message.ReceiverID, &packet.MessagesInfo{
 			Messages:        nil,
 			RemovedMessages: []snowflake.ID{message.ID},
-		})
+		}, false)
 	}
 
 	assert.Never("unreachable")
@@ -1197,7 +1197,7 @@ func EditMessage(ctx context.Context, sess *session.Session, request *packet.Edi
 		return UserPropagate(ctx, sess, *message.ReceiverID, &packet.MessagesInfo{
 			Messages:        []data.Message{editedMessage},
 			RemovedMessages: nil,
-		})
+		}, false)
 	}
 
 	assert.Never("unreachable")
@@ -1494,7 +1494,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			RemovedBlockedUsers:  nil,
 			BlockingUsers:        []snowflake.ID{sess.ID()},
 			RemovedBlockingUsers: nil,
-		})
+		}, false)
 
 		return &packet.BlockInfo{
 			BlockedUsers:         []snowflake.ID{user.ID},
@@ -1534,7 +1534,7 @@ func BlockUser(ctx context.Context, sess *session.Session, request *packet.Block
 			RemovedBlockedUsers:  nil,
 			BlockingUsers:        nil,
 			RemovedBlockingUsers: []snowflake.ID{sess.ID()},
-		})
+		}, false)
 
 		return &packet.BlockInfo{
 			BlockedUsers:         nil,
