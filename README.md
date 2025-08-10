@@ -96,6 +96,14 @@ Configurable options include (but are not limited to):
 - Define the number of spaces per tab
 - Enable or disable screen borders
 
+## 🤝 Donations
+
+If you like the project and want to show your support, starring it and telling about it to others
+is the biggest help.
+
+If you wish to support me financially, you can make a 1-time donation or a monthly donation
+over on [my patreon](https://patreon.com/kyren223).
+
 ## Contributing
 
 See [contributing](https://github.com/kyren223/eko/blob/master/CONTRIBUTING.md)
