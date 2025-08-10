@@ -101,7 +101,7 @@ Configurable options include (but are not limited to):
 If you like the project and want to show your support, starring it and telling about it to others
 is the biggest help.
 
-If you wish to support me financially, you can make a 1-time donation or a monthly donation
+If you wish to support me financially, you can make a one-time donation or a monthly donation
 over on [my patreon](https://patreon.com/kyren223).
 
 ## Contributing
